@@ -1,0 +1,33 @@
+# CMake build output
+/build/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+compile_commands.json
+Testing/
+
+# Qt generated files
+*_autogen/
+*.qm
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# Qt Creator local state
+*.user
+*.user.*
+
+# IDE and editor state
+.idea/
+.vscode/
+
+# Operating system and temporary files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+*.log
