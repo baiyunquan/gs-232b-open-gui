@@ -34,7 +34,8 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
 
     m_networkMode = new QRadioButton(tr("Network"), this);
     m_networkMode->setObjectName(QStringLiteral("networkMode"));
-    m_address = new QLineEdit(QStringLiteral("ws://192.168.1.50/ws/gs232b"), this);
+    m_address = new QLineEdit(QStringLiteral("192.168.1.50"), this);
+    // TODO: 按命令种类自动选择控制或管理 WebSocket 路径；完成条件：两类命令均路由到对应路径。
     m_address->setObjectName(QStringLiteral("websocketAddress"));
     layout->addWidget(m_networkMode, 2, 0);
     layout->addWidget(m_address, 2, 1);
