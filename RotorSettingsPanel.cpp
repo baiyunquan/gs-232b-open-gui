@@ -3,7 +3,9 @@
 #include <QButtonGroup>
 #include <QComboBox>
 #include <QGroupBox>
+#include <QGridLayout>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QPushButton>
 #include <QVBoxLayout>
 
@@ -46,10 +48,36 @@ RotorSettingsPanel::RotorSettingsPanel(QWidget *parent) : QWidget(parent)
         speedLayout->addWidget(button);
     }
     layout->addWidget(m_speed);
+
+    auto *calibrationGroup = new QGroupBox(tr("CALIBRATION"), this);
+    auto *calibrationLayout = new QGridLayout(calibrationGroup);
+    m_azimuthZero = new QPushButton(tr("Azimuth zero"), calibrationGroup);
+    m_azimuthZero->setObjectName(QStringLiteral("azimuthZeroCalibration"));
+    m_elevationZero = new QPushButton(tr("Elevation zero"), calibrationGroup);
+    m_elevationZero->setObjectName(QStringLiteral("elevationZeroCalibration"));
+    calibrationLayout->addWidget(m_azimuthZero, 0, 0);
+    calibrationLayout->addWidget(m_elevationZero, 0, 1);
+    auto *zeroNote = new QLabel(
+        tr("Set the rotator azimuth and elevation to 0 degrees, then click the corresponding button to calibrate the zero point."),
+        calibrationGroup);
+    zeroNote->setWordWrap(true);
+    calibrationLayout->addWidget(zeroNote, 1, 0, 1, 2);
+    auto *fullScaleNote = new QLabel(
+        tr("Move the rotator to full scale and adjust its potentiometer until the displayed angle matches the applicable full scale: 360, 450, or 180 degrees."),
+        calibrationGroup);
+    fullScaleNote->setWordWrap(true);
+    calibrationLayout->addWidget(fullScaleNote, 2, 0, 1, 2);
+    layout->addWidget(calibrationGroup);
+    connect(m_azimuthZero, &QPushButton::clicked,
+            this, &RotorSettingsPanel::azimuthZeroCalibrationRequested);
+    connect(m_elevationZero, &QPushButton::clicked,
+            this, &RotorSettingsPanel::elevationZeroCalibrationRequested);
+
     layout->addStretch(1);
     setCommandEnabled(false);
     // TODO: 连接后查询 ROTOR GET 并按轴能力更新控制面板；速度按钮发送 X1 至 X4。
     // TODO: 型号写入使用 ROTOR SET；提示重启后生效，并在 WS 写入前按需认证管理会话。
+    // TODO: 两个校准按钮接入对应零点命令的确认交互；满量程调节直接观察主界面角度显示，不增加独立监视命令入口。
 }
 
 void RotorSettingsPanel::setCommandEnabled(bool enabled)
@@ -57,4 +85,6 @@ void RotorSettingsPanel::setCommandEnabled(bool enabled)
     m_model->setEnabled(enabled);
     m_apply->setEnabled(enabled);
     m_speed->setEnabled(enabled);
+    m_azimuthZero->setEnabled(enabled);
+    m_elevationZero->setEnabled(enabled);
 }

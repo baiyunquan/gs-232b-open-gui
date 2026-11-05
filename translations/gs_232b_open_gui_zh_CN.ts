@@ -271,6 +271,26 @@
             <source>AZIMUTH SPEED</source>
             <translation>方位速度</translation>
         </message>
+        <message>
+            <source>CALIBRATION</source>
+            <translation>校准</translation>
+        </message>
+        <message>
+            <source>Azimuth zero</source>
+            <translation>方位零点校准</translation>
+        </message>
+        <message>
+            <source>Elevation zero</source>
+            <translation>俯仰零点校准</translation>
+        </message>
+        <message>
+            <source>Set the rotator azimuth and elevation to 0 degrees, then click the corresponding button to calibrate the zero point.</source>
+            <translation>先将旋转器的方位角和俯仰角转到 0°，再点击对应按钮执行零点校准。</translation>
+        </message>
+        <message>
+            <source>Move the rotator to full scale and adjust its potentiometer until the displayed angle matches the applicable full scale: 360, 450, or 180 degrees.</source>
+            <translation>将旋转器转到满量程，调节旋转器上的电位器，直到角度正确显示为对应的满量程：360°、450°或 180°。</translation>
+        </message>
     </context>
     <context>
         <name>WifiProvisioningDialog</name>
