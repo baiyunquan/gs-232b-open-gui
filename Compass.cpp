@@ -1,5 +1,6 @@
 #include "Compass.h"
 
+#include <QMouseEvent>
 #include <QPainter>
 #include <QtMath>
 
@@ -45,5 +46,23 @@ void Compass::paintEvent(QPaintEvent *)
     painter.setBrush(needle);
     painter.setPen(Qt::NoPen);
     painter.drawEllipse(QPointF(), 3, 3);
-    // TODO: 接入罗盘选角与定位请求；实测指针仍只由设备反馈更新。
+}
+
+void Compass::mousePressEvent(QMouseEvent *event)
+{
+    if (event->button() != Qt::LeftButton || !isEnabled()) {
+        QWidget::mousePressEvent(event);
+        return;
+    }
+
+    const QPointF offset = event->position() - QPointF(width() / 2.0, height() / 2.0);
+    if (qSqrt(offset.x() * offset.x() + offset.y() * offset.y()) > qMin(width(), height()) * 0.43) {
+        QWidget::mousePressEvent(event);
+        return;
+    }
+
+    int degrees = qRound(qRadiansToDegrees(qAtan2(offset.x(), -offset.y())));
+    if (degrees < 0)
+        degrees += 360;
+    emit angleRequested(degrees);
 }

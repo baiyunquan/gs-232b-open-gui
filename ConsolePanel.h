@@ -25,6 +25,10 @@ public slots:
     void appendSent(const QByteArray &bytes);
     /** @brief 将传输错误追加到终端，不伪装成设备响应。 */
     void appendError(const QString &error);
+    /** @brief 将外部工具输出追加到终端，使用独立标记避免冒充设备数据。 */
+    void appendProcessOutput(const QByteArray &bytes);
+    /** @brief 将应用状态消息追加到终端，不标记成设备收发或错误。 */
+    void appendNotice(const QString &message);
 
 signals:
     /** @brief 用户请求发送一行命令，具体编码由传输协议模块负责。 */

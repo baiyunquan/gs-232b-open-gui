@@ -69,9 +69,41 @@
             <source>CONTROL</source>
             <translation>控制</translation>
         </message>
+        <message>
+            <source>Edit azimuth preset (AI)</source>
+            <translation>编辑方位预设 (AI)</translation>
+        </message>
+        <message>
+            <source>Azimuth angle (AI)</source>
+            <translation>方位角 (AI)</translation>
+        </message>
+        <message>
+            <source>Edit elevation preset (AI)</source>
+            <translation>编辑仰角预设 (AI)</translation>
+        </message>
+        <message>
+            <source>Elevation angle (AI)</source>
+            <translation>仰角 (AI)</translation>
+        </message>
+        <message>
+            <source>Right-click to edit this preset (AI)</source>
+            <translation>右键可编辑此预设 (AI)</translation>
+        </message>
     </context>
     <context>
         <name>FirmwareUpgradeDialog</name>
+        <message>
+            <source>No serial ports found (AI)</source>
+            <translation>未找到串口 (AI)</translation>
+        </message>
+        <message>
+            <source>Invalid firmware image (AI)</source>
+            <translation>固件镜像无效 (AI)</translation>
+        </message>
+        <message>
+            <source>Firmware image must be a non-empty .bin file no larger than 3 MB. (AI)</source>
+            <translation>固件镜像必须是非空的 .bin 文件，且大小不超过 3 MB。(AI)</translation>
+        </message>
         <message>
             <location filename="../FirmwareUpgradeDialog.cpp" line="16" />
             <source>Firmware upgrade</source>
@@ -233,6 +265,74 @@
             <location filename="../MainWindow.cpp" line="130" />
             <source>OK</source>
             <translation>确定</translation>
+        </message>
+        <message>
+            <source>Move the azimuth to the counter-clockwise limit, then continue. (AI)</source>
+            <translation>请将方位转到逆时针限位后继续。(AI)</translation>
+        </message>
+        <message>
+            <source>Move the elevation to 0 degrees, then continue. (AI)</source>
+            <translation>请将仰角转到 0 度后继续。(AI)</translation>
+        </message>
+        <message>
+            <source>Direct device commands are disabled in Virtual COM mode. (AI)</source>
+            <translation>虚拟串口模式下不发送直接设备命令。(AI)</translation>
+        </message>
+        <message>
+            <source>Calibration confirmation (AI)</source>
+            <translation>确认校准 (AI)</translation>
+        </message>
+        <message>
+            <source>Confirm calibration (AI)</source>
+            <translation>确认校准操作 (AI)</translation>
+        </message>
+        <message>
+            <source>The device is ready to store this calibration point. Continue? (AI)</source>
+            <translation>设备已准备保存此校准点。是否继续？(AI)</translation>
+        </message>
+        <message>
+            <source>Firmware flashing process failed to start. (AI)</source>
+            <translation>固件烧录进程启动失败。(AI)</translation>
+        </message>
+        <message>
+            <source>Firmware flashing completed. (AI)</source>
+            <translation>固件烧录完成。(AI)</translation>
+        </message>
+        <message>
+            <source>Firmware flashing failed with exit code %1. (AI)</source>
+            <translation>固件烧录失败，退出码为 %1。(AI)</translation>
+        </message>
+        <message>
+            <source>Wi-Fi configuration failed: %1 (AI)</source>
+            <translation>Wi-Fi 配置失败：%1 (AI)</translation>
+        </message>
+        <message>
+            <source>Device did not return a Wi-Fi candidate ID. (AI)</source>
+            <translation>设备未返回 Wi-Fi 候选配置 ID。(AI)</translation>
+        </message>
+        <message>
+            <source>Device did not return a Wi-Fi trial ID. (AI)</source>
+            <translation>设备未返回 Wi-Fi 试运行 ID。(AI)</translation>
+        </message>
+        <message>
+            <source>Confirm Wi-Fi configuration (AI)</source>
+            <translation>确认 Wi-Fi 配置 (AI)</translation>
+        </message>
+        <message>
+            <source>The new Wi-Fi network is connected and has an IP address. Confirm and save it? (AI)</source>
+            <translation>新的 Wi-Fi 网络已连接并取得 IP 地址。是否确认并保存？(AI)</translation>
+        </message>
+        <message>
+            <source>Management authentication failed. (AI)</source>
+            <translation>管理认证失败。(AI)</translation>
+        </message>
+        <message>
+            <source>Wi-Fi trial timed out; the device will roll it back. (AI)</source>
+            <translation>Wi-Fi 试运行超时，设备将回滚配置。(AI)</translation>
+        </message>
+        <message>
+            <source>Wi-Fi configuration saved. (AI)</source>
+            <translation>Wi-Fi 配置已保存。(AI)</translation>
         </message>
     </context>
     <context>

@@ -15,8 +15,13 @@ public:
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
 
+signals:
+    /** @brief 用户点击罗盘后请求定位到该方位。 */
+    void angleRequested(int degrees);
+
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
 
 private:
     int m_angle = 0;

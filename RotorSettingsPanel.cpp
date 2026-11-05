@@ -47,6 +47,9 @@ RotorSettingsPanel::RotorSettingsPanel(QWidget *parent) : QWidget(parent)
         speeds->addButton(button, speed);
         speedLayout->addWidget(button);
     }
+    connect(speeds, &QButtonGroup::idClicked, this, [this](int speed) {
+        emit commandRequested(QStringLiteral("X%1").arg(speed));
+    });
     layout->addWidget(m_speed);
 
     auto *calibrationGroup = new QGroupBox(tr("CALIBRATION"), this);
@@ -75,9 +78,6 @@ RotorSettingsPanel::RotorSettingsPanel(QWidget *parent) : QWidget(parent)
 
     layout->addStretch(1);
     setCommandEnabled(false);
-    // TODO: 连接后查询 ROTOR GET 并按轴能力更新控制面板；速度按钮发送 X1 至 X4。
-    // TODO: 型号写入使用 ROTOR SET；提示重启后生效，并在 WS 写入前按需认证管理会话。
-    // TODO: 两个校准按钮接入对应零点命令的确认交互；满量程调节直接观察主界面角度显示，不增加独立监视命令入口。
 }
 
 void RotorSettingsPanel::setCommandEnabled(bool enabled)
@@ -87,4 +87,9 @@ void RotorSettingsPanel::setCommandEnabled(bool enabled)
     m_speed->setEnabled(enabled);
     m_azimuthZero->setEnabled(enabled);
     m_elevationZero->setEnabled(enabled);
+}
+
+int RotorSettingsPanel::selectedModelId() const
+{
+    return m_model->currentData().toInt();
 }

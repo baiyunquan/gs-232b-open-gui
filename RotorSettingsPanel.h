@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QString>
 #include <QWidget>
 
 class QComboBox;
@@ -17,8 +18,12 @@ public:
     explicit RotorSettingsPanel(QWidget *parent = nullptr);
     /** @brief 按实际连接和透传状态统一切换命令控件。 */
     void setCommandEnabled(bool enabled);
+    /** @return 当前下拉框选择的固件型号 ID。 */
+    int selectedModelId() const;
 
 signals:
+    /** @brief 用户通过速度控件请求发送一条 GS-232B 命令。 */
+    void commandRequested(const QString &command);
     /** @brief 用户请求写入所选型号；网络传输的管理认证由宿主窗口按需处理。 */
     void modelApplyRequested();
     /** @brief 用户请求方位零点校准。 */

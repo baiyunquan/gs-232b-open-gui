@@ -11,13 +11,40 @@
 #include <QApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
+#include <QMessageBox>
+#include <QProcess>
 #include <QPushButton>
+#include <QRegularExpression>
+#include <QSerialPortInfo>
 #include <QStatusBar>
+#include <QTimer>
 #include <QVBoxLayout>
+
+namespace {
+
+QString managementAuthCommand(const QString &token)
+{
+    QJsonObject request;
+    request.insert(QStringLiteral("token"), token);
+    return QStringLiteral("!SESSION AUTH %1")
+        .arg(QString::fromUtf8(QJsonDocument(request).toJson(QJsonDocument::Compact)));
+}
+
+QString modelSetCommand(int modelId)
+{
+    QJsonObject request;
+    request.insert(QStringLiteral("model_id"), modelId);
+    return QStringLiteral("!ROTOR SET %1")
+        .arg(QString::fromUtf8(QJsonDocument(request).toJson(QJsonDocument::Compact)));
+}
+
+} // namespace
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
@@ -50,6 +77,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     setCentralWidget(central);
 
     m_transport = new Communication::Transport(this);
+    m_positionPollTimer = new QTimer(this);
+    m_positionPollTimer->setInterval(1000);
+    m_wifiTrialPollTimer = new QTimer(this);
+    m_wifiTrialPollTimer->setInterval(1000);
+    m_calibrationTimeoutTimer = new QTimer(this);
+    m_calibrationTimeoutTimer->setSingleShot(true);
+    m_calibrationTimeoutTimer->setInterval(60000);
 
     m_connectionStatus = new QLabel(this);
     m_connectionStatus->setObjectName(QStringLiteral("connectionStatus"));
@@ -68,13 +102,29 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(m_transport, &Communication::Transport::connected, this, [this] {
         m_connection->setConnecting(false);
         m_connection->setConnected(true);
+        if (!m_connection->isVirtualComEnabled()) {
+            sendControlCommand(QStringLiteral("C2"));
+            m_positionPollTimer->start();
+        }
     });
     connect(m_transport, &Communication::Transport::disconnected, this, [this] {
         m_connection->setConnecting(false);
         m_connection->setConnected(false);
+        m_positionPollTimer->stop();
+        m_wifiTrialPollTimer->stop();
+        m_calibrationTimeoutTimer->stop();
+        m_receiveBuffer.clear();
+        m_pendingCalibrationCommand.clear();
+        m_wifiConfigurationStage = WifiConfigurationStage::Idle;
+        m_pendingWifiPassword.clear();
+        m_pendingManagementToken.clear();
+        m_managementAuthenticated = false;
+        m_pendingManagementContinuation = {};
     });
     connect(m_transport, &Communication::Transport::bytesReceived,
             m_console, &ConsolePanel::appendReceived);
+    connect(m_transport, &Communication::Transport::bytesReceived,
+            this, &MainWindow::handleReceivedBytes);
     connect(m_transport, &Communication::Transport::bytesSent,
             m_console, &ConsolePanel::appendSent);
     connect(m_transport, &Communication::Transport::errorOccurred, this,
@@ -84,10 +134,50 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             });
     connect(m_console, &ConsolePanel::commandRequested, this,
             [this](const QString &command) {
-                m_transport->sendCommand(command);
+                sendControlCommand(command);
             });
+    connect(m_control, &ControlPanel::commandRequested,
+            this, [this](const QString &command) { sendControlCommand(command); });
+    connect(m_settings, &RotorSettingsPanel::commandRequested,
+            this, [this](const QString &command) { sendControlCommand(command); });
     connect(m_settings, &RotorSettingsPanel::modelApplyRequested,
             this, &MainWindow::applyRotorModel);
+    connect(m_settings, &RotorSettingsPanel::azimuthZeroCalibrationRequested,
+            this, [this] {
+                requestCalibration(
+                    QStringLiteral("O"),
+                    tr("Move the azimuth to the counter-clockwise limit, then continue. (AI)"));
+            });
+    connect(m_settings, &RotorSettingsPanel::elevationZeroCalibrationRequested,
+            this, [this] {
+                requestCalibration(
+                    QStringLiteral("O2"),
+                    tr("Move the elevation to 0 degrees, then continue. (AI)"));
+            });
+    connect(m_positionPollTimer, &QTimer::timeout, this, [this] {
+        sendControlCommand(QStringLiteral("C2"));
+    });
+    connect(m_wifiTrialPollTimer, &QTimer::timeout, this, [this] {
+        if (m_wifiConfigurationStage != WifiConfigurationStage::AwaitRuntime ||
+            m_pendingWifiTrial < 0) {
+            m_wifiTrialPollTimer->stop();
+            return;
+        }
+        if (++m_wifiTrialPollCount > 300) {
+            m_wifiTrialPollTimer->stop();
+            m_console->appendError(tr("Wi-Fi trial timed out; the device will roll it back. (AI)"));
+            m_wifiConfigurationStage = WifiConfigurationStage::Idle;
+            m_pendingWifiSsid.clear();
+            m_pendingWifiPassword.clear();
+            return;
+        }
+        sendControlCommand(QStringLiteral("!NET GET"), true);
+    });
+    connect(m_calibrationTimeoutTimer, &QTimer::timeout, this, [this] {
+        m_pendingCalibrationCommand.clear();
+        if (m_transport->isOpen())
+            m_positionPollTimer->start();
+    });
     updateConnectionState();
 }
 
@@ -121,6 +211,10 @@ void MainWindow::updateConnectionState()
     m_settings->setCommandEnabled(commandEnabled);
     m_wifiAction->setEnabled(!virtualCom);
     m_upgradeAction->setEnabled(!virtualCom);
+    if (commandEnabled)
+        m_positionPollTimer->start();
+    else
+        m_positionPollTimer->stop();
     m_connectionStatus->setText(m_connection->isConnected() ? tr("Connected") : tr("Disconnected"));
     m_transportStatus->setText(m_connection->isNetworkMode() ? tr("WebSocket") : tr("Serial"));
     if (!m_connection->isConnected())
@@ -150,8 +244,9 @@ void MainWindow::openWifiProvisioning()
 {
     auto *dialog = new WifiProvisioningDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setConnectionState(m_connection->isConnected() && !m_connection->isVirtualComEnabled(),
-                               m_connection->isNetworkMode());
+    connect(dialog, &WifiProvisioningDialog::configurationRequested,
+            this, &MainWindow::configureWifi);
+    dialog->setConnectionState(m_connection->isConnected() && !m_connection->isVirtualComEnabled());
     dialog->open();
 }
 
@@ -159,6 +254,8 @@ void MainWindow::openFirmwareUpgrade()
 {
     auto *dialog = new FirmwareUpgradeDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
+    connect(dialog, &FirmwareUpgradeDialog::flashRequested,
+            this, &MainWindow::flashFirmware);
     dialog->open();
 }
 
@@ -182,10 +279,369 @@ void MainWindow::openAbout()
 
 void MainWindow::applyRotorModel()
 {
+    const QString command = modelSetCommand(m_settings->selectedModelId());
     if (m_connection->isNetworkMode()) {
-        auto *dialog = new ManagementKeyDialog(this);
-        dialog->setAttribute(Qt::WA_DeleteOnClose);
-        dialog->open();
+        openManagementKey([this, command] { sendControlCommand(command); });
+        return;
     }
-    // TODO: UART 直接提交 ROTOR SET；网络已认证会话直接提交，否则按需认证后再提交。
+    sendControlCommand(command);
+}
+
+void MainWindow::flashFirmware(const QString &port, const QString &file)
+{
+    if (port.isEmpty() || file.isEmpty())
+        return;
+
+    if (!m_connection->isNetworkMode() &&
+        m_connection->connectionOptions().serialPort == port && m_transport->isOpen())
+        closeTransport();
+
+    auto *process = new QProcess(this);
+    process->setProcessChannelMode(QProcess::MergedChannels);
+    connect(process, &QProcess::readyReadStandardOutput, this, [this, process] {
+        const QByteArray output = process->readAllStandardOutput();
+        if (!output.isEmpty())
+            m_console->appendProcessOutput(output);
+    });
+    connect(process, &QProcess::errorOccurred, this,
+            [this, process](QProcess::ProcessError error) {
+                m_console->appendError(tr("Firmware flashing process failed to start. (AI)"));
+                if (error == QProcess::FailedToStart)
+                    process->deleteLater();
+    });
+    connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
+            this, [this, process](int exitCode, QProcess::ExitStatus status) {
+                if (status == QProcess::NormalExit && exitCode == 0) {
+                    m_console->appendNotice(tr("Firmware flashing completed. (AI)"));
+                } else {
+                    m_console->appendError(
+                        tr("Firmware flashing failed with exit code %1. (AI)").arg(exitCode));
+                }
+                process->deleteLater();
+            });
+
+    const QStringList arguments = {
+        QStringLiteral("--chip"), QStringLiteral("esp32c3"),
+        QStringLiteral("--port"), port,
+        QStringLiteral("--baud"), QStringLiteral("460800"),
+        QStringLiteral("write-flash"), QStringLiteral("0x10000"), file};
+    process->start(QStringLiteral("esptool"), arguments);
+}
+
+void MainWindow::sendControlCommand(const QString &command, bool sensitive)
+{
+    if (command.trimmed().isEmpty() || !m_transport->isOpen())
+        return;
+    if (m_connection->isVirtualComEnabled()) {
+        m_console->appendError(tr("Direct device commands are disabled in Virtual COM mode. (AI)"));
+        return;
+    }
+    const bool redact = sensitive || command.trimmed().startsWith(QLatin1Char('!'));
+    m_transport->sendCommand(command, !redact);
+}
+
+void MainWindow::requestCalibration(const QString &command, const QString &question)
+{
+    if (!m_transport->isOpen() || m_connection->isVirtualComEnabled())
+        return;
+    if (QMessageBox::question(this, tr("Calibration confirmation (AI)"), question,
+                              QMessageBox::Ok | QMessageBox::Cancel,
+                              QMessageBox::Ok) == QMessageBox::Ok) {
+        m_pendingCalibrationCommand = command;
+        m_positionPollTimer->stop();
+        m_calibrationTimeoutTimer->start();
+        sendControlCommand(command);
+    }
+}
+
+void MainWindow::openManagementKey(const std::function<void()> &continuation,
+                                   const std::function<void()> &cancelled)
+{
+    if (m_managementAuthenticated) {
+        continuation();
+        return;
+    }
+
+    auto *dialog = new ManagementKeyDialog(this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    connect(dialog, &QDialog::accepted, this, [this, dialog, continuation] {
+        const QString token = dialog->key();
+        if (token.isEmpty())
+            return;
+        m_pendingManagementToken = token;
+        m_pendingManagementContinuation = continuation;
+        sendControlCommand(managementAuthCommand(token), true);
+    });
+    connect(dialog, &QDialog::rejected, this, [cancelled] {
+        if (cancelled)
+            cancelled();
+    });
+    dialog->open();
+}
+
+void MainWindow::configureWifi(const QString &ssid, const QString &password)
+{
+    if (ssid.isEmpty() || !m_transport->isOpen() || m_connection->isVirtualComEnabled())
+        return;
+
+    m_pendingWifiSsid = ssid;
+    m_pendingWifiPassword = password;
+    m_pendingWifiCandidate = -1;
+    m_pendingWifiRevision = -1;
+    m_pendingWifiTrial = -1;
+
+    const auto begin = [this] {
+        m_wifiConfigurationStage = WifiConfigurationStage::AwaitBegin;
+        sendControlCommand(QStringLiteral("!CFG BEGIN"), true);
+    };
+    const auto cancel = [this] {
+        m_pendingWifiSsid.clear();
+        m_pendingWifiPassword.clear();
+        m_wifiConfigurationStage = WifiConfigurationStage::Idle;
+    };
+    if (m_connection->isNetworkMode())
+        openManagementKey(begin, cancel);
+    else
+        begin();
+}
+
+void MainWindow::handleReceivedBytes(const QByteArray &bytes)
+{
+    m_receiveBuffer.append(bytes);
+    constexpr qsizetype maximumBuffer = 64 * 1024;
+    if (m_receiveBuffer.size() > maximumBuffer) {
+        m_receiveBuffer.clear();
+        return;
+    }
+
+    qsizetype newline = -1;
+    while ((newline = m_receiveBuffer.indexOf('\n')) >= 0) {
+        const QByteArray line = m_receiveBuffer.left(newline);
+        m_receiveBuffer.remove(0, newline + 1);
+        handleManagementResponse(line);
+
+        const QString text = QString::fromUtf8(line).trimmed();
+        if (!m_pendingCalibrationCommand.isEmpty() &&
+            text.contains(QStringLiteral("are you sure?"), Qt::CaseInsensitive)) {
+            const auto answer = QMessageBox::question(
+                this, tr("Confirm calibration (AI)"),
+                tr("The device is ready to store this calibration point. Continue? (AI)"),
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+            if (answer == QMessageBox::Yes) {
+                sendControlCommand(QStringLiteral("YES"));
+                m_calibrationTimeoutTimer->start();
+            } else {
+                sendControlCommand(QStringLiteral("NO"));
+                m_pendingCalibrationCommand.clear();
+                m_calibrationTimeoutTimer->stop();
+                if (m_transport->isOpen())
+                    m_positionPollTimer->start();
+            }
+        } else if (!m_pendingCalibrationCommand.isEmpty() &&
+                   (text.contains(QStringLiteral("Completed"), Qt::CaseInsensitive) ||
+                    text.startsWith(QStringLiteral("?>")))) {
+            m_pendingCalibrationCommand.clear();
+            m_calibrationTimeoutTimer->stop();
+            if (m_transport->isOpen())
+                m_positionPollTimer->start();
+        }
+        static const QRegularExpression azimuthElevation(
+            QStringLiteral("^AZ\\s*=\\s*(\\d{1,3})\\s+EL\\s*=\\s*(\\d{1,3})$"));
+        static const QRegularExpression azimuthOnly(
+            QStringLiteral("^AZ\\s*=\\s*(\\d{1,3})$"));
+        static const QRegularExpression elevationOnly(
+            QStringLiteral("^EL\\s*=\\s*(\\d{1,3})$"));
+        const auto azElMatch = azimuthElevation.match(text);
+        if (azElMatch.hasMatch()) {
+            m_control->setPosition(azElMatch.captured(1).toInt(),
+                                   azElMatch.captured(2).toInt());
+        } else if (const auto azMatch = azimuthOnly.match(text); azMatch.hasMatch()) {
+            m_control->setPosition(azMatch.captured(1).toInt(), m_control->elevation());
+        } else if (const auto elMatch = elevationOnly.match(text); elMatch.hasMatch()) {
+            m_control->setPosition(m_control->azimuth(), elMatch.captured(1).toInt());
+        }
+    }
+}
+
+void MainWindow::handleManagementResponse(const QByteArray &line)
+{
+    const QByteArray trimmed = line.trimmed();
+    if (!trimmed.startsWith('!'))
+        return;
+
+    QJsonParseError parseError;
+    const QJsonDocument document =
+        QJsonDocument::fromJson(trimmed.mid(1), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject())
+        return;
+
+    const QJsonObject response = document.object();
+    const QString command = response.value(QStringLiteral("cmd")).toString().toUpper();
+    if (!response.value(QStringLiteral("ok")).toBool() &&
+        response.value(QStringLiteral("error")).toString() == QStringLiteral("NOT_AUTHORIZED")) {
+        m_managementAuthenticated = false;
+        m_pendingManagementToken.clear();
+    }
+    if (command == QStringLiteral("SESSION AUTH")) {
+        m_managementAuthenticated = response.value(QStringLiteral("ok")).toBool();
+        m_pendingManagementToken.clear();
+        if (m_managementAuthenticated) {
+            const auto continuation = m_pendingManagementContinuation;
+            m_pendingManagementContinuation = {};
+            if (continuation)
+                continuation();
+        } else {
+            m_pendingManagementContinuation = {};
+            m_console->appendError(tr("Management authentication failed. (AI)"));
+            m_wifiConfigurationStage = WifiConfigurationStage::Idle;
+            m_pendingWifiSsid.clear();
+            m_pendingWifiPassword.clear();
+            return;
+        }
+    }
+
+    if (m_wifiConfigurationStage == WifiConfigurationStage::Idle)
+        return;
+
+    QString expectedCommand;
+    switch (m_wifiConfigurationStage) {
+    case WifiConfigurationStage::AwaitBegin: expectedCommand = QStringLiteral("CFG BEGIN"); break;
+    case WifiConfigurationStage::AwaitSet: expectedCommand = QStringLiteral("NET SET"); break;
+    case WifiConfigurationStage::AwaitCheck: expectedCommand = QStringLiteral("CFG CHECK"); break;
+    case WifiConfigurationStage::AwaitApply: expectedCommand = QStringLiteral("CFG APPLY"); break;
+    case WifiConfigurationStage::AwaitRuntime: expectedCommand = QStringLiteral("NET GET"); break;
+    case WifiConfigurationStage::AwaitConfirm: expectedCommand = QStringLiteral("CFG CONFIRM"); break;
+    case WifiConfigurationStage::AwaitAbort: expectedCommand = QStringLiteral("CFG ABORT"); break;
+    case WifiConfigurationStage::Idle: return;
+    }
+    if (command != expectedCommand)
+        return;
+
+    if (!response.value(QStringLiteral("ok")).toBool()) {
+        m_console->appendError(
+            tr("Wi-Fi configuration failed: %1 (AI)")
+                .arg(response.value(QStringLiteral("error")).toString()));
+        m_wifiTrialPollTimer->stop();
+        m_wifiConfigurationStage = WifiConfigurationStage::Idle;
+        m_pendingWifiSsid.clear();
+        m_pendingWifiPassword.clear();
+        return;
+    }
+
+    const QJsonObject data = response.value(QStringLiteral("data")).toObject();
+    if (m_wifiConfigurationStage == WifiConfigurationStage::AwaitBegin &&
+        command == QStringLiteral("CFG BEGIN")) {
+        m_pendingWifiCandidate = data.value(QStringLiteral("candidate_id")).toInteger(-1);
+        m_pendingWifiRevision = data.value(QStringLiteral("base_revision")).toInteger(-1);
+        if (m_pendingWifiCandidate < 0) {
+            m_console->appendError(tr("Device did not return a Wi-Fi candidate ID. (AI)"));
+            m_wifiConfigurationStage = WifiConfigurationStage::Idle;
+            m_pendingWifiSsid.clear();
+            m_pendingWifiPassword.clear();
+            return;
+        }
+
+        QJsonObject wifi;
+        wifi.insert(QStringLiteral("enabled"), true);
+        wifi.insert(QStringLiteral("ssid"), m_pendingWifiSsid);
+        wifi.insert(QStringLiteral("password"), m_pendingWifiPassword);
+        wifi.insert(QStringLiteral("security"), m_pendingWifiPassword.isEmpty()
+                                                    ? QStringLiteral("open")
+                                                    : QStringLiteral("auto"));
+        QJsonObject request;
+        request.insert(QStringLiteral("wifi"), wifi);
+        m_wifiConfigurationStage = WifiConfigurationStage::AwaitSet;
+        sendControlCommand(QStringLiteral("!NET SET %1")
+                               .arg(QString::fromUtf8(
+                                   QJsonDocument(request).toJson(QJsonDocument::Compact))), true);
+        return;
+    }
+
+    if (m_wifiConfigurationStage == WifiConfigurationStage::AwaitSet &&
+        command == QStringLiteral("NET SET")) {
+        m_pendingWifiPassword.clear();
+        m_wifiConfigurationStage = WifiConfigurationStage::AwaitCheck;
+        sendControlCommand(QStringLiteral("!CFG CHECK"), true);
+        return;
+    }
+
+    if (m_wifiConfigurationStage == WifiConfigurationStage::AwaitCheck &&
+        command == QStringLiteral("CFG CHECK")) {
+        QJsonObject request;
+        request.insert(QStringLiteral("candidate_id"), m_pendingWifiCandidate);
+        if (m_pendingWifiRevision >= 0)
+            request.insert(QStringLiteral("revision"), m_pendingWifiRevision);
+        request.insert(QStringLiteral("timeout_s"), 300);
+        m_wifiConfigurationStage = WifiConfigurationStage::AwaitApply;
+        sendControlCommand(QStringLiteral("!CFG APPLY %1")
+                               .arg(QString::fromUtf8(
+                                   QJsonDocument(request).toJson(QJsonDocument::Compact))), true);
+        return;
+    }
+
+    if (m_wifiConfigurationStage == WifiConfigurationStage::AwaitApply &&
+        command == QStringLiteral("CFG APPLY")) {
+        m_pendingWifiTrial = data.value(QStringLiteral("trial_id")).toInteger(-1);
+        if (m_pendingWifiTrial < 0) {
+            m_console->appendError(tr("Device did not return a Wi-Fi trial ID. (AI)"));
+            m_wifiConfigurationStage = WifiConfigurationStage::Idle;
+            m_pendingWifiSsid.clear();
+            m_pendingWifiPassword.clear();
+            return;
+        }
+
+        m_wifiConfigurationStage = WifiConfigurationStage::AwaitRuntime;
+        m_wifiTrialPollCount = 0;
+        m_wifiTrialPollTimer->start();
+        sendControlCommand(QStringLiteral("!NET GET"), true);
+        return;
+    }
+
+    if (m_wifiConfigurationStage == WifiConfigurationStage::AwaitRuntime &&
+        command == QStringLiteral("NET GET")) {
+        const QJsonObject runtime = data.value(QStringLiteral("runtime")).toObject();
+        const QJsonObject wifi = runtime.value(QStringLiteral("wifi")).toObject();
+        if (!wifi.value(QStringLiteral("connected")).toBool() ||
+            !wifi.value(QStringLiteral("ipv4_valid")).toBool() ||
+            wifi.value(QStringLiteral("ssid")).toString() != m_pendingWifiSsid)
+            return;
+
+        m_wifiTrialPollTimer->stop();
+        m_wifiConfigurationStage = WifiConfigurationStage::AwaitConfirm;
+        const auto answer = QMessageBox::question(
+            this, tr("Confirm Wi-Fi configuration (AI)"),
+            tr("The new Wi-Fi network is connected and has an IP address. Confirm and save it? (AI)"),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+        if (answer == QMessageBox::Yes) {
+            QJsonObject request;
+            request.insert(QStringLiteral("trial_id"), m_pendingWifiTrial);
+            sendControlCommand(QStringLiteral("!CFG CONFIRM %1")
+                                   .arg(QString::fromUtf8(
+                                       QJsonDocument(request).toJson(QJsonDocument::Compact))), true);
+        } else {
+            QJsonObject request;
+            request.insert(QStringLiteral("trial_id"), m_pendingWifiTrial);
+            m_wifiConfigurationStage = WifiConfigurationStage::AwaitAbort;
+            sendControlCommand(QStringLiteral("!CFG ABORT %1")
+                                   .arg(QString::fromUtf8(
+                                       QJsonDocument(request).toJson(QJsonDocument::Compact))), true);
+        }
+        return;
+    }
+
+    if (m_wifiConfigurationStage == WifiConfigurationStage::AwaitAbort &&
+        command == QStringLiteral("CFG ABORT")) {
+        m_wifiConfigurationStage = WifiConfigurationStage::Idle;
+        m_pendingWifiSsid.clear();
+        m_pendingWifiPassword.clear();
+        return;
+    }
+
+    if (m_wifiConfigurationStage == WifiConfigurationStage::AwaitConfirm &&
+        command == QStringLiteral("CFG CONFIRM")) {
+        m_wifiConfigurationStage = WifiConfigurationStage::Idle;
+        m_pendingWifiSsid.clear();
+        m_pendingWifiPassword.clear();
+        m_console->appendNotice(tr("Wi-Fi configuration saved. (AI)"));
+    }
 }

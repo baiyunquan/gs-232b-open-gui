@@ -58,10 +58,10 @@ public:
     WebSocketEndpoint endpoint() const;
 
 public slots:
-    /** @brief 将一行控制台命令编码后发送。 */
-    bool sendCommand(const QString &command);
-    /** @brief 发送已编码的原始字节。 */
-    bool sendBytes(const QByteArray &bytes);
+    /** @brief 将一行命令编码后发送；敏感命令可关闭收发日志回显。 */
+    bool sendCommand(const QString &command, bool reportAsSent = true);
+    /** @brief 发送已编码的原始字节；reportAsSent 为 false 时不发 bytesSent。 */
+    bool sendBytes(const QByteArray &bytes, bool reportAsSent = true);
 
 signals:
     /** @brief 底层连接已真正建立。 */

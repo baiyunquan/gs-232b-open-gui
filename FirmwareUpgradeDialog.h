@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QDialog>
+#include <QString>
 
 class QComboBox;
 class QLineEdit;
@@ -14,6 +15,10 @@ class FirmwareUpgradeDialog final : public QDialog
 public:
     /** @brief 创建独立升级窗口；不会枚举设备或执行烧录。 */
     explicit FirmwareUpgradeDialog(QWidget *parent = nullptr);
+
+signals:
+    /** @brief 用户确认烧录后请求主窗口执行下载工具。 */
+    void flashRequested(const QString &port, const QString &file);
 
 private:
     void selectFirmware();

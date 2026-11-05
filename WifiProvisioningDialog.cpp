@@ -1,5 +1,4 @@
 #include "WifiProvisioningDialog.h"
-#include "ManagementKeyDialog.h"
 
 #include <QDialogButtonBox>
 #include <QLabel>
@@ -14,21 +13,21 @@ WifiProvisioningDialog::WifiProvisioningDialog(QWidget *parent) : QDialog(parent
     setWindowModality(Qt::WindowModal);
     resize(440, 250);
     auto *layout = new QVBoxLayout(this);
-    auto *ssid = new QLineEdit(this);
-    ssid->setObjectName(QStringLiteral("wifiSsid"));
-    ssid->setPlaceholderText(tr("SSID"));
+    m_ssid = new QLineEdit(this);
+    m_ssid->setObjectName(QStringLiteral("wifiSsid"));
+    m_ssid->setPlaceholderText(tr("SSID"));
     auto *ssidLabel = new QLabel(tr("Wi-Fi network"), this);
-    ssidLabel->setBuddy(ssid);
+    ssidLabel->setBuddy(m_ssid);
     layout->addWidget(ssidLabel);
-    layout->addWidget(ssid);
-    auto *password = new QLineEdit(this);
-    password->setObjectName(QStringLiteral("wifiPassword"));
-    password->setEchoMode(QLineEdit::Password);
-    password->setPlaceholderText(tr("Password"));
+    layout->addWidget(m_ssid);
+    m_password = new QLineEdit(this);
+    m_password->setObjectName(QStringLiteral("wifiPassword"));
+    m_password->setEchoMode(QLineEdit::Password);
+    m_password->setPlaceholderText(tr("Password"));
     auto *passwordLabel = new QLabel(tr("Wi-Fi password"), this);
-    passwordLabel->setBuddy(password);
+    passwordLabel->setBuddy(m_password);
     layout->addWidget(passwordLabel);
-    layout->addWidget(password);
+    layout->addWidget(m_password);
     layout->addWidget(new QLabel(tr("2.4 GHz"), this));
     layout->addStretch(1);
     auto *buttons = new QDialogButtonBox(this);
@@ -39,18 +38,19 @@ WifiProvisioningDialog::WifiProvisioningDialog(QWidget *parent) : QDialog(parent
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(m_configure, &QPushButton::clicked, this, [this] {
-        if (m_networkMode) {
-            auto *key = new ManagementKeyDialog(this);
-            key->setAttribute(Qt::WA_DeleteOnClose);
-            key->open();
-        }
-        // TODO: 通过 PROV/CFG 配网流程接入扫描、试运行和手动确认；UART 无需密钥。
-        // TODO: 网络写入仅在尚未认证时请求管理密钥，连接和只读查询均不索要密钥。
+        emit configurationRequested(m_ssid->text().trimmed(), m_password->text());
     });
+    connect(m_ssid, &QLineEdit::textChanged, this, &WifiProvisioningDialog::updateControls);
+    connect(m_password, &QLineEdit::textChanged, this, &WifiProvisioningDialog::updateControls);
 }
 
-void WifiProvisioningDialog::setConnectionState(bool commandEnabled, bool networkMode)
+void WifiProvisioningDialog::setConnectionState(bool commandEnabled)
 {
-    m_configure->setEnabled(commandEnabled);
-    m_networkMode = networkMode;
+    m_commandEnabled = commandEnabled;
+    updateControls();
+}
+
+void WifiProvisioningDialog::updateControls()
+{
+    m_configure->setEnabled(m_commandEnabled && !m_ssid->text().trimmed().isEmpty());
 }

@@ -57,6 +57,30 @@ void ConsolePanel::appendError(const QString &error)
     m_lineStart = true;
 }
 
+void ConsolePanel::appendProcessOutput(const QByteArray &bytes)
+{
+    if (bytes.isEmpty())
+        return;
+
+    QString text = QString::fromLocal8Bit(bytes);
+    text.replace(QStringLiteral("\r\n"), QStringLiteral("\n"));
+    text.replace(QChar('\r'), QChar('\n'));
+    if (m_lineStart)
+        m_output->insertPlainText(QStringLiteral("# "));
+    m_output->insertPlainText(text);
+    m_lineStart = text.endsWith(QChar('\n'));
+    m_output->ensureCursorVisible();
+}
+
+void ConsolePanel::appendNotice(const QString &message)
+{
+    if (!m_lineStart)
+        m_output->insertPlainText(QStringLiteral("\n"));
+    m_output->insertPlainText(QStringLiteral("* ") + message + QStringLiteral("\n"));
+    m_output->ensureCursorVisible();
+    m_lineStart = true;
+}
+
 void ConsolePanel::requestCommand()
 {
     const QString command = m_input->text();

@@ -7,8 +7,8 @@ namespace Communication {
 
 namespace {
 
-constexpr QLatin1StringView kGs232bPath("/gs232b");
-constexpr QLatin1StringView kManagePath("/manage");
+constexpr QLatin1StringView kGs232bPath("/ws/gs232b");
+constexpr QLatin1StringView kManagePath("/ws/manage");
 
 QLatin1StringView endpointPath(WebSocketEndpoint endpoint)
 {
@@ -136,11 +136,11 @@ WebSocketEndpoint Transport::endpoint() const
     return m_options.endpoint;
 }
 
-bool Transport::sendCommand(const QString &command)
+bool Transport::sendCommand(const QString &command, bool reportAsSent)
 {
     const QByteArray bytes = encodeCommand(command);
     if (m_options.kind != TransportKind::WebSocket)
-        return sendBytes(bytes);
+        return sendBytes(bytes, reportAsSent);
     if (!m_open) {
         reportError(QStringLiteral("Transport is not connected"));
         return false;
@@ -151,11 +151,12 @@ bool Transport::sendCommand(const QString &command)
         reportError(QStringLiteral("WebSocket send failed"));
         return false;
     }
-    emit bytesSent(bytes);
+    if (reportAsSent)
+        emit bytesSent(bytes);
     return true;
 }
 
-bool Transport::sendBytes(const QByteArray &bytes)
+bool Transport::sendBytes(const QByteArray &bytes, bool reportAsSent)
 {
     if (!m_open) {
         reportError(QStringLiteral("Transport is not connected"));
@@ -167,7 +168,8 @@ bool Transport::sendBytes(const QByteArray &bytes)
             reportError(m_serial->errorString());
             return false;
         }
-        emit bytesSent(bytes);
+        if (reportAsSent)
+            emit bytesSent(bytes);
         return true;
     }
 
@@ -175,7 +177,8 @@ bool Transport::sendBytes(const QByteArray &bytes)
         reportError(QStringLiteral("WebSocket send failed"));
         return false;
     }
-    emit bytesSent(bytes);
+    if (reportAsSent)
+        emit bytesSent(bytes);
     return true;
 }
 

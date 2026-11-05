@@ -1,6 +1,9 @@
 #pragma once
 
 #include <QDialog>
+#include <QString>
+
+class QLineEdit;
 
 /** @brief 仅在具体管理写入需要认证时打开的独立密钥窗口。 */
 class ManagementKeyDialog final : public QDialog
@@ -10,4 +13,9 @@ class ManagementKeyDialog final : public QDialog
 public:
     /** @brief 创建密码回显的密钥输入视图；不在连接时自动调用。 */
     explicit ManagementKeyDialog(QWidget *parent = nullptr);
+    /** @return 用户输入的当前会话管理 token。 */
+    QString key() const;
+
+private:
+    QLineEdit *m_key;
 };

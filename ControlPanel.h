@@ -1,10 +1,12 @@
 #pragma once
 
 #include <QGroupBox>
+#include <QString>
 
 class Compass;
 class QLabel;
 class QSlider;
+class QTimer;
 class QWidget;
 
 /** @brief 方位与俯仰读数、选角控件及各八个预设的视图。 */
@@ -19,12 +21,23 @@ public:
     void setCommandEnabled(bool enabled);
     /** @brief 更新设备实测角度，不触发滑条定位请求。 */
     void setPosition(int azimuth, int elevation);
+    /** @return 当前界面保留的方位读数。 */
+    int azimuth() const;
+    /** @return 当前界面保留的仰角读数。 */
+    int elevation() const;
+
+signals:
+    /** @brief 用户通过控制控件请求发送一条 GS-232B 命令。 */
+    void commandRequested(const QString &command);
 
 private:
     Compass *m_compass;
     QLabel *m_azimuth;
     QLabel *m_elevation;
     QSlider *m_slider;
+    QTimer *m_elevationCommandTimer;
     QWidget *m_azimuthPresets;
     QWidget *m_elevationPresets;
+    int m_azimuthValue = 0;
+    int m_elevationValue = 0;
 };

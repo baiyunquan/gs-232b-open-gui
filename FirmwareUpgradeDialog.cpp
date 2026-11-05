@@ -3,11 +3,14 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QMessageBox>
+#include <QSerialPortInfo>
 #include <QVBoxLayout>
 
 FirmwareUpgradeDialog::FirmwareUpgradeDialog(QWidget *parent) : QDialog(parent)
@@ -19,13 +22,18 @@ FirmwareUpgradeDialog::FirmwareUpgradeDialog(QWidget *parent) : QDialog(parent)
     auto *layout = new QVBoxLayout(this);
     m_port = new QComboBox(this);
     m_port->setObjectName(QStringLiteral("flashPort"));
-    m_port->addItems({QStringLiteral("COM3 - USB-UART"), QStringLiteral("COM4 - USB-UART")});
+    for (const QSerialPortInfo &port : QSerialPortInfo::availablePorts()) {
+        const QString description = port.description().isEmpty()
+                                        ? port.portName()
+                                        : QStringLiteral("%1 - %2").arg(port.portName(), port.description());
+        m_port->addItem(description, port.portName());
+    }
+    if (m_port->count() == 0)
+        m_port->addItem(tr("No serial ports found (AI)"), QString());
     auto *portLabel = new QLabel(tr("Bootloader serial port"), this);
     portLabel->setBuddy(m_port);
     layout->addWidget(portLabel);
     layout->addWidget(m_port);
-    // TODO: 枚举下载串口并按 USB VID/PID 排除 ESP32-C3 原生 USB Serial/JTAG 日志接口。
-
     auto *fileLabel = new QLabel(tr("Firmware image"), this);
     layout->addWidget(fileLabel);
     auto *fileRow = new QHBoxLayout;
@@ -58,7 +66,11 @@ FirmwareUpgradeDialog::FirmwareUpgradeDialog(QWidget *parent) : QDialog(parent)
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(m_file, &QLineEdit::textChanged, this, [this](const QString &file) {
-        m_flash->setEnabled(!file.isEmpty() && m_port->currentIndex() >= 0);
+        m_flash->setEnabled(!file.isEmpty() && !m_port->currentData().toString().isEmpty());
+    });
+    connect(m_port, &QComboBox::currentIndexChanged, this, [this] {
+        m_flash->setEnabled(!m_file->text().isEmpty() &&
+                            !m_port->currentData().toString().isEmpty());
     });
     connect(m_flash, &QPushButton::clicked, this, &FirmwareUpgradeDialog::confirmFlash);
     // NOTE: 参数来自固件 platformio.ini 与 partitions.csv，应用起址 0x10000、容量 0x300000。
@@ -80,6 +92,16 @@ void FirmwareUpgradeDialog::selectFirmware()
 
 void FirmwareUpgradeDialog::confirmFlash()
 {
+    const QFileInfo image(m_file->text());
+    constexpr qint64 applicationPartitionSize = 0x300000;
+    if (!image.exists() || !image.isFile() || image.size() <= 0 ||
+        image.size() > applicationPartitionSize) {
+        QMessageBox::warning(
+            this, tr("Invalid firmware image (AI)"),
+            tr("Firmware image must be a non-empty .bin file no larger than 3 MB. (AI)"));
+        return;
+    }
+
     auto *confirmation = new QDialog(this);
     confirmation->setObjectName(QStringLiteral("flashConfirmationDialog"));
     confirmation->setAttribute(Qt::WA_DeleteOnClose);
@@ -102,6 +124,10 @@ void FirmwareUpgradeDialog::confirmFlash()
     flash->setAutoDefault(false);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::rejected, confirmation, &QDialog::reject);
-    // TODO: 用户在此确认后才执行烧录，接入进度、失败提示和完成状态；目前不写入设备。
+    connect(buttons, &QDialogButtonBox::accepted, confirmation, [this, confirmation] {
+        emit flashRequested(m_port->currentData().toString(), m_file->text());
+        confirmation->accept();
+        accept();
+    });
     confirmation->open();
 }
