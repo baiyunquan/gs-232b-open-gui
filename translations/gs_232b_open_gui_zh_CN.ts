@@ -24,6 +24,11 @@
             <translation>网络</translation>
         </message>
         <message>
+            <location filename="../ConnectionPanel.cpp" line="23" />
+            <source>No serial ports found (AI)</source>
+            <translation>未找到串口 (AI)</translation>
+        </message>
+        <message>
             <location filename="../ConnectionPanel.cpp" line="42" />
             <source>Virtual COM</source>
             <translation>虚拟串口</translation>
@@ -218,6 +223,11 @@
             <location filename="../MainWindow.cpp" line="97" />
             <source>WebSocket</source>
             <translation>WebSocket</translation>
+        </message>
+        <message>
+            <location filename="../MainWindow.cpp" line="82" />
+            <source>Transport error: %1 (AI)</source>
+            <translation>传输错误：%1 (AI)</translation>
         </message>
         <message>
             <location filename="../MainWindow.cpp" line="130" />

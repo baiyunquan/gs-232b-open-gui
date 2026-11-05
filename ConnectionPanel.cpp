@@ -7,6 +7,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QSerialPortInfo>
 
 ConnectionPanel::ConnectionPanel(QWidget *parent)
     : QGroupBox(tr("CONNECTION"), parent)
@@ -18,7 +19,12 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
     m_serialMode->setChecked(true);
     m_serialPort = new QComboBox(this);
     m_serialPort->setObjectName(QStringLiteral("serialPort"));
-    m_serialPort->addItems({QStringLiteral("COM3"), QStringLiteral("COM4"), QStringLiteral("COM5")});
+    m_serialPort->setEditable(true);
+    const auto availablePorts = QSerialPortInfo::availablePorts();
+    for (const QSerialPortInfo &port : availablePorts)
+        m_serialPort->addItem(port.portName(), port.portName());
+    if (m_serialPort->count() == 0)
+        m_serialPort->addItem(tr("No serial ports found (AI)"), QString());
     layout->addWidget(m_serialMode, 0, 0);
     layout->addWidget(m_serialPort, 0, 1);
 
@@ -35,7 +41,6 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
     m_networkMode = new QRadioButton(tr("Network"), this);
     m_networkMode->setObjectName(QStringLiteral("networkMode"));
     m_address = new QLineEdit(QStringLiteral("192.168.1.50"), this);
-    // TODO: 按命令种类自动选择控制或管理 WebSocket 路径；完成条件：两类命令均路由到对应路径。
     m_address->setObjectName(QStringLiteral("websocketAddress"));
     layout->addWidget(m_networkMode, 2, 0);
     layout->addWidget(m_address, 2, 1);
@@ -58,8 +63,9 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
 
     connect(m_networkMode, &QRadioButton::toggled, this, &ConnectionPanel::updateControls);
     connect(m_virtualCom, &QCheckBox::toggled, this, &ConnectionPanel::updateControls);
-    // TODO: 枚举实际串口并接入串口/WebSocket；仅连接成功后调用 setConnected(true)。
-    // TODO: Virtual COM 创建虚拟串口并透传 WS 原始字节；断开时释放传输资源。
+    connect(m_connect, &QPushButton::clicked, this, &ConnectionPanel::connectRequested);
+    connect(m_disconnect, &QPushButton::clicked, this, &ConnectionPanel::disconnectRequested);
+    // NOTE: 连接状态只由真实传输后端回写，面板按钮不伪造成功状态。
     updateControls();
 }
 
@@ -70,25 +76,52 @@ bool ConnectionPanel::isVirtualComEnabled() const
     return isNetworkMode() && m_virtualCom->isChecked();
 }
 
+Communication::ConnectionOptions ConnectionPanel::connectionOptions(
+    Communication::WebSocketEndpoint endpoint) const
+{
+    Communication::ConnectionOptions options;
+    options.kind = isNetworkMode() ? Communication::TransportKind::WebSocket
+                                   : Communication::TransportKind::Serial;
+    const bool noPortPlaceholder = m_serialPort->currentIndex() == 0 &&
+                                   m_serialPort->itemData(0).toString().isEmpty() &&
+                                   m_serialPort->currentText() == m_serialPort->itemText(0);
+    if (!noPortPlaceholder)
+        options.serialPort = m_serialPort->currentText().trimmed();
+    options.baudRate = m_baudRate->currentText().toInt();
+    options.address = m_address->text();
+    options.endpoint = endpoint;
+    return options;
+}
+
 void ConnectionPanel::setConnected(bool connected)
 {
     if (m_connected == connected)
         return;
+    m_connecting = false;
     m_connected = connected;
+    updateControls();
+}
+
+void ConnectionPanel::setConnecting(bool connecting)
+{
+    if (m_connecting == connecting)
+        return;
+    m_connecting = connecting;
     updateControls();
 }
 
 void ConnectionPanel::updateControls()
 {
     const bool network = isNetworkMode();
-    m_serialMode->setEnabled(!m_connected);
-    m_networkMode->setEnabled(!m_connected);
-    m_serialPort->setEnabled(!m_connected && !network);
-    m_baudRate->setEnabled(!m_connected && !network);
-    m_address->setEnabled(!m_connected && network);
-    m_virtualCom->setEnabled(!m_connected && network);
-    m_virtualPort->setEnabled(!m_connected && isVirtualComEnabled());
-    m_connect->setEnabled(!m_connected);
+    const bool locked = m_connected || m_connecting;
+    m_serialMode->setEnabled(!locked);
+    m_networkMode->setEnabled(!locked);
+    m_serialPort->setEnabled(!locked && !network);
+    m_baudRate->setEnabled(!locked && !network);
+    m_address->setEnabled(!locked && network);
+    m_virtualCom->setEnabled(!locked && network);
+    m_virtualPort->setEnabled(!locked && isVirtualComEnabled());
+    m_connect->setEnabled(!locked);
     m_disconnect->setEnabled(m_connected);
     emit stateChanged();
 }

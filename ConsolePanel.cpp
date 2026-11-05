@@ -10,11 +10,11 @@ ConsolePanel::ConsolePanel(QWidget *parent) : QGroupBox(tr("CONSOLE"), parent)
 {
     setObjectName(QStringLiteral("consolePanel"));
     auto *layout = new QVBoxLayout(this);
-    auto *output = new QPlainTextEdit(this);
-    output->setObjectName(QStringLiteral("consoleOutput"));
-    output->setReadOnly(true);
-    output->setLineWrapMode(QPlainTextEdit::NoWrap);
-    layout->addWidget(output, 1);
+    m_output = new QPlainTextEdit(this);
+    m_output->setObjectName(QStringLiteral("consoleOutput"));
+    m_output->setReadOnly(true);
+    m_output->setLineWrapMode(QPlainTextEdit::NoWrap);
+    layout->addWidget(m_output, 1);
 
     auto *inputRow = new QHBoxLayout;
     m_input = new QLineEdit(this);
@@ -26,14 +26,60 @@ ConsolePanel::ConsolePanel(QWidget *parent) : QGroupBox(tr("CONSOLE"), parent)
     inputRow->addWidget(m_send);
     layout->addLayout(inputRow);
     setCommandEnabled(false);
+    connect(m_send, &QPushButton::clicked, this, &ConsolePanel::requestCommand);
+    connect(m_input, &QLineEdit::returnPressed, this, &ConsolePanel::requestCommand);
 
-    // TODO: 监听实际串口/WS 收发原始字节；所有按钮命令、响应及轮询都从同一真实流打印。
-    // TODO: 控制台获得焦点时允许直接键入；Enter 与输入框发送均仅编码为一个 CR。
-    // TODO: 接入传输后端后启用终端输入，禁止编辑历史响应或将本地输入伪装为设备响应。
+    // NOTE: 控制台只发出用户输入，收发回显由真实传输信号驱动。
 }
 
 void ConsolePanel::setCommandEnabled(bool enabled)
 {
     m_input->setEnabled(enabled);
     m_send->setEnabled(enabled);
+}
+
+void ConsolePanel::appendReceived(const QByteArray &bytes)
+{
+    appendTraffic(bytes, false);
+}
+
+void ConsolePanel::appendSent(const QByteArray &bytes)
+{
+    appendTraffic(bytes, true);
+}
+
+void ConsolePanel::appendError(const QString &error)
+{
+    if (!m_lineStart)
+        m_output->insertPlainText(QStringLiteral("\n"));
+    m_output->insertPlainText(QStringLiteral("! ") + error + QStringLiteral("\n"));
+    m_output->ensureCursorVisible();
+    m_lineStart = true;
+}
+
+void ConsolePanel::requestCommand()
+{
+    const QString command = m_input->text();
+    if (command.trimmed().isEmpty())
+        return;
+    m_input->clear();
+    emit commandRequested(command);
+}
+
+void ConsolePanel::appendTraffic(const QByteArray &bytes, bool outgoing)
+{
+    if (bytes.isEmpty())
+        return;
+
+    QString text = QString::fromUtf8(bytes);
+    if (text.contains(QChar::ReplacementCharacter))
+        text = QString::fromLatin1(bytes.toHex(' '));
+    text.replace(QStringLiteral("\r\n"), QStringLiteral("\n"));
+    text.replace(QChar('\r'), QChar('\n'));
+
+    if (m_lineStart)
+        m_output->insertPlainText(outgoing ? QStringLiteral("> ") : QStringLiteral("< "));
+    m_output->insertPlainText(text);
+    m_lineStart = text.endsWith(QChar('\n'));
+    m_output->ensureCursorVisible();
 }

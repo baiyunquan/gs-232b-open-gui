@@ -1,5 +1,7 @@
 #pragma once
 
+#include "CommunicationProtocol.h"
+
 #include <QGroupBox>
 
 class QCheckBox;
@@ -22,12 +24,21 @@ public:
     bool isNetworkMode() const;
     /** @return 是否启用 WebSocket 到虚拟串口的透传模式。 */
     bool isVirtualComEnabled() const;
+    /** @return 当前表单对应的串口或 WebSocket 连接参数。 */
+    Communication::ConnectionOptions connectionOptions(
+        Communication::WebSocketEndpoint endpoint = Communication::WebSocketEndpoint::Gs232b) const;
     /** @brief 由传输后端更新实际连接状态；点击连接按钮不直接改变此状态。 */
     void setConnected(bool connected);
+    /** @brief 在异步 WebSocket 握手期间锁定连接表单。 */
+    void setConnecting(bool connecting);
 
 signals:
     /** @brief 传输模式、透传选项或实际连接状态变更。 */
     void stateChanged();
+    /** @brief 用户请求按当前表单建立真实传输连接。 */
+    void connectRequested();
+    /** @brief 用户请求关闭真实传输连接。 */
+    void disconnectRequested();
 
 private:
     void updateControls();
@@ -42,4 +53,5 @@ private:
     QComboBox *m_virtualPort;
     QPushButton *m_connect;
     QPushButton *m_disconnect;
+    bool m_connecting = false;
 };

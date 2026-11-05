@@ -2,12 +2,14 @@ cmake_minimum_required(VERSION 3.21)
 
 project(gs_232b_open_gui VERSION 0.1.0 LANGUAGES CXX)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets LinguistTools)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets LinguistTools SerialPort WebSockets)
 
 qt_standard_project_setup()
 
 qt_add_executable(gs_232b_open_gui
     main.cpp
+    CommunicationProtocol.cpp
+    CommunicationProtocol.h
     MainWindow.cpp
     MainWindow.h
     ConnectionPanel.cpp
@@ -33,6 +35,8 @@ target_compile_features(gs_232b_open_gui PRIVATE cxx_std_17)
 target_link_libraries(gs_232b_open_gui
     PRIVATE
         Qt6::Widgets
+        Qt6::SerialPort
+        Qt6::WebSockets
 )
 
 qt_add_translations(gs_232b_open_gui

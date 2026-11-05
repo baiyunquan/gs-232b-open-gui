@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "CommunicationProtocol.h"
 #include "ConnectionPanel.h"
 #include "ConsolePanel.h"
 #include "ControlPanel.h"
@@ -48,6 +49,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     columns->addWidget(m_settings);
     setCentralWidget(central);
 
+    m_transport = new Communication::Transport(this);
+
     m_connectionStatus = new QLabel(this);
     m_connectionStatus->setObjectName(QStringLiteral("connectionStatus"));
     m_transportStatus = new QLabel(this);
@@ -58,6 +61,31 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     createMenus();
     connect(m_connection, &ConnectionPanel::stateChanged,
             this, &MainWindow::updateConnectionState);
+    connect(m_connection, &ConnectionPanel::connectRequested,
+            this, &MainWindow::openTransport);
+    connect(m_connection, &ConnectionPanel::disconnectRequested,
+            this, &MainWindow::closeTransport);
+    connect(m_transport, &Communication::Transport::connected, this, [this] {
+        m_connection->setConnecting(false);
+        m_connection->setConnected(true);
+    });
+    connect(m_transport, &Communication::Transport::disconnected, this, [this] {
+        m_connection->setConnecting(false);
+        m_connection->setConnected(false);
+    });
+    connect(m_transport, &Communication::Transport::bytesReceived,
+            m_console, &ConsolePanel::appendReceived);
+    connect(m_transport, &Communication::Transport::bytesSent,
+            m_console, &ConsolePanel::appendSent);
+    connect(m_transport, &Communication::Transport::errorOccurred, this,
+            [this](const QString &error) {
+                m_console->appendError(tr("Transport error: %1 (AI)").arg(error));
+                m_connection->setConnecting(false);
+            });
+    connect(m_console, &ConsolePanel::commandRequested, this,
+            [this](const QString &command) {
+                m_transport->sendCommand(command);
+            });
     connect(m_settings, &RotorSettingsPanel::modelApplyRequested,
             this, &MainWindow::applyRotorModel);
     updateConnectionState();
@@ -97,6 +125,25 @@ void MainWindow::updateConnectionState()
     m_transportStatus->setText(m_connection->isNetworkMode() ? tr("WebSocket") : tr("Serial"));
     if (!m_connection->isConnected())
         m_control->setPosition(0, 0);
+}
+
+void MainWindow::openTransport()
+{
+    if (m_transport->isOpen())
+        return;
+
+    m_connection->setConnecting(true);
+    // NOTE: 主页面终端固定使用控制端点；管理端点由协议模块保留给后续独立调用方。
+    const auto options = m_connection->connectionOptions(Communication::WebSocketEndpoint::Gs232b);
+    if (!m_transport->open(options))
+        m_connection->setConnecting(false);
+}
+
+void MainWindow::closeTransport()
+{
+    m_transport->close();
+    m_connection->setConnecting(false);
+    m_connection->setConnected(false);
 }
 
 void MainWindow::openWifiProvisioning()
