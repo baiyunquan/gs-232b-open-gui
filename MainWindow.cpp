@@ -129,7 +129,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             m_console, &ConsolePanel::appendSent);
     connect(m_transport, &Communication::Transport::errorOccurred, this,
             [this](const QString &error) {
-                m_console->appendError(tr("Transport error: %1 (AI)").arg(error));
+                m_console->appendError(tr("Transport error: %1").arg(error));
                 m_connection->setConnecting(false);
             });
     connect(m_console, &ConsolePanel::commandRequested, this,
@@ -146,13 +146,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             this, [this] {
                 requestCalibration(
                     QStringLiteral("O"),
-                    tr("Move the azimuth to the counter-clockwise limit, then continue. (AI)"));
+                    tr("Move the azimuth to the counter-clockwise limit, then continue."));
             });
     connect(m_settings, &RotorSettingsPanel::elevationZeroCalibrationRequested,
             this, [this] {
                 requestCalibration(
                     QStringLiteral("O2"),
-                    tr("Move the elevation to 0 degrees, then continue. (AI)"));
+                    tr("Move the elevation to 0 degrees, then continue."));
             });
     connect(m_positionPollTimer, &QTimer::timeout, this, [this] {
         sendControlCommand(QStringLiteral("C2"));
@@ -165,7 +165,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         }
         if (++m_wifiTrialPollCount > 300) {
             m_wifiTrialPollTimer->stop();
-            m_console->appendError(tr("Wi-Fi trial timed out; the device will roll it back. (AI)"));
+            m_console->appendError(tr("Wi-Fi trial timed out; the device will roll it back."));
             m_wifiConfigurationStage = WifiConfigurationStage::Idle;
             m_pendingWifiSsid.clear();
             m_pendingWifiPassword.clear();
@@ -305,17 +305,17 @@ void MainWindow::flashFirmware(const QString &port, const QString &file)
     });
     connect(process, &QProcess::errorOccurred, this,
             [this, process](QProcess::ProcessError error) {
-                m_console->appendError(tr("Firmware flashing process failed to start. (AI)"));
+                m_console->appendError(tr("Firmware flashing process failed to start."));
                 if (error == QProcess::FailedToStart)
                     process->deleteLater();
     });
     connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
             this, [this, process](int exitCode, QProcess::ExitStatus status) {
                 if (status == QProcess::NormalExit && exitCode == 0) {
-                    m_console->appendNotice(tr("Firmware flashing completed. (AI)"));
+                    m_console->appendNotice(tr("Firmware flashing completed."));
                 } else {
                     m_console->appendError(
-                        tr("Firmware flashing failed with exit code %1. (AI)").arg(exitCode));
+                        tr("Firmware flashing failed with exit code %1.").arg(exitCode));
                 }
                 process->deleteLater();
             });
@@ -333,7 +333,7 @@ void MainWindow::sendControlCommand(const QString &command, bool sensitive)
     if (command.trimmed().isEmpty() || !m_transport->isOpen())
         return;
     if (m_connection->isVirtualComEnabled()) {
-        m_console->appendError(tr("Direct device commands are disabled in Virtual COM mode. (AI)"));
+        m_console->appendError(tr("Direct device commands are disabled in Virtual COM mode."));
         return;
     }
     const bool redact = sensitive || command.trimmed().startsWith(QLatin1Char('!'));
@@ -344,7 +344,7 @@ void MainWindow::requestCalibration(const QString &command, const QString &quest
 {
     if (!m_transport->isOpen() || m_connection->isVirtualComEnabled())
         return;
-    if (QMessageBox::question(this, tr("Calibration confirmation (AI)"), question,
+    if (QMessageBox::question(this, tr("Calibration confirmation"), question,
                               QMessageBox::Ok | QMessageBox::Cancel,
                               QMessageBox::Ok) == QMessageBox::Ok) {
         m_pendingCalibrationCommand = command;
@@ -424,8 +424,8 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
         if (!m_pendingCalibrationCommand.isEmpty() &&
             text.contains(QStringLiteral("are you sure?"), Qt::CaseInsensitive)) {
             const auto answer = QMessageBox::question(
-                this, tr("Confirm calibration (AI)"),
-                tr("The device is ready to store this calibration point. Continue? (AI)"),
+                this, tr("Confirm calibration"),
+                tr("The device is ready to store this calibration point. Continue?"),
                 QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
             if (answer == QMessageBox::Yes) {
                 sendControlCommand(QStringLiteral("YES"));
@@ -492,7 +492,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
                 continuation();
         } else {
             m_pendingManagementContinuation = {};
-            m_console->appendError(tr("Management authentication failed. (AI)"));
+            m_console->appendError(tr("Management authentication failed."));
             m_wifiConfigurationStage = WifiConfigurationStage::Idle;
             m_pendingWifiSsid.clear();
             m_pendingWifiPassword.clear();
@@ -519,7 +519,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
 
     if (!response.value(QStringLiteral("ok")).toBool()) {
         m_console->appendError(
-            tr("Wi-Fi configuration failed: %1 (AI)")
+            tr("Wi-Fi configuration failed: %1")
                 .arg(response.value(QStringLiteral("error")).toString()));
         m_wifiTrialPollTimer->stop();
         m_wifiConfigurationStage = WifiConfigurationStage::Idle;
@@ -534,7 +534,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         m_pendingWifiCandidate = data.value(QStringLiteral("candidate_id")).toInteger(-1);
         m_pendingWifiRevision = data.value(QStringLiteral("base_revision")).toInteger(-1);
         if (m_pendingWifiCandidate < 0) {
-            m_console->appendError(tr("Device did not return a Wi-Fi candidate ID. (AI)"));
+            m_console->appendError(tr("Device did not return a Wi-Fi candidate ID."));
             m_wifiConfigurationStage = WifiConfigurationStage::Idle;
             m_pendingWifiSsid.clear();
             m_pendingWifiPassword.clear();
@@ -583,7 +583,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         command == QStringLiteral("CFG APPLY")) {
         m_pendingWifiTrial = data.value(QStringLiteral("trial_id")).toInteger(-1);
         if (m_pendingWifiTrial < 0) {
-            m_console->appendError(tr("Device did not return a Wi-Fi trial ID. (AI)"));
+            m_console->appendError(tr("Device did not return a Wi-Fi trial ID."));
             m_wifiConfigurationStage = WifiConfigurationStage::Idle;
             m_pendingWifiSsid.clear();
             m_pendingWifiPassword.clear();
@@ -609,8 +609,8 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         m_wifiTrialPollTimer->stop();
         m_wifiConfigurationStage = WifiConfigurationStage::AwaitConfirm;
         const auto answer = QMessageBox::question(
-            this, tr("Confirm Wi-Fi configuration (AI)"),
-            tr("The new Wi-Fi network is connected and has an IP address. Confirm and save it? (AI)"),
+            this, tr("Confirm Wi-Fi configuration"),
+            tr("The new Wi-Fi network is connected and has an IP address. Confirm and save it?"),
             QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
         if (answer == QMessageBox::Yes) {
             QJsonObject request;
@@ -642,6 +642,6 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         m_wifiConfigurationStage = WifiConfigurationStage::Idle;
         m_pendingWifiSsid.clear();
         m_pendingWifiPassword.clear();
-        m_console->appendNotice(tr("Wi-Fi configuration saved. (AI)"));
+        m_console->appendNotice(tr("Wi-Fi configuration saved."));
     }
 }

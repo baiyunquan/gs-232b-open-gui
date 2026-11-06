@@ -24,7 +24,7 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
     for (const QSerialPortInfo &port : availablePorts)
         m_serialPort->addItem(port.portName(), port.portName());
     if (m_serialPort->count() == 0)
-        m_serialPort->addItem(tr("No serial ports found (AI)"), QString());
+        m_serialPort->addItem(tr("No serial ports found"), QString());
     layout->addWidget(m_serialMode, 0, 0);
     layout->addWidget(m_serialPort, 0, 1);
 

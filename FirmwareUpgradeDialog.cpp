@@ -29,7 +29,7 @@ FirmwareUpgradeDialog::FirmwareUpgradeDialog(QWidget *parent) : QDialog(parent)
         m_port->addItem(description, port.portName());
     }
     if (m_port->count() == 0)
-        m_port->addItem(tr("No serial ports found (AI)"), QString());
+        m_port->addItem(tr("No serial ports found"), QString());
     auto *portLabel = new QLabel(tr("Bootloader serial port"), this);
     portLabel->setBuddy(m_port);
     layout->addWidget(portLabel);
@@ -97,8 +97,8 @@ void FirmwareUpgradeDialog::confirmFlash()
     if (!image.exists() || !image.isFile() || image.size() <= 0 ||
         image.size() > applicationPartitionSize) {
         QMessageBox::warning(
-            this, tr("Invalid firmware image (AI)"),
-            tr("Firmware image must be a non-empty .bin file no larger than 3 MB. (AI)"));
+            this, tr("Invalid firmware image"),
+            tr("Firmware image must be a non-empty .bin file no larger than 3 MB."));
         return;
     }
 

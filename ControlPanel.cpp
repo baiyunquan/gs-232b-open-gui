@@ -43,7 +43,7 @@ QWidget *makePresets(const QString &prefix, QWidget *parent)
         button->setProperty("presetIndex", index);
         button->setContextMenuPolicy(Qt::CustomContextMenu);
         button->setToolTip(QCoreApplication::translate(
-            "ControlPanel", "Right-click to edit this preset (AI)"));
+            "ControlPanel", "Right-click to edit this preset"));
         grid->addWidget(button, index / 2, index % 2);
     }
     return presets;
@@ -77,7 +77,7 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
             bool ok = false;
             const int current = button->text().toInt();
             const int angle = QInputDialog::getInt(
-                this, tr("Edit azimuth preset (AI)"), tr("Azimuth angle (AI)"),
+                this, tr("Edit azimuth preset"), tr("Azimuth angle"),
                 current, 0, 450, 1, &ok);
             if (!ok)
                 return;
@@ -124,7 +124,7 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
             bool ok = false;
             const int current = button->text().toInt();
             const int angle = QInputDialog::getInt(
-                this, tr("Edit elevation preset (AI)"), tr("Elevation angle (AI)"),
+                this, tr("Edit elevation preset"), tr("Elevation angle"),
                 current, 0, 180, 1, &ok);
             if (!ok)
                 return;
