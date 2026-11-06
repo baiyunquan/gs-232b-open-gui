@@ -1,6 +1,7 @@
 #include "CommunicationProtocol.h"
 
 #include <QSerialPort>
+#include <QSignalBlocker>
 #include <QWebSocket>
 
 namespace Communication {
@@ -68,6 +69,8 @@ Transport::Transport(QObject *parent)
 
 Transport::~Transport()
 {
+    // NOTE: 父窗口析构时界面子控件可能已销毁，关闭传输不再发出状态回调。
+    const QSignalBlocker blocker(this);
     close();
 }
 

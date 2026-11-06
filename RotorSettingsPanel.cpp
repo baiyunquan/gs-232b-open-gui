@@ -34,6 +34,10 @@ RotorSettingsPanel::RotorSettingsPanel(QWidget *parent) : QWidget(parent)
     modelLayout->addWidget(m_apply);
     layout->addWidget(modelGroup);
     connect(m_apply, &QPushButton::clicked, this, &RotorSettingsPanel::modelApplyRequested);
+    connect(m_model, &QComboBox::currentIndexChanged, this, [this](int index) {
+        m_apply->setEnabled(m_model->isEnabled() && index >= 0);
+    });
+    clearModelSelection();
 
     m_speed = new QGroupBox(tr("AZIMUTH SPEED"), this);
     auto *speedLayout = new QHBoxLayout(m_speed);
@@ -83,7 +87,7 @@ RotorSettingsPanel::RotorSettingsPanel(QWidget *parent) : QWidget(parent)
 void RotorSettingsPanel::setCommandEnabled(bool enabled)
 {
     m_model->setEnabled(enabled);
-    m_apply->setEnabled(enabled);
+    m_apply->setEnabled(enabled && m_model->currentIndex() >= 0);
     m_speed->setEnabled(enabled);
     m_azimuthZero->setEnabled(enabled);
     m_elevationZero->setEnabled(enabled);
@@ -92,4 +96,16 @@ void RotorSettingsPanel::setCommandEnabled(bool enabled)
 int RotorSettingsPanel::selectedModelId() const
 {
     return m_model->currentData().toInt();
+}
+
+void RotorSettingsPanel::setSelectedModelId(int modelId)
+{
+    const int index = m_model->findData(modelId);
+    if (index >= 0)
+        m_model->setCurrentIndex(index);
+}
+
+void RotorSettingsPanel::clearModelSelection()
+{
+    m_model->setCurrentIndex(-1);
 }

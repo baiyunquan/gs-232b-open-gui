@@ -31,8 +31,7 @@ if(WIN32)
     target_link_libraries(gs232b_virtual_serial PRIVATE Qt6::SerialPort)
 endif()
 
-qt_add_executable(gs_232b_open_gui
-    main.cpp
+set(GUI_SOURCES
     CommunicationProtocol.cpp
     CommunicationProtocol.h
     MainWindow.cpp
@@ -62,6 +61,8 @@ qt_add_executable(gs_232b_open_gui
     FirmwareUpgradeDialog.cpp
     FirmwareUpgradeDialog.h
 )
+
+qt_add_executable(gs_232b_open_gui main.cpp ${GUI_SOURCES})
 
 target_compile_features(gs_232b_open_gui PRIVATE cxx_std_17)
 
@@ -94,6 +95,20 @@ if(BUILD_TESTING)
     target_include_directories(fault_status_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(fault_status_tests PRIVATE Qt6::Core Qt6::Test)
     add_test(NAME fault_status_tests COMMAND fault_status_tests)
+
+    qt_add_executable(rotor_model_connection_tests
+        tests/RotorModelConnectionTests.cpp
+        ${GUI_SOURCES}
+    )
+    target_compile_features(rotor_model_connection_tests PRIVATE cxx_std_17)
+    target_include_directories(rotor_model_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(rotor_model_connection_tests
+        PRIVATE Qt6::Widgets Qt6::SerialPort Qt6::WebSockets Qt6::Test
+    )
+    add_test(NAME rotor_model_connection_tests COMMAND rotor_model_connection_tests)
+    set_tests_properties(rotor_model_connection_tests PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
 endif()
 
 qt_add_translations(gs_232b_open_gui

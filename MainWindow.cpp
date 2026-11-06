@@ -113,6 +113,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             this, &MainWindow::closeTransport);
     connect(m_transport, &Communication::Transport::connected, this, [this] {
         m_connection->setConnecting(false);
+        if (!m_connection->isVirtualComEnabled())
+            sendControlCommand(QStringLiteral("!ROTOR GET"));
         m_connection->setConnected(true);
         if (!m_connection->isVirtualComEnabled()) {
             sendControlCommand(QStringLiteral("C2"));
@@ -263,8 +265,10 @@ void MainWindow::updateConnectionState()
         m_positionPollTimer->stop();
     m_connectionStatus->setText(m_connection->isConnected() ? tr("Connected") : tr("Disconnected"));
     m_transportStatus->setText(m_connection->isNetworkMode() ? tr("WebSocket") : tr("Serial"));
-    if (!m_connection->isConnected())
+    if (!m_connection->isConnected()) {
         m_control->setPosition(0, 0);
+        m_settings->clearModelSelection();
+    }
 }
 
 void MainWindow::openTransport()
@@ -710,6 +714,16 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
     const QJsonObject response = document.object();
     const QString command = response.value(QStringLiteral("cmd")).toString().toUpper();
     const bool ok = response.value(QStringLiteral("ok")).toBool();
+    if (command == QStringLiteral("ROTOR GET") || command == QStringLiteral("ROTOR SET")) {
+        if (ok && m_connection->isConnected() && !m_connection->isVirtualComEnabled()) {
+            // NOTE: model_id 是已保存选择；active_model_id 可能仍是重启前的旧型号。
+            const QJsonValue modelId = response.value(QStringLiteral("data")).toObject()
+                                          .value(QStringLiteral("model_id"));
+            const int id = modelId.toInt(-1);
+            if (modelId.isDouble() && modelId.toDouble() == id)
+                m_settings->setSelectedModelId(id);
+        }
+    }
     if (!ok && response.value(QStringLiteral("error")).toString() ==
                   QStringLiteral("NOT_AUTHORIZED")) {
         m_managementAuthenticated = false;
