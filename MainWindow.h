@@ -11,6 +11,7 @@ class QAction;
 class ConnectionPanel;
 class ConsolePanel;
 class ControlPanel;
+class FaultStatusMonitor;
 class QLabel;
 class RotorSettingsPanel;
 class QTimer;
@@ -64,6 +65,7 @@ private:
     ControlPanel *m_control;
     ConsolePanel *m_console;
     RotorSettingsPanel *m_settings;
+    FaultStatusMonitor *m_faultStatus;
     QLabel *m_connectionStatus;
     QLabel *m_transportStatus;
     Communication::Transport *m_transport;
@@ -76,6 +78,7 @@ private:
     QAction *m_resetNetworkAction;
     QAction *m_upgradeAction;
     QByteArray m_receiveBuffer;
+    qsizetype m_consoleForwardedBytes = 0;
     QString m_pendingWifiSsid;
     QJsonObject m_pendingNetworkPatch;
     qint64 m_pendingNetworkCandidate = -1;

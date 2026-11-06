@@ -47,6 +47,10 @@ qt_add_executable(gs_232b_open_gui
     ConsolePanel.h
     RotorSettingsPanel.cpp
     RotorSettingsPanel.h
+    FaultStatusMonitor.cpp
+    FaultStatusMonitor.h
+    FaultStatusPanel.cpp
+    FaultStatusPanel.h
     WifiProvisioningDialog.cpp
     WifiProvisioningDialog.h
     ManagementKeyDialog.cpp
@@ -80,6 +84,16 @@ if(BUILD_TESTING)
             Qt6::Test
     )
     add_test(NAME virtual_serial_tests COMMAND virtual_serial_tests)
+
+    qt_add_executable(fault_status_tests
+        tests/FaultStatusMonitorTests.cpp
+        FaultStatusMonitor.cpp
+        FaultStatusMonitor.h
+    )
+    target_compile_features(fault_status_tests PRIVATE cxx_std_17)
+    target_include_directories(fault_status_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(fault_status_tests PRIVATE Qt6::Core Qt6::Test)
+    add_test(NAME fault_status_tests COMMAND fault_status_tests)
 endif()
 
 qt_add_translations(gs_232b_open_gui

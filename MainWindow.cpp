@@ -3,6 +3,8 @@
 #include "ConnectionPanel.h"
 #include "ConsolePanel.h"
 #include "ControlPanel.h"
+#include "FaultStatusMonitor.h"
+#include "FaultStatusPanel.h"
 #include "FirmwareUpgradeDialog.h"
 #include "ManagementKeyDialog.h"
 #include "NetworkPortConfigDialog.h"
@@ -72,10 +74,18 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     columns->addWidget(left);
     m_console = new ConsolePanel(central);
     columns->addWidget(m_console, 1);
-    m_settings = new RotorSettingsPanel(central);
-    m_settings->setMinimumWidth(250);
-    m_settings->setMaximumWidth(320);
-    columns->addWidget(m_settings);
+    auto *right = new QWidget(central);
+    right->setMinimumWidth(250);
+    right->setMaximumWidth(320);
+    auto *rightLayout = new QVBoxLayout(right);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+    rightLayout->setSpacing(10);
+    m_settings = new RotorSettingsPanel(right);
+    m_faultStatus = new FaultStatusMonitor(this);
+    rightLayout->addWidget(m_settings);
+    rightLayout->addWidget(new FaultStatusPanel(m_faultStatus, right));
+    rightLayout->addStretch(1);
+    columns->addWidget(right);
     setCentralWidget(central);
 
     m_transport = new Communication::Transport(this);
@@ -116,7 +126,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         m_wifiTrialPollTimer->stop();
         m_calibrationTimeoutTimer->stop();
         m_receiveBuffer.clear();
+        m_consoleForwardedBytes = 0;
         m_pendingCalibrationCommand.clear();
+        m_faultStatus->setPaused(false);
         m_networkConfigurationStage = NetworkConfigurationStage::Idle;
         m_pendingNetworkPatch = {};
         m_pendingNetworkWifiTarget = true;
@@ -127,8 +139,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         m_pendingManagementContinuation = {};
         m_pendingManagementResponseContinuation = {};
     });
-    connect(m_transport, &Communication::Transport::bytesReceived,
-            m_console, &ConsolePanel::appendReceived);
     connect(m_transport, &Communication::Transport::bytesReceived,
             this, &MainWindow::handleReceivedBytes);
     connect(m_transport, &Communication::Transport::bytesSent,
@@ -145,6 +155,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(m_control, &ControlPanel::commandRequested,
             this, [this](const QString &command) { sendControlCommand(command); });
     connect(m_settings, &RotorSettingsPanel::commandRequested,
+            this, [this](const QString &command) { sendControlCommand(command); });
+    connect(m_faultStatus, &FaultStatusMonitor::commandRequested,
             this, [this](const QString &command) { sendControlCommand(command); });
     connect(m_settings, &RotorSettingsPanel::modelApplyRequested,
             this, &MainWindow::applyRotorModel);
@@ -181,6 +193,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     });
     connect(m_calibrationTimeoutTimer, &QTimer::timeout, this, [this] {
         m_pendingCalibrationCommand.clear();
+        m_faultStatus->setPaused(false);
         if (m_transport->isOpen())
             m_positionPollTimer->start();
     });
@@ -234,6 +247,7 @@ void MainWindow::updateConnectionState()
     m_control->setCommandEnabled(commandEnabled);
     m_console->setCommandEnabled(commandEnabled);
     m_settings->setCommandEnabled(commandEnabled);
+    m_faultStatus->setEnabled(commandEnabled);
     const bool managementEnabled = m_connection->isConnected() && !virtualCom;
     m_authenticateAction->setEnabled(managementEnabled);
     m_changePasswordAction->setEnabled(managementEnabled);
@@ -486,6 +500,7 @@ void MainWindow::requestCalibration(const QString &command, const QString &quest
                               QMessageBox::Ok | QMessageBox::Cancel,
                               QMessageBox::Ok) == QMessageBox::Ok) {
         m_pendingCalibrationCommand = command;
+        m_faultStatus->setPaused(true);
         m_positionPollTimer->stop();
         m_calibrationTimeoutTimer->start();
         sendControlCommand(command);
@@ -611,7 +626,9 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
     m_receiveBuffer.append(bytes);
     constexpr qsizetype maximumBuffer = 64 * 1024;
     if (m_receiveBuffer.size() > maximumBuffer) {
+        m_console->appendReceived(m_receiveBuffer.mid(m_consoleForwardedBytes));
         m_receiveBuffer.clear();
+        m_consoleForwardedBytes = 0;
         return;
     }
 
@@ -619,6 +636,13 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
     while ((newline = m_receiveBuffer.indexOf('\n')) >= 0) {
         const QByteArray line = m_receiveBuffer.left(newline);
         m_receiveBuffer.remove(0, newline + 1);
+        const auto response = QJsonDocument::fromJson(line.trimmed().mid(1));
+        const bool faultResponse = line.trimmed().startsWith('!') && response.isObject() &&
+                                   m_faultStatus->handleResponse(response.object());
+        // NOTE: 自动故障查询只更新状态面板，避免原始诊断字段淹没控制台。
+        if (!faultResponse)
+            m_console->appendReceived((line + '\n').mid(m_consoleForwardedBytes));
+        m_consoleForwardedBytes = 0;
         handleManagementResponse(line);
 
         const QString text = QString::fromUtf8(line).trimmed();
@@ -634,6 +658,7 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
             } else {
                 sendControlCommand(QStringLiteral("NO"));
                 m_pendingCalibrationCommand.clear();
+                m_faultStatus->setPaused(false);
                 m_calibrationTimeoutTimer->stop();
                 if (m_transport->isOpen())
                     m_positionPollTimer->start();
@@ -642,6 +667,7 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
                    (text.contains(QStringLiteral("Completed"), Qt::CaseInsensitive) ||
                     text.startsWith(QStringLiteral("?>")))) {
             m_pendingCalibrationCommand.clear();
+            m_faultStatus->setPaused(false);
             m_calibrationTimeoutTimer->stop();
             if (m_transport->isOpen())
                 m_positionPollTimer->start();
@@ -661,6 +687,11 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
         } else if (const auto elMatch = elevationOnly.match(text); elMatch.hasMatch()) {
             m_control->setPosition(m_control->azimuth(), elMatch.captured(1).toInt());
         }
+    }
+    // NOTE: 仅缓冲扩展响应以便按命令过滤；普通终端输出仍随字节到达立即显示。
+    if (!m_receiveBuffer.trimmed().startsWith('!')) {
+        m_console->appendReceived(m_receiveBuffer.mid(m_consoleForwardedBytes));
+        m_consoleForwardedBytes = m_receiveBuffer.size();
     }
 }
 

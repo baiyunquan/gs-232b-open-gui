@@ -625,4 +625,111 @@
             <translation>密码</translation>
         </message>
     </context>
+    <context>
+        <name>FaultStatusPanel</name>
+        <message>
+            <source>FAULT STATUS</source>
+            <translation>报错状态</translation>
+        </message>
+        <message>
+            <source>Clear fault</source>
+            <translation>清除报错</translation>
+        </message>
+        <message>
+            <source>Connect directly to read status</source>
+            <translation>直连设备后读取状态</translation>
+        </message>
+        <message>
+            <source>Clearing fault…</source>
+            <translation>正在清除报错…</translation>
+        </message>
+        <message>
+            <source>Reading status…</source>
+            <translation>正在读取状态…</translation>
+        </message>
+        <message>
+            <source>Unable to read device status</source>
+            <translation>无法读取设备状态</translation>
+        </message>
+        <message>
+            <source>%1</source>
+            <translation>%1</translation>
+        </message>
+        <message>
+            <source>Azimuth: %1</source>
+            <translation>方位：%1</translation>
+        </message>
+        <message>
+            <source>Elevation: %1</source>
+            <translation>俯仰：%1</translation>
+        </message>
+        <message>
+            <source>Both axes: %1</source>
+            <translation>双轴：%1</translation>
+        </message>
+        <message>
+            <source>No faults</source>
+            <translation>无报错</translation>
+        </message>
+        <message>
+            <source>Position feedback unavailable</source>
+            <translation>位置反馈异常</translation>
+        </message>
+        <message>
+            <source>Motor output fault</source>
+            <translation>电机输出异常</translation>
+        </message>
+        <message>
+            <source>Travel limit fault</source>
+            <translation>行程限位异常</translation>
+        </message>
+        <message>
+            <source>Unexpected rotation direction</source>
+            <translation>旋转方向异常</translation>
+        </message>
+        <message>
+            <source>Rotator is not moving</source>
+            <translation>旋转器未转动</translation>
+        </message>
+        <message>
+            <source>Motion timed out</source>
+            <translation>运动超时</translation>
+        </message>
+        <message>
+            <source>Sequence timing fault</source>
+            <translation>序列执行超时</translation>
+        </message>
+        <message>
+            <source>Sequence target unavailable</source>
+            <translation>序列目标不可用</translation>
+        </message>
+        <message>
+            <source>Device fault</source>
+            <translation>设备异常</translation>
+        </message>
+        <message>
+            <source>Stop motion and finish pending operations before clearing</source>
+            <translation>请先停止运动并结束待执行操作</translation>
+        </message>
+        <message>
+            <source>Another controller is using the device</source>
+            <translation>设备正由其他控制端使用</translation>
+        </message>
+        <message>
+            <source>Clearing is not permitted on this connection</source>
+            <translation>当前连接不允许清除报错</translation>
+        </message>
+        <message>
+            <source>Fault persists; check feedback and hardware</source>
+            <translation>故障仍存在，请检查反馈及硬件</translation>
+        </message>
+        <message>
+            <source>Clear timed out; checking device status</source>
+            <translation>清除超时，正在核实设备状态</translation>
+        </message>
+        <message>
+            <source>Could not clear the fault</source>
+            <translation>未能清除报错</translation>
+        </message>
+    </context>
 </TS>
