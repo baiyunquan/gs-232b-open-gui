@@ -9,22 +9,22 @@
 ManagementKeyDialog::ManagementKeyDialog(QWidget *parent) : QDialog(parent)
 {
     setObjectName(QStringLiteral("managementKeyDialog"));
-    setWindowTitle(tr("Management password (AI)"));
+    setWindowTitle(tr("Management password"));
     setWindowModality(Qt::WindowModal);
     resize(380, 190);
     auto *layout = new QVBoxLayout(this);
     m_password = new QLineEdit(this);
     m_password->setObjectName(QStringLiteral("managementPassword"));
     m_password->setEchoMode(QLineEdit::Password);
-    m_password->setPlaceholderText(tr("Enter password (AI)"));
-    auto *label = new QLabel(tr("Management password (AI)"), this);
+    m_password->setPlaceholderText(tr("Enter password"));
+    auto *label = new QLabel(tr("Management password"), this);
     label->setBuddy(m_password);
     layout->addWidget(label);
     layout->addWidget(m_password);
     layout->addStretch(1);
     auto *buttons = new QDialogButtonBox(this);
     buttons->addButton(tr("Cancel"), QDialogButtonBox::RejectRole);
-    m_continue = buttons->addButton(tr("Authenticate (AI)"), QDialogButtonBox::AcceptRole);
+    m_continue = buttons->addButton(tr("Authenticate"), QDialogButtonBox::AcceptRole);
     m_continue->setObjectName(QStringLiteral("authorizeButton"));
     m_continue->setEnabled(false);
     layout->addWidget(buttons);

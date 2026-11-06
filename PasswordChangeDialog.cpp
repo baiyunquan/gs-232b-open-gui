@@ -26,7 +26,7 @@ bool validPassword(const QString &value)
 PasswordChangeDialog::PasswordChangeDialog(QWidget *parent) : QDialog(parent)
 {
     setObjectName(QStringLiteral("passwordChangeDialog"));
-    setWindowTitle(tr("Change management password (AI)"));
+    setWindowTitle(tr("Change management password"));
     setWindowModality(Qt::WindowModal);
     resize(420, 250);
 
@@ -34,7 +34,7 @@ PasswordChangeDialog::PasswordChangeDialog(QWidget *parent) : QDialog(parent)
     m_password = new QLineEdit(this);
     m_password->setObjectName(QStringLiteral("newManagementPassword"));
     m_password->setEchoMode(QLineEdit::Password);
-    auto *passwordLabel = new QLabel(tr("New management password (AI)"), this);
+    auto *passwordLabel = new QLabel(tr("New management password"), this);
     passwordLabel->setBuddy(m_password);
     layout->addWidget(passwordLabel);
     layout->addWidget(m_password);
@@ -42,7 +42,7 @@ PasswordChangeDialog::PasswordChangeDialog(QWidget *parent) : QDialog(parent)
     m_confirmation = new QLineEdit(this);
     m_confirmation->setObjectName(QStringLiteral("confirmManagementPassword"));
     m_confirmation->setEchoMode(QLineEdit::Password);
-    auto *confirmationLabel = new QLabel(tr("Confirm password (AI)"), this);
+    auto *confirmationLabel = new QLabel(tr("Confirm password"), this);
     confirmationLabel->setBuddy(m_confirmation);
     layout->addWidget(confirmationLabel);
     layout->addWidget(m_confirmation);
@@ -50,7 +50,7 @@ PasswordChangeDialog::PasswordChangeDialog(QWidget *parent) : QDialog(parent)
 
     auto *buttons = new QDialogButtonBox(this);
     buttons->addButton(tr("Cancel"), QDialogButtonBox::RejectRole);
-    m_change = buttons->addButton(tr("Change password (AI)"), QDialogButtonBox::AcceptRole);
+    m_change = buttons->addButton(tr("Change password"), QDialogButtonBox::AcceptRole);
     m_change->setObjectName(QStringLiteral("changeManagementPassword"));
     m_change->setEnabled(false);
     layout->addWidget(buttons);

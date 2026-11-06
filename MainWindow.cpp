@@ -171,7 +171,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         }
         if (++m_wifiTrialPollCount > 300) {
             m_wifiTrialPollTimer->stop();
-            m_console->appendError(tr("Network configuration trial timed out; the device will roll it back. (AI)"));
+            m_console->appendError(tr("Network configuration trial timed out; the device will roll it back."));
             m_networkConfigurationStage = NetworkConfigurationStage::Idle;
             m_pendingNetworkPatch = {};
             m_pendingWifiSsid.clear();
@@ -193,28 +193,28 @@ void MainWindow::createMenus()
     menuBar()->setNativeMenuBar(false);
     auto *files = menuBar()->addMenu(tr("Files"));
     files->addAction(tr("Exit"), qApp, &QCoreApplication::quit);
-    auto *management = menuBar()->addMenu(tr("Management (AI)"));
+    auto *management = menuBar()->addMenu(tr("Management"));
     m_authenticateAction = management->addAction(
-        tr("Authenticate (AI)"), this, &MainWindow::authenticateManagement);
+        tr("Authenticate"), this, &MainWindow::authenticateManagement);
     m_authenticateAction->setObjectName(QStringLiteral("authenticateAction"));
     m_changePasswordAction = management->addAction(
-        tr("Change password (AI)"), this, &MainWindow::changeManagementPassword);
+        tr("Change password"), this, &MainWindow::changeManagementPassword);
     m_changePasswordAction->setObjectName(QStringLiteral("changePasswordAction"));
     m_cancelManagementAction = management->addAction(
-        tr("Cancel management (AI)"), this, &MainWindow::cancelManagement);
+        tr("Cancel management"), this, &MainWindow::cancelManagement);
     m_cancelManagementAction->setObjectName(QStringLiteral("cancelManagementAction"));
-    auto *wifiMenu = management->addMenu(tr("Wi-Fi provisioning (AI)"));
+    auto *wifiMenu = management->addMenu(tr("Wi-Fi provisioning"));
     m_startApProvisioningAction = wifiMenu->addAction(
-        tr("Start AP provisioning (AI)"), this, &MainWindow::startApProvisioning);
+        tr("Start AP provisioning"), this, &MainWindow::startApProvisioning);
     m_startApProvisioningAction->setObjectName(QStringLiteral("startApProvisioningAction"));
     m_manualWifiAction = wifiMenu->addAction(
-        tr("Manual provisioning (AI)"), this, &MainWindow::openWifiProvisioning);
+        tr("Manual provisioning"), this, &MainWindow::openWifiProvisioning);
     m_manualWifiAction->setObjectName(QStringLiteral("wifiAction"));
     m_networkPortAction = management->addAction(
-        tr("Network port configuration (AI)"), this, &MainWindow::openNetworkPortConfig);
+        tr("Network port configuration"), this, &MainWindow::openNetworkPortConfig);
     m_networkPortAction->setObjectName(QStringLiteral("networkPortAction"));
     m_resetNetworkAction = management->addAction(
-        tr("Reset network configuration (AI)"), this, &MainWindow::resetNetworkConfiguration);
+        tr("Reset network configuration"), this, &MainWindow::resetNetworkConfiguration);
     m_resetNetworkAction->setObjectName(QStringLiteral("resetNetworkAction"));
     menuBar()->addMenu(tr("Bridge"));
     auto *upgrade = menuBar()->addMenu(tr("Upgrade"));
@@ -277,12 +277,12 @@ void MainWindow::authenticateManagement()
     if (!m_transport->isOpen() || m_connection->isVirtualComEnabled())
         return;
     if (!m_connection->isNetworkMode()) {
-        QMessageBox::information(this, tr("Management authentication (AI)"),
-                                 tr("Serial connections do not require management authentication. (AI)"));
+        QMessageBox::information(this, tr("Management authentication"),
+                                 tr("Serial connections do not require management authentication."));
         return;
     }
     openManagementKey([this] {
-        m_console->appendNotice(tr("Management authentication succeeded. (AI)"));
+        m_console->appendNotice(tr("Management authentication succeeded."));
     });
 }
 
@@ -304,7 +304,7 @@ void MainWindow::changeManagementPassword()
                     m_networkConfigurationStage = NetworkConfigurationStage::Idle;
                     m_pendingNetworkPatch = {};
                     m_pendingWifiSsid.clear();
-                    m_console->appendNotice(tr("Management password changed. (AI)"));
+                    m_console->appendNotice(tr("Management password changed."));
                 });
         });
         dialog->open();
@@ -321,7 +321,7 @@ void MainWindow::cancelManagement()
                                   m_networkConfigurationStage = NetworkConfigurationStage::Idle;
                                   m_pendingNetworkPatch = {};
                                   m_pendingWifiSsid.clear();
-                                  m_console->appendNotice(tr("Management authentication disabled. (AI)"));
+                                  m_console->appendNotice(tr("Management authentication disabled."));
                               });
     });
 }
@@ -335,7 +335,7 @@ void MainWindow::startApProvisioning()
             QStringLiteral("!PROV START %1")
                 .arg(QString::fromUtf8(QJsonDocument(request).toJson(QJsonDocument::Compact))),
             QStringLiteral("PROV START"), [this] {
-                m_console->appendNotice(tr("AP provisioning started. (AI)"));
+                m_console->appendNotice(tr("AP provisioning started."));
             });
     });
 }
@@ -368,8 +368,8 @@ void MainWindow::resetNetworkConfiguration()
 {
     runManagementAction([this] {
         if (QMessageBox::question(
-                this, tr("Reset network configuration (AI)"),
-                tr("Reset Ethernet and Wi-Fi settings and reopen AP provisioning? (AI)"),
+                this, tr("Reset network configuration"),
+                tr("Reset Ethernet and Wi-Fi settings and reopen AP provisioning?"),
                 QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
             return;
         QJsonObject request;
@@ -383,7 +383,7 @@ void MainWindow::resetNetworkConfiguration()
                 m_networkConfigurationStage = NetworkConfigurationStage::Idle;
                 m_pendingNetworkPatch = {};
                 m_pendingWifiSsid.clear();
-                m_console->appendNotice(tr("Network configuration reset. (AI)"));
+                m_console->appendNotice(tr("Network configuration reset."));
             });
     });
 }
@@ -712,7 +712,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         m_pendingManagementResponseContinuation = {};
         if (!ok) {
             m_console->appendError(
-                tr("Management command failed: %1 (AI)")
+                tr("Management command failed: %1")
                     .arg(response.value(QStringLiteral("error")).toString()));
             return;
         }
@@ -740,7 +740,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
 
     if (!ok) {
         m_console->appendError(
-            tr("Network configuration failed: %1 (AI)")
+            tr("Network configuration failed: %1")
                 .arg(response.value(QStringLiteral("error")).toString()));
         m_wifiTrialPollTimer->stop();
         m_networkConfigurationStage = NetworkConfigurationStage::Idle;
@@ -755,7 +755,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         m_pendingNetworkCandidate = data.value(QStringLiteral("candidate_id")).toInteger(-1);
         m_pendingNetworkRevision = data.value(QStringLiteral("base_revision")).toInteger(-1);
         if (m_pendingNetworkCandidate < 0) {
-            m_console->appendError(tr("Device did not return a network candidate ID. (AI)"));
+            m_console->appendError(tr("Device did not return a network candidate ID."));
             m_networkConfigurationStage = NetworkConfigurationStage::Idle;
             m_pendingNetworkPatch = {};
             m_pendingWifiSsid.clear();
@@ -796,7 +796,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         command == QStringLiteral("CFG APPLY")) {
         m_pendingNetworkTrial = data.value(QStringLiteral("trial_id")).toInteger(-1);
         if (m_pendingNetworkTrial < 0) {
-            m_console->appendError(tr("Device did not return a network trial ID. (AI)"));
+            m_console->appendError(tr("Device did not return a network trial ID."));
             m_networkConfigurationStage = NetworkConfigurationStage::Idle;
             m_pendingNetworkPatch = {};
             m_pendingWifiSsid.clear();
@@ -829,11 +829,11 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         m_wifiTrialPollTimer->stop();
         m_networkConfigurationStage = NetworkConfigurationStage::AwaitConfirm;
         const QString title = m_pendingNetworkWifiTarget
-            ? tr("Confirm Wi-Fi configuration (AI)")
-            : tr("Confirm network port configuration (AI)");
+            ? tr("Confirm Wi-Fi configuration")
+            : tr("Confirm network port configuration");
         const QString question = m_pendingNetworkWifiTarget
-            ? tr("The new Wi-Fi network is connected and has an IP address. Confirm and save it? (AI)")
-            : tr("The network port has a valid IPv4 address. Confirm and save it? (AI)");
+            ? tr("The new Wi-Fi network is connected and has an IP address. Confirm and save it?")
+            : tr("The network port has a valid IPv4 address. Confirm and save it?");
         const auto answer = QMessageBox::question(
             this, title, question,
             QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
@@ -868,7 +868,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         m_pendingNetworkPatch = {};
         m_pendingWifiSsid.clear();
         m_console->appendNotice(m_pendingNetworkWifiTarget
-            ? tr("Wi-Fi configuration saved. (AI)")
-            : tr("Network port configuration saved. (AI)"));
+            ? tr("Wi-Fi configuration saved.")
+            : tr("Network port configuration saved."));
     }
 }

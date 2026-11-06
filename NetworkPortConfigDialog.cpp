@@ -10,16 +10,16 @@
 NetworkPortConfigDialog::NetworkPortConfigDialog(QWidget *parent) : QDialog(parent)
 {
     setObjectName(QStringLiteral("networkPortConfigDialog"));
-    setWindowTitle(tr("Network port configuration (AI)"));
+    setWindowTitle(tr("Network port configuration"));
     setWindowModality(Qt::WindowModal);
     resize(470, 330);
 
     auto *layout = new QGridLayout(this);
     m_mode = new QComboBox(this);
     m_mode->setObjectName(QStringLiteral("ethernetMode"));
-    m_mode->addItem(tr("DHCP (AI)"), QStringLiteral("dhcp"));
-    m_mode->addItem(tr("Static IPv4 (AI)"), QStringLiteral("static"));
-    layout->addWidget(new QLabel(tr("Address mode (AI)"), this), 0, 0);
+    m_mode->addItem(tr("DHCP"), QStringLiteral("dhcp"));
+    m_mode->addItem(tr("Static IPv4"), QStringLiteral("static"));
+    layout->addWidget(new QLabel(tr("Address mode"), this), 0, 0);
     layout->addWidget(m_mode, 0, 1);
 
     auto addField = [this, layout](int row, const QString &labelText,
@@ -31,21 +31,21 @@ NetworkPortConfigDialog::NetworkPortConfigDialog(QWidget *parent) : QDialog(pare
         layout->addWidget(field, row, 1);
         return field;
     };
-    m_address = addField(1, tr("IPv4 address (AI)"), QStringLiteral("ethernetAddress"),
+    m_address = addField(1, tr("IPv4 address"), QStringLiteral("ethernetAddress"),
                          QStringLiteral("192.168.1.50"));
-    m_netmask = addField(2, tr("Netmask (AI)"), QStringLiteral("ethernetNetmask"),
+    m_netmask = addField(2, tr("Netmask"), QStringLiteral("ethernetNetmask"),
                          QStringLiteral("255.255.255.0"));
-    m_gateway = addField(3, tr("Gateway (AI)"), QStringLiteral("ethernetGateway"),
+    m_gateway = addField(3, tr("Gateway"), QStringLiteral("ethernetGateway"),
                          QStringLiteral("192.168.1.1"));
-    m_dns1 = addField(4, tr("DNS 1 (AI)"), QStringLiteral("ethernetDns1"),
+    m_dns1 = addField(4, tr("DNS 1"), QStringLiteral("ethernetDns1"),
                       QStringLiteral("192.168.1.1"));
-    m_dns2 = addField(5, tr("DNS 2 (AI)"), QStringLiteral("ethernetDns2"),
+    m_dns2 = addField(5, tr("DNS 2"), QStringLiteral("ethernetDns2"),
                       QStringLiteral("8.8.8.8"));
     layout->setColumnStretch(1, 1);
 
     auto *buttons = new QDialogButtonBox(this);
     buttons->addButton(tr("Cancel"), QDialogButtonBox::RejectRole);
-    m_apply = buttons->addButton(tr("Apply (AI)"), QDialogButtonBox::AcceptRole);
+    m_apply = buttons->addButton(tr("Apply"), QDialogButtonBox::AcceptRole);
     m_apply->setObjectName(QStringLiteral("applyNetworkPort"));
     layout->addWidget(buttons, 6, 0, 1, 2);
 

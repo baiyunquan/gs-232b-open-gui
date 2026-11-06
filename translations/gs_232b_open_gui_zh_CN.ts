@@ -335,116 +335,116 @@
             <translation>Wi-Fi 配置已保存。</translation>
         </message>
         <message>
-            <source>Management (AI)</source>
-            <translation>管理 (AI)</translation>
+            <source>Management</source>
+            <translation>管理</translation>
         </message>
         <message>
-            <source>Authenticate (AI)</source>
-            <translation>认证 (AI)</translation>
+            <source>Authenticate</source>
+            <translation>认证</translation>
         </message>
         <message>
-            <source>Change password (AI)</source>
-            <translation>修改密码 (AI)</translation>
+            <source>Change password</source>
+            <translation>修改密码</translation>
         </message>
         <message>
-            <source>Cancel management (AI)</source>
-            <translation>取消管理 (AI)</translation>
+            <source>Cancel management</source>
+            <translation>取消管理</translation>
         </message>
         <message>
-            <source>Wi-Fi provisioning (AI)</source>
-            <translation>WiFi配网 (AI)</translation>
+            <source>Wi-Fi provisioning</source>
+            <translation>WiFi配网</translation>
         </message>
         <message>
-            <source>Start AP provisioning (AI)</source>
-            <translation>启动AP配网 (AI)</translation>
+            <source>Start AP provisioning</source>
+            <translation>启动AP配网</translation>
         </message>
         <message>
-            <source>Manual provisioning (AI)</source>
-            <translation>手动配网 (AI)</translation>
+            <source>Manual provisioning</source>
+            <translation>手动配网</translation>
         </message>
         <message>
-            <source>Network port configuration (AI)</source>
-            <translation>网口配置 (AI)</translation>
+            <source>Network port configuration</source>
+            <translation>网口配置</translation>
         </message>
         <message>
-            <source>Reset network configuration (AI)</source>
-            <translation>重置网络配置 (AI)</translation>
+            <source>Reset network configuration</source>
+            <translation>重置网络配置</translation>
         </message>
         <message>
-            <source>Management authentication (AI)</source>
-            <translation>管理认证 (AI)</translation>
+            <source>Management authentication</source>
+            <translation>管理认证</translation>
         </message>
         <message>
-            <source>Serial connections do not require management authentication. (AI)</source>
-            <translation>串口连接无需管理认证。(AI)</translation>
+            <source>Serial connections do not require management authentication.</source>
+            <translation>串口连接无需管理认证。</translation>
         </message>
         <message>
-            <source>Management authentication succeeded. (AI)</source>
-            <translation>管理认证成功。(AI)</translation>
+            <source>Management authentication succeeded.</source>
+            <translation>管理认证成功。</translation>
         </message>
         <message>
-            <source>Management password changed. (AI)</source>
-            <translation>管理密码已修改。(AI)</translation>
+            <source>Management password changed.</source>
+            <translation>管理密码已修改。</translation>
         </message>
         <message>
-            <source>Management authentication disabled. (AI)</source>
-            <translation>管理认证已取消。(AI)</translation>
+            <source>Management authentication disabled.</source>
+            <translation>管理认证已取消。</translation>
         </message>
         <message>
-            <source>AP provisioning started. (AI)</source>
-            <translation>AP配网已启动。(AI)</translation>
+            <source>AP provisioning started.</source>
+            <translation>AP配网已启动。</translation>
         </message>
         <message>
-            <source>Network configuration reset. (AI)</source>
-            <translation>网络配置已重置。(AI)</translation>
+            <source>Network configuration reset.</source>
+            <translation>网络配置已重置。</translation>
         </message>
         <message>
-            <source>Reset Ethernet and Wi-Fi settings and reopen AP provisioning? (AI)</source>
-            <translation>要重置网口和 WiFi 设置并重新开启 AP 配网吗？(AI)</translation>
+            <source>Reset Ethernet and Wi-Fi settings and reopen AP provisioning?</source>
+            <translation>要重置网口和 WiFi 设置并重新开启 AP 配网吗？</translation>
         </message>
         <message>
-            <source>Network configuration trial timed out; the device will roll it back. (AI)</source>
-            <translation>网络配置试运行超时，设备将回滚配置。(AI)</translation>
+            <source>Network configuration trial timed out; the device will roll it back.</source>
+            <translation>网络配置试运行超时，设备将回滚配置。</translation>
         </message>
         <message>
-            <source>Management command failed: %1 (AI)</source>
-            <translation>管理命令失败：%1 (AI)</translation>
+            <source>Management command failed: %1</source>
+            <translation>管理命令失败：%1</translation>
         </message>
         <message>
-            <source>Network configuration failed: %1 (AI)</source>
-            <translation>网络配置失败：%1 (AI)</translation>
+            <source>Network configuration failed: %1</source>
+            <translation>网络配置失败：%1</translation>
         </message>
         <message>
-            <source>Device did not return a network candidate ID. (AI)</source>
-            <translation>设备未返回网络候选配置 ID。(AI)</translation>
+            <source>Device did not return a network candidate ID.</source>
+            <translation>设备未返回网络候选配置 ID。</translation>
         </message>
         <message>
-            <source>Device did not return a network trial ID. (AI)</source>
-            <translation>设备未返回网络试运行 ID。(AI)</translation>
+            <source>Device did not return a network trial ID.</source>
+            <translation>设备未返回网络试运行 ID。</translation>
         </message>
         <message>
-            <source>Confirm Wi-Fi configuration (AI)</source>
-            <translation>确认 WiFi 配置 (AI)</translation>
+            <source>Confirm Wi-Fi configuration</source>
+            <translation>确认 WiFi 配置</translation>
         </message>
         <message>
-            <source>Confirm network port configuration (AI)</source>
-            <translation>确认网口配置 (AI)</translation>
+            <source>Confirm network port configuration</source>
+            <translation>确认网口配置</translation>
         </message>
         <message>
-            <source>The new Wi-Fi network is connected and has an IP address. Confirm and save it? (AI)</source>
-            <translation>新的 WiFi 网络已连接并取得 IP 地址。是否确认并保存？(AI)</translation>
+            <source>The new Wi-Fi network is connected and has an IP address. Confirm and save it?</source>
+            <translation>新的 WiFi 网络已连接并取得 IP 地址。是否确认并保存？</translation>
         </message>
         <message>
-            <source>The network port has a valid IPv4 address. Confirm and save it? (AI)</source>
-            <translation>网口已取得有效 IPv4 地址。是否确认并保存？(AI)</translation>
+            <source>The network port has a valid IPv4 address. Confirm and save it?</source>
+            <translation>网口已取得有效 IPv4 地址。是否确认并保存？</translation>
         </message>
         <message>
-            <source>Wi-Fi configuration saved. (AI)</source>
-            <translation>WiFi 配置已保存。(AI)</translation>
+            <source>Wi-Fi configuration saved.</source>
+            <translation>WiFi 配置已保存。</translation>
         </message>
         <message>
-            <source>Network port configuration saved. (AI)</source>
-            <translation>网口配置已保存。(AI)</translation>
+            <source>Network port configuration saved.</source>
+            <translation>网口配置已保存。</translation>
         </message>
     </context>
     <context>
@@ -457,35 +457,35 @@
         <message>
             <location filename="../ManagementKeyDialog.cpp" line="12" />
             <location filename="../ManagementKeyDialog.cpp" line="20" />
-            <source>Management password (AI)</source>
-            <translation>管理密码 (AI)</translation>
+            <source>Management password</source>
+            <translation>管理密码</translation>
         </message>
         <message>
-            <source>Enter password (AI)</source>
-            <translation>输入管理密码 (AI)</translation>
+            <source>Enter password</source>
+            <translation>输入管理密码</translation>
         </message>
         <message>
-            <source>Authenticate (AI)</source>
-            <translation>认证 (AI)</translation>
+            <source>Authenticate</source>
+            <translation>认证</translation>
         </message>
     </context>
     <context>
         <name>PasswordChangeDialog</name>
         <message>
-            <source>Change management password (AI)</source>
-            <translation>修改管理密码 (AI)</translation>
+            <source>Change management password</source>
+            <translation>修改管理密码</translation>
         </message>
         <message>
-            <source>New management password (AI)</source>
-            <translation>新的管理密码 (AI)</translation>
+            <source>New management password</source>
+            <translation>新的管理密码</translation>
         </message>
         <message>
-            <source>Confirm password (AI)</source>
-            <translation>确认密码 (AI)</translation>
+            <source>Confirm password</source>
+            <translation>确认密码</translation>
         </message>
         <message>
-            <source>Change password (AI)</source>
-            <translation>修改密码 (AI)</translation>
+            <source>Change password</source>
+            <translation>修改密码</translation>
         </message>
         <message>
             <source>Cancel</source>
@@ -495,44 +495,44 @@
     <context>
         <name>NetworkPortConfigDialog</name>
         <message>
-            <source>Network port configuration (AI)</source>
-            <translation>网口配置 (AI)</translation>
+            <source>Network port configuration</source>
+            <translation>网口配置</translation>
         </message>
         <message>
-            <source>DHCP (AI)</source>
-            <translation>DHCP (AI)</translation>
+            <source>DHCP</source>
+            <translation>DHCP</translation>
         </message>
         <message>
-            <source>Static IPv4 (AI)</source>
-            <translation>静态 IPv4 (AI)</translation>
+            <source>Static IPv4</source>
+            <translation>静态 IPv4</translation>
         </message>
         <message>
-            <source>Address mode (AI)</source>
-            <translation>地址模式 (AI)</translation>
+            <source>Address mode</source>
+            <translation>地址模式</translation>
         </message>
         <message>
-            <source>IPv4 address (AI)</source>
-            <translation>IPv4 地址 (AI)</translation>
+            <source>IPv4 address</source>
+            <translation>IPv4 地址</translation>
         </message>
         <message>
-            <source>Netmask (AI)</source>
-            <translation>子网掩码 (AI)</translation>
+            <source>Netmask</source>
+            <translation>子网掩码</translation>
         </message>
         <message>
-            <source>Gateway (AI)</source>
-            <translation>网关 (AI)</translation>
+            <source>Gateway</source>
+            <translation>网关</translation>
         </message>
         <message>
-            <source>DNS 1 (AI)</source>
-            <translation>DNS 1 (AI)</translation>
+            <source>DNS 1</source>
+            <translation>DNS 1</translation>
         </message>
         <message>
-            <source>DNS 2 (AI)</source>
-            <translation>DNS 2 (AI)</translation>
+            <source>DNS 2</source>
+            <translation>DNS 2</translation>
         </message>
         <message>
-            <source>Apply (AI)</source>
-            <translation>应用 (AI)</translation>
+            <source>Apply</source>
+            <translation>应用</translation>
         </message>
         <message>
             <source>Cancel</source>
