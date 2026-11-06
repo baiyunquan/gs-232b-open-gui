@@ -9,29 +9,36 @@
 ManagementKeyDialog::ManagementKeyDialog(QWidget *parent) : QDialog(parent)
 {
     setObjectName(QStringLiteral("managementKeyDialog"));
-    setWindowTitle(tr("Management key"));
+    setWindowTitle(tr("Management password (AI)"));
     setWindowModality(Qt::WindowModal);
     resize(380, 190);
     auto *layout = new QVBoxLayout(this);
-    m_key = new QLineEdit(this);
-    m_key->setObjectName(QStringLiteral("managementKey"));
-    m_key->setEchoMode(QLineEdit::Password);
-    m_key->setPlaceholderText(tr("Enter key"));
-    auto *label = new QLabel(tr("Management key"), this);
-    label->setBuddy(m_key);
+    m_password = new QLineEdit(this);
+    m_password->setObjectName(QStringLiteral("managementPassword"));
+    m_password->setEchoMode(QLineEdit::Password);
+    m_password->setPlaceholderText(tr("Enter password (AI)"));
+    auto *label = new QLabel(tr("Management password (AI)"), this);
+    label->setBuddy(m_password);
     layout->addWidget(label);
-    layout->addWidget(m_key);
+    layout->addWidget(m_password);
     layout->addStretch(1);
     auto *buttons = new QDialogButtonBox(this);
     buttons->addButton(tr("Cancel"), QDialogButtonBox::RejectRole);
-    auto *continueButton = buttons->addButton(tr("Continue"), QDialogButtonBox::AcceptRole);
-    continueButton->setObjectName(QStringLiteral("authorizeButton"));
+    m_continue = buttons->addButton(tr("Authenticate (AI)"), QDialogButtonBox::AcceptRole);
+    m_continue->setObjectName(QStringLiteral("authorizeButton"));
+    m_continue->setEnabled(false);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(m_password, &QLineEdit::textChanged, this, &ManagementKeyDialog::updateControls);
 }
 
-QString ManagementKeyDialog::key() const
+QString ManagementKeyDialog::password() const
 {
-    return m_key->text().trimmed();
+    return m_password->text();
+}
+
+void ManagementKeyDialog::updateControls()
+{
+    m_continue->setEnabled(!m_password->text().isEmpty());
 }

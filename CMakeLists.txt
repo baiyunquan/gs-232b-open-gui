@@ -51,6 +51,10 @@ qt_add_executable(gs_232b_open_gui
     WifiProvisioningDialog.h
     ManagementKeyDialog.cpp
     ManagementKeyDialog.h
+    PasswordChangeDialog.cpp
+    PasswordChangeDialog.h
+    NetworkPortConfigDialog.cpp
+    NetworkPortConfigDialog.h
     FirmwareUpgradeDialog.cpp
     FirmwareUpgradeDialog.h
 )
