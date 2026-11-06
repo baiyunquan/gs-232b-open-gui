@@ -4,7 +4,6 @@
 #include <QFrame>
 #include <QCoreApplication>
 #include <QGridLayout>
-#include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
 #include <QPushButton>
@@ -54,8 +53,11 @@ QWidget *makePresets(const QString &prefix, QWidget *parent)
 ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
 {
     setObjectName(QStringLiteral("controlPanel"));
-    auto *layout = new QVBoxLayout(this);
-    auto *azimuthRow = new QHBoxLayout;
+    // NOTE: 方位与仰角共用列宽，保持预设等宽并使滑条对齐罗盘中轴。
+    auto *layout = new QGridLayout(this);
+    layout->setColumnStretch(1, 1);
+    layout->setRowStretch(0, 1);
+    layout->setRowStretch(2, 1);
     auto *azimuthColumn = new QVBoxLayout;
     m_compass = new Compass(this);
     connect(m_compass, &Compass::angleRequested, this, [this](int angle) {
@@ -66,10 +68,9 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     m_azimuth->setAlignment(Qt::AlignCenter);
     azimuthColumn->addWidget(m_compass, 1);
     azimuthColumn->addWidget(m_azimuth);
-    azimuthRow->addLayout(azimuthColumn);
+    layout->addLayout(azimuthColumn, 0, 0);
     m_azimuthPresets = makePresets(QStringLiteral("azimuthPreset"), this);
-    azimuthRow->addWidget(m_azimuthPresets, 1);
-    layout->addLayout(azimuthRow, 1);
+    layout->addWidget(m_azimuthPresets, 0, 1);
 
     const auto azimuthPresets = m_azimuthPresets->findChildren<QPushButton *>();
     for (auto *button : azimuthPresets) {
@@ -97,9 +98,8 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     auto *separator = new QFrame(this);
     separator->setFrameShape(QFrame::HLine);
     separator->setFrameShadow(QFrame::Sunken);
-    layout->addWidget(separator);
+    layout->addWidget(separator, 1, 0, 1, 2);
 
-    auto *elevationRow = new QHBoxLayout;
     auto *elevationColumn = new QVBoxLayout;
     m_slider = new QSlider(Qt::Vertical, this);
     m_slider->setObjectName(QStringLiteral("elevationSlider"));
@@ -113,10 +113,9 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     m_elevation->setAlignment(Qt::AlignCenter);
     elevationColumn->addWidget(m_slider, 1, Qt::AlignHCenter);
     elevationColumn->addWidget(m_elevation);
-    elevationRow->addLayout(elevationColumn);
+    layout->addLayout(elevationColumn, 2, 0);
     m_elevationPresets = makePresets(QStringLiteral("elevationPreset"), this);
-    elevationRow->addWidget(m_elevationPresets, 1);
-    layout->addLayout(elevationRow, 1);
+    layout->addWidget(m_elevationPresets, 2, 1);
 
     const auto elevationPresets = m_elevationPresets->findChildren<QPushButton *>();
     for (auto *button : elevationPresets) {
