@@ -78,7 +78,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     columns->addWidget(m_console, 1);
     auto *right = new QWidget(central);
     right->setMinimumWidth(250);
-    right->setMaximumWidth(320);
+    // NOTE: 侧栏按内容尺寸限制宽度，避免硬性上限小于布局最小宽度时低估换行文字的高度。
+    right->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
     auto *rightLayout = new QVBoxLayout(right);
     rightLayout->setContentsMargins(0, 0, 0, 0);
     rightLayout->setSpacing(10);
