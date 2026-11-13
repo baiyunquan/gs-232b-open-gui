@@ -111,6 +111,20 @@ if(BUILD_TESTING)
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     )
 
+    qt_add_executable(ap_provisioning_connection_tests
+        tests/ApProvisioningConnectionTests.cpp
+        ${GUI_SOURCES}
+    )
+    target_compile_features(ap_provisioning_connection_tests PRIVATE cxx_std_17)
+    target_include_directories(ap_provisioning_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(ap_provisioning_connection_tests
+        PRIVATE Qt6::Widgets Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial
+    )
+    add_test(NAME ap_provisioning_connection_tests COMMAND ap_provisioning_connection_tests)
+    set_tests_properties(ap_provisioning_connection_tests PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+
     qt_add_executable(virtual_serial_connection_tests
         tests/VirtualSerialConnectionTests.cpp
         ${GUI_SOURCES}

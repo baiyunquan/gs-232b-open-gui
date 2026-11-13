@@ -358,7 +358,7 @@ void MainWindow::changeManagementPassword()
                 QStringLiteral("!ADMIN SET %1")
                     .arg(QString::fromUtf8(
                         QJsonDocument(request).toJson(QJsonDocument::Compact))),
-                QStringLiteral("ADMIN SET"), [this] {
+                QStringLiteral("ADMIN SET"), [this](const QJsonObject &) {
                     m_managementAuthenticated = false;
                     m_wifiTrialPollTimer->stop();
                     m_networkConfigurationStage = NetworkConfigurationStage::Idle;
@@ -375,7 +375,7 @@ void MainWindow::cancelManagement()
 {
     runManagementAction([this] {
         sendManagementCommand(QStringLiteral("!ADMIN DISABLE"), QStringLiteral("ADMIN DISABLE"),
-                              [this] {
+                              [this](const QJsonObject &) {
                                   m_managementAuthenticated = false;
                                   m_wifiTrialPollTimer->stop();
                                   m_networkConfigurationStage = NetworkConfigurationStage::Idle;
@@ -389,13 +389,17 @@ void MainWindow::cancelManagement()
 void MainWindow::startApProvisioning()
 {
     runManagementAction([this] {
-        QJsonObject request;
-        request.insert(QStringLiteral("timeout_s"), 600);
         sendManagementCommand(
-            QStringLiteral("!PROV START %1")
-                .arg(QString::fromUtf8(QJsonDocument(request).toJson(QJsonDocument::Compact))),
-            QStringLiteral("PROV START"), [this] {
-                m_console->appendNotice(tr("AP provisioning started."));
+            QStringLiteral("!PROV START"), QStringLiteral("PROV START"),
+            [this](const QJsonObject &data) {
+                const QJsonValue remaining = data.value(QStringLiteral("remaining_s"));
+                const int seconds = remaining.toInt(-1);
+                if (remaining.isDouble() && seconds >= 0 && remaining.toDouble() == seconds) {
+                    m_console->appendNotice(
+                        tr("AP provisioning started. Window remaining: %1 s.").arg(seconds));
+                } else {
+                    m_console->appendNotice(tr("AP provisioning started."));
+                }
             });
     });
 }
@@ -437,7 +441,7 @@ void MainWindow::resetNetworkConfiguration()
         sendManagementCommand(
             QStringLiteral("!NET RESET %1")
                 .arg(QString::fromUtf8(QJsonDocument(request).toJson(QJsonDocument::Compact))),
-            QStringLiteral("NET RESET"), [this] {
+            QStringLiteral("NET RESET"), [this](const QJsonObject &) {
                 m_managementAuthenticated = false;
                 m_wifiTrialPollTimer->stop();
                 m_networkConfigurationStage = NetworkConfigurationStage::Idle;
@@ -591,8 +595,9 @@ void MainWindow::openManagementKey(const std::function<void()> &continuation,
     dialog->open();
 }
 
-void MainWindow::sendManagementCommand(const QString &command, const QString &responseCommand,
-                                       const std::function<void()> &onSuccess)
+void MainWindow::sendManagementCommand(
+    const QString &command, const QString &responseCommand,
+    const std::function<void(const QJsonObject &)> &onSuccess)
 {
     if (command.trimmed().isEmpty() || responseCommand.trimmed().isEmpty())
         return;
@@ -810,7 +815,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
             return;
         }
         if (continuation)
-            continuation();
+            continuation(response.value(QStringLiteral("data")).toObject());
         return;
     }
 

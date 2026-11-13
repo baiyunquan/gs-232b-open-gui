@@ -1,0 +1,196 @@
+#include "CommunicationProtocol.h"
+#include "ConnectionPanel.h"
+#include "MainWindow.h"
+#include "ManagementKeyDialog.h"
+
+#include <QAction>
+#include <QComboBox>
+#include <QFile>
+#include <QJsonDocument>
+#include <QLineEdit>
+#include <QPointer>
+#include <QRadioButton>
+#include <QSignalSpy>
+#include <QWebSocket>
+#include <QWebSocketServer>
+#include <QtTest>
+
+#ifdef Q_OS_UNIX
+#include <cstdlib>
+#include <fcntl.h>
+#include <unistd.h>
+#endif
+
+class ApProvisioningConnectionTests final : public QObject
+{
+    Q_OBJECT
+
+private slots:
+    void init();
+    void cleanup();
+    void networkStartUsesBareCommand();
+    void failedAuthenticationDoesNotStartProvisioning();
+    void cancelledAuthenticationDoesNotStartProvisioning();
+#ifdef Q_OS_UNIX
+    void serialStartUsesBareCommand();
+#endif
+
+private:
+    bool connectDevice();
+    void submitPassword();
+
+    MainWindow *m_window = nullptr;
+    ConnectionPanel *m_connection = nullptr;
+    Communication::Transport *m_transport = nullptr;
+    QAction *m_start = nullptr;
+    QWebSocketServer *m_server = nullptr;
+    QPointer<QWebSocket> m_peer;
+    QStringList m_commands;
+};
+
+void ApProvisioningConnectionTests::init()
+{
+    m_server = new QWebSocketServer(QStringLiteral("provisioning-test"),
+                                  QWebSocketServer::NonSecureMode);
+    QVERIFY(m_server->listen(QHostAddress::LocalHost, 0));
+    connect(m_server, &QWebSocketServer::newConnection, this, [this] {
+        m_peer = m_server->nextPendingConnection();
+        m_peer->setParent(m_server);
+        connect(m_peer, &QWebSocket::textMessageReceived, this,
+                [this](const QString &message) { m_commands.append(message); });
+    });
+
+    m_window = new MainWindow;
+    m_connection = m_window->findChild<ConnectionPanel *>();
+    m_transport = m_window->findChild<Communication::Transport *>();
+    m_start = m_window->findChild<QAction *>(QStringLiteral("startApProvisioningAction"));
+    QVERIFY(m_connection);
+    QVERIFY(m_transport);
+    QVERIFY(m_start);
+    m_window->findChild<QRadioButton *>(QStringLiteral("networkMode"))->setChecked(true);
+    m_window->findChild<QLineEdit *>(QStringLiteral("websocketAddress"))
+        ->setText(QStringLiteral("ws://127.0.0.1:%1").arg(m_server->serverPort()));
+}
+
+void ApProvisioningConnectionTests::cleanup()
+{
+    delete m_window;
+    m_window = nullptr;
+    delete m_server;
+    m_server = nullptr;
+    m_commands.clear();
+}
+
+bool ApProvisioningConnectionTests::connectDevice()
+{
+    m_connection->connectRequested();
+    return QTest::qWaitFor([this] { return m_peer && m_connection->isConnected(); }, 3000);
+}
+
+void ApProvisioningConnectionTests::submitPassword()
+{
+    auto *dialog = m_window->findChild<ManagementKeyDialog *>();
+    QVERIFY(dialog);
+    dialog->findChild<QLineEdit *>(QStringLiteral("managementPassword"))
+        ->setText(QStringLiteral("test-password"));
+    dialog->accept();
+}
+
+void ApProvisioningConnectionTests::networkStartUsesBareCommand()
+{
+    QVERIFY(connectDevice());
+    QVERIFY(m_start->isEnabled());
+    m_start->trigger();
+    submitPassword();
+    QTRY_VERIFY(m_commands.contains(
+        QStringLiteral("!SESSION AUTH {\"password\":\"test-password\"}\r")));
+    QVERIFY(m_commands.filter(QStringLiteral("!PROV START")).isEmpty());
+
+    m_peer->sendTextMessage(QStringLiteral("!{\"cmd\":\"SESSION AUTH\",\"ok\":true,\"data\":{}}\r\n"));
+    QTRY_COMPARE(m_commands.filter(QStringLiteral("!PROV START")),
+                 QStringList{QStringLiteral("!PROV START\r")});
+
+    const QJsonObject data{{"state", "window"}, {"remaining_s", 137}};
+    const QJsonObject response{{"cmd", "PROV START"}, {"ok", true}, {"data", data}};
+    QSignalSpy received(m_transport, &Communication::Transport::bytesReceived);
+    m_peer->sendTextMessage(QLatin1Char('!') +
+                           QString::fromUtf8(QJsonDocument(response).toJson(QJsonDocument::Compact)) +
+                           QStringLiteral("\r\n"));
+    QTRY_COMPARE(received.size(), 1);
+
+    m_start->trigger();
+    const QStringList expected{QStringLiteral("!PROV START\r"), QStringLiteral("!PROV START\r")};
+    QTRY_COMPARE(m_commands.filter(QStringLiteral("!PROV START")), expected);
+    QCOMPARE(m_commands.filter(QStringLiteral("!SESSION AUTH")).size(), 1);
+}
+
+void ApProvisioningConnectionTests::failedAuthenticationDoesNotStartProvisioning()
+{
+    QVERIFY(connectDevice());
+    m_start->trigger();
+    submitPassword();
+    QTRY_COMPARE(m_commands.filter(QStringLiteral("!SESSION AUTH")).size(), 1);
+
+    QSignalSpy received(m_transport, &Communication::Transport::bytesReceived);
+    m_peer->sendTextMessage(QStringLiteral(
+        "!{\"cmd\":\"SESSION AUTH\",\"ok\":false,\"error\":\"NOT_AUTHORIZED\"}\r\n"));
+    QTRY_COMPARE(received.size(), 1);
+    QVERIFY(m_commands.filter(QStringLiteral("!PROV START")).isEmpty());
+
+    m_start->trigger();
+    submitPassword();
+    QTRY_COMPARE(m_commands.filter(QStringLiteral("!SESSION AUTH")).size(), 2);
+    QVERIFY(m_commands.filter(QStringLiteral("!PROV START")).isEmpty());
+}
+
+void ApProvisioningConnectionTests::cancelledAuthenticationDoesNotStartProvisioning()
+{
+    QVERIFY(connectDevice());
+    m_start->trigger();
+    auto *dialog = m_window->findChild<ManagementKeyDialog *>();
+    QVERIFY(dialog);
+    dialog->reject();
+    QCoreApplication::processEvents();
+    QVERIFY(m_commands.filter(QStringLiteral("!SESSION AUTH")).isEmpty());
+    QVERIFY(m_commands.filter(QStringLiteral("!PROV START")).isEmpty());
+}
+
+#ifdef Q_OS_UNIX
+void ApProvisioningConnectionTests::serialStartUsesBareCommand()
+{
+    const int masterFd = ::posix_openpt(O_RDWR | O_NOCTTY | O_NONBLOCK);
+    QVERIFY(masterFd >= 0);
+    QFile master;
+    QVERIFY(master.open(masterFd, QIODevice::ReadWrite, QFileDevice::AutoCloseHandle));
+    QVERIFY(::grantpt(masterFd) == 0);
+    QVERIFY(::unlockpt(masterFd) == 0);
+    const char *slave = ::ptsname(masterFd);
+    QVERIFY(slave);
+    m_window->findChild<QRadioButton *>(QStringLiteral("serialMode"))->setChecked(true);
+    m_window->findChild<QComboBox *>(QStringLiteral("serialPort"))
+        ->setEditText(QString::fromLocal8Bit(slave));
+    m_connection->connectRequested();
+    QVERIFY(m_connection->isConnected());
+    QVERIFY(m_start->isEnabled());
+    m_start->trigger();
+
+    QByteArray commands;
+    QTRY_VERIFY_WITH_TIMEOUT([&] {
+        char buffer[1024];
+        const auto count = ::read(masterFd, buffer, sizeof(buffer));
+        if (count > 0)
+            commands.append(buffer, count);
+        return commands.contains("!PROV START") && commands.endsWith('\r');
+    }(), 3000);
+    QList<QByteArray> provisioningCommands;
+    for (const QByteArray &command : commands.split('\r')) {
+        if (command.startsWith("!PROV START"))
+            provisioningCommands.append(command);
+    }
+    QCOMPARE(provisioningCommands, QList<QByteArray>{"!PROV START"});
+    QVERIFY(!commands.contains("!SESSION AUTH"));
+}
+#endif
+
+QTEST_MAIN(ApProvisioningConnectionTests)
+#include "ApProvisioningConnectionTests.moc"

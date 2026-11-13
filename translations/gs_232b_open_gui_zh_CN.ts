@@ -427,6 +427,10 @@
             <translation>AP配网已启动。</translation>
         </message>
         <message>
+            <source>AP provisioning started. Window remaining: %1 s.</source>
+            <translation>AP配网已启动。窗口剩余：%1 秒。</translation>
+        </message>
+        <message>
             <source>Network configuration reset.</source>
             <translation>网络配置已重置。</translation>
         </message>

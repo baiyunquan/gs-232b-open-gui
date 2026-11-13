@@ -60,8 +60,10 @@ private:
     void configureEthernet(const EthernetConfiguration &configuration);
     void beginNetworkConfiguration(const QJsonObject &patch, bool wifiTarget,
                                    const QString &wifiSsid = {});
-    void sendManagementCommand(const QString &command, const QString &responseCommand,
-                               const std::function<void()> &onSuccess = {});
+    /** @brief 发送管理命令，仅将匹配的成功响应中的 data 交给回调。 */
+    void sendManagementCommand(
+        const QString &command, const QString &responseCommand,
+        const std::function<void(const QJsonObject &)> &onSuccess = {});
     void handleReceivedBytes(const QByteArray &bytes);
     void handleManagementResponse(const QByteArray &line);
 
@@ -94,7 +96,7 @@ private:
     QString m_pendingManagementResponseCommand;
     bool m_managementAuthenticated = false;
     std::function<void()> m_pendingManagementContinuation;
-    std::function<void()> m_pendingManagementResponseContinuation;
+    std::function<void(const QJsonObject &)> m_pendingManagementResponseContinuation;
     QTimer *m_positionPollTimer;
     QTimer *m_wifiTrialPollTimer;
     QTimer *m_calibrationTimeoutTimer;
