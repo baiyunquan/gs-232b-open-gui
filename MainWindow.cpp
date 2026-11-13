@@ -26,6 +26,7 @@
 #include <QProcess>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QResizeEvent>
 #include <QSerialPortInfo>
 #include <QSignalBlocker>
 #include <QStatusBar>
@@ -33,6 +34,9 @@
 #include <QVBoxLayout>
 
 namespace {
+
+// NOTE: 窄窗口优先保留连接、控制和设置面板，终端在恢复足够宽度后自动显示。
+constexpr int kConsoleHideWidth = 1024;
 
 QString managementAuthCommand(const QString &password)
 {
@@ -56,7 +60,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
     setObjectName(QStringLiteral("mainWindow"));
     setWindowTitle(tr("GS-232B Open Control"));
-    setMinimumSize(1120, 720);
+    setMinimumSize(760, 720);
     resize(1440, 880);
 
     auto *central = new QWidget(this);
@@ -90,6 +94,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     rightLayout->addStretch(1);
     columns->addWidget(right);
     setCentralWidget(central);
+    updateConsoleVisibility();
 
     m_transport = new Communication::Transport(this);
     m_positionPollTimer = new QTimer(this);
@@ -220,6 +225,20 @@ MainWindow::~MainWindow()
     const QSignalBlocker virtualSerialBlocker(m_virtualSerial);
     m_transport->close();
     m_virtualSerial->stop();
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+    if (m_console)
+        updateConsoleVisibility();
+}
+
+void MainWindow::updateConsoleVisibility()
+{
+    const bool hideConsole = width() < kConsoleHideWidth;
+    if (m_console->isHidden() != hideConsole)
+        m_console->setHidden(hideConsole);
 }
 
 void MainWindow::setupVirtualSerial()

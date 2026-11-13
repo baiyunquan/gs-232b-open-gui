@@ -16,6 +16,7 @@ class QLabel;
 class RotorSettingsPanel;
 class QTimer;
 class VirtualSerialBridge;
+class QResizeEvent;
 struct EthernetConfiguration;
 
 namespace Communication {
@@ -34,7 +35,9 @@ public:
     ~MainWindow() override;
 
 private:
+    void resizeEvent(QResizeEvent *event) override;
     void createMenus();
+    void updateConsoleVisibility();
     void updateConnectionState();
     void openTransport();
     void closeTransport();
@@ -69,7 +72,7 @@ private:
 
     ConnectionPanel *m_connection;
     ControlPanel *m_control;
-    ConsolePanel *m_console;
+    ConsolePanel *m_console = nullptr;
     RotorSettingsPanel *m_settings;
     FaultStatusMonitor *m_faultStatus;
     QLabel *m_connectionStatus;
