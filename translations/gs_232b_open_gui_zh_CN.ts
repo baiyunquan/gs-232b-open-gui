@@ -34,6 +34,30 @@
             <translation>虚拟串口</translation>
         </message>
         <message>
+            <source>Select a COM port</source>
+            <translation>选择 COM 端口</translation>
+        </message>
+        <message>
+            <source>Bridge port</source>
+            <translation>桥接端口</translation>
+        </message>
+        <message>
+            <source>Client port</source>
+            <translation>客户端端口</translation>
+        </message>
+        <message>
+            <source>Select the two ports of an existing virtual COM pair.</source>
+            <translation>请选择已创建的虚拟串口对中的两个端口。</translation>
+        </message>
+        <message>
+            <source>Assigned after connection</source>
+            <translation>连接后分配</translation>
+        </message>
+        <message>
+            <source>Active port</source>
+            <translation>当前端口</translation>
+        </message>
+        <message>
             <location filename="../ConnectionPanel.cpp" line="50" />
             <source>Connect</source>
             <translation>连接</translation>
@@ -260,6 +284,14 @@
             <location filename="../MainWindow.cpp" line="82" />
             <source>Transport error: %1</source>
             <translation>传输错误：%1</translation>
+        </message>
+        <message>
+            <source>Virtual serial port ready: %1</source>
+            <translation>虚拟串口已就绪：%1</translation>
+        </message>
+        <message>
+            <source>Virtual serial error: %1</source>
+            <translation>虚拟串口错误：%1</translation>
         </message>
         <message>
             <location filename="../MainWindow.cpp" line="130" />
@@ -730,6 +762,24 @@
         <message>
             <source>Could not clear the fault</source>
             <translation>未能清除报错</translation>
+        </message>
+    </context>
+    <context>
+        <name>VirtualSerialBridge</name>
+        <message>
+            <source>Virtual serial endpoint is not running</source>
+            <translation>虚拟串口端点未运行</translation>
+        </message>
+    </context>
+    <context>
+        <name>VirtualSerialEndpoint</name>
+        <message>
+            <source>Virtual serial endpoint is not running</source>
+            <translation>虚拟串口端点未运行</translation>
+        </message>
+        <message>
+            <source>Select distinct bridge and client ports from an existing virtual COM pair.</source>
+            <translation>请从已创建的虚拟串口对中选择不同的桥接端口和客户端端口。</translation>
         </message>
     </context>
 </TS>

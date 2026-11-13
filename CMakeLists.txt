@@ -71,6 +71,7 @@ target_link_libraries(gs_232b_open_gui
         Qt6::Widgets
         Qt6::SerialPort
         Qt6::WebSockets
+        gs232b_virtual_serial
 )
 
 if(BUILD_TESTING)
@@ -103,10 +104,24 @@ if(BUILD_TESTING)
     target_compile_features(rotor_model_connection_tests PRIVATE cxx_std_17)
     target_include_directories(rotor_model_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(rotor_model_connection_tests
-        PRIVATE Qt6::Widgets Qt6::SerialPort Qt6::WebSockets Qt6::Test
+        PRIVATE Qt6::Widgets Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial
     )
     add_test(NAME rotor_model_connection_tests COMMAND rotor_model_connection_tests)
     set_tests_properties(rotor_model_connection_tests PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+
+    qt_add_executable(virtual_serial_connection_tests
+        tests/VirtualSerialConnectionTests.cpp
+        ${GUI_SOURCES}
+    )
+    target_compile_features(virtual_serial_connection_tests PRIVATE cxx_std_17)
+    target_include_directories(virtual_serial_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(virtual_serial_connection_tests
+        PRIVATE Qt6::Widgets Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial
+    )
+    add_test(NAME virtual_serial_connection_tests COMMAND virtual_serial_connection_tests)
+    set_tests_properties(virtual_serial_connection_tests PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     )
 endif()

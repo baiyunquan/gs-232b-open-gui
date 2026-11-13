@@ -112,6 +112,9 @@ bool VirtualSerialEndpoint::start(const VirtualSerialOptions &options)
             const ssize_t count = ::read(m_impl->masterFd, buffer, sizeof(buffer));
             if (count > 0) {
                 emit bytesReceived(QByteArray(buffer, static_cast<qsizetype>(count)));
+                // NOTE: 转发失败可能同步关闭端点，不得继续读取已释放的描述符。
+                if (!m_running)
+                    return;
                 continue;
             }
             if (count < 0 && errno == EINTR)
@@ -195,7 +198,7 @@ QString VirtualSerialEndpoint::clientPortName() const
 bool VirtualSerialEndpoint::writeToClient(const QByteArray &bytes)
 {
     if (!m_running) {
-        emit errorOccurred(QStringLiteral("Virtual serial endpoint is not running"));
+        emit errorOccurred(tr("Virtual serial endpoint is not running"));
         return false;
     }
     if (bytes.isEmpty())

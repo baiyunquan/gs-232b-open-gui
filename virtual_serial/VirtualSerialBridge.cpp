@@ -43,20 +43,21 @@ QString VirtualSerialBridge::clientPortName() const
     return m_endpoint.clientPortName();
 }
 
-void VirtualSerialBridge::feedWebSocketBytes(const QByteArray &bytes)
+bool VirtualSerialBridge::feedWebSocketBytes(const QByteArray &bytes)
 {
     if (bytes.isEmpty())
-        return;
+        return true;
     if (!m_endpoint.isRunning()) {
-        emit errorOccurred(QStringLiteral("Virtual serial endpoint is not running"));
-        return;
+        emit errorOccurred(tr("Virtual serial endpoint is not running"));
+        return false;
     }
 
     const QList<QByteArray> lines = m_webSocketInput.append(bytes);
     for (const QByteArray &line : lines) {
         if (!m_endpoint.writeToClient(line))
-            return;
+            return false;
     }
+    return true;
 }
 
 void VirtualSerialBridge::clearPendingData()
@@ -68,6 +69,9 @@ void VirtualSerialBridge::clearPendingData()
 void VirtualSerialBridge::onSerialBytes(const QByteArray &bytes)
 {
     const QList<QByteArray> lines = m_serialInput.append(bytes);
-    for (const QByteArray &line : lines)
+    for (const QByteArray &line : lines) {
         emit webSocketLineReady(line);
+        if (!m_endpoint.isRunning())
+            break;
+    }
 }

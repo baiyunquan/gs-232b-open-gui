@@ -45,8 +45,8 @@ bool VirtualSerialEndpoint::start(const VirtualSerialOptions &options)
     const QString clientPort = options.clientPort.trimmed();
     if (applicationPort.isEmpty() || clientPort.isEmpty() ||
         applicationPort.compare(clientPort, Qt::CaseInsensitive) == 0) {
-        emit errorOccurred(QStringLiteral(
-            "Configure distinct application and client ports in the virtual COM pair driver"));
+        emit errorOccurred(tr(
+            "Select distinct bridge and client ports from an existing virtual COM pair."));
         return false;
     }
 
@@ -92,7 +92,7 @@ QString VirtualSerialEndpoint::clientPortName() const
 bool VirtualSerialEndpoint::writeToClient(const QByteArray &bytes)
 {
     if (!m_running) {
-        emit errorOccurred(QStringLiteral("Virtual serial endpoint is not running"));
+        emit errorOccurred(tr("Virtual serial endpoint is not running"));
         return false;
     }
     if (bytes.isEmpty())

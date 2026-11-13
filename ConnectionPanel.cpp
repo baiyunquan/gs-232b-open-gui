@@ -2,6 +2,7 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QFormLayout>
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -47,18 +48,42 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
 
     m_virtualCom = new QCheckBox(tr("Virtual COM"), this);
     m_virtualCom->setObjectName(QStringLiteral("virtualCom"));
-    m_virtualPort = new QComboBox(this);
+    layout->addWidget(m_virtualCom, 3, 0, 1, 2);
+    m_virtualPortOptions = new QWidget(this);
+    auto *virtualLayout = new QFormLayout(m_virtualPortOptions);
+    virtualLayout->setContentsMargins(0, 0, 0, 0);
+#ifdef Q_OS_WIN
+    m_virtualApplicationPort = new QComboBox(m_virtualPortOptions);
+    m_virtualApplicationPort->setObjectName(QStringLiteral("virtualApplicationPort"));
+    m_virtualClientPort = new QComboBox(m_virtualPortOptions);
+    m_virtualClientPort->setObjectName(QStringLiteral("virtualClientPort"));
+    for (QComboBox *port : {m_virtualApplicationPort, m_virtualClientPort}) {
+        port->setEditable(true);
+        for (const QSerialPortInfo &info : availablePorts)
+            port->addItem(info.portName());
+        port->setCurrentIndex(-1);
+        port->lineEdit()->setPlaceholderText(tr("Select a COM port"));
+    }
+    virtualLayout->addRow(tr("Bridge port"), m_virtualApplicationPort);
+    virtualLayout->addRow(tr("Client port"), m_virtualClientPort);
+    auto *pairHint = new QLabel(tr("Select the two ports of an existing virtual COM pair."),
+                               m_virtualPortOptions);
+    pairHint->setWordWrap(true);
+    virtualLayout->addRow(pairHint);
+#endif
+    m_virtualPort = new QLineEdit(m_virtualPortOptions);
     m_virtualPort->setObjectName(QStringLiteral("virtualPort"));
-    m_virtualPort->addItems({QStringLiteral("COM8"), QStringLiteral("COM9"), QStringLiteral("COM10")});
-    layout->addWidget(m_virtualCom, 3, 0);
-    layout->addWidget(m_virtualPort, 3, 1);
+    m_virtualPort->setReadOnly(true);
+    m_virtualPort->setPlaceholderText(tr("Assigned after connection"));
+    virtualLayout->addRow(tr("Active port"), m_virtualPort);
+    layout->addWidget(m_virtualPortOptions, 4, 0, 1, 2);
 
     m_connect = new QPushButton(tr("Connect"), this);
     m_connect->setObjectName(QStringLiteral("connectButton"));
     m_disconnect = new QPushButton(tr("Disconnect"), this);
     m_disconnect->setObjectName(QStringLiteral("disconnectButton"));
-    layout->addWidget(m_connect, 4, 0);
-    layout->addWidget(m_disconnect, 4, 1);
+    layout->addWidget(m_connect, 5, 0);
+    layout->addWidget(m_disconnect, 5, 1);
     layout->setColumnStretch(1, 1);
 
     connect(m_networkMode, &QRadioButton::toggled, this, &ConnectionPanel::updateControls);
@@ -93,6 +118,22 @@ Communication::ConnectionOptions ConnectionPanel::connectionOptions(
     return options;
 }
 
+VirtualSerialOptions ConnectionPanel::virtualSerialOptions() const
+{
+    VirtualSerialOptions options;
+#ifdef Q_OS_WIN
+    options.applicationPort = m_virtualApplicationPort->currentText().trimmed();
+    options.clientPort = m_virtualClientPort->currentText().trimmed();
+    options.baudRate = m_baudRate->currentText().toInt();
+#endif
+    return options;
+}
+
+void ConnectionPanel::setVirtualSerialPort(const QString &port)
+{
+    m_virtualPort->setText(port);
+}
+
 void ConnectionPanel::setConnected(bool connected)
 {
     if (m_connected == connected)
@@ -117,10 +158,16 @@ void ConnectionPanel::updateControls()
     m_serialMode->setEnabled(!locked);
     m_networkMode->setEnabled(!locked);
     m_serialPort->setEnabled(!locked && !network);
-    m_baudRate->setEnabled(!locked && !network);
+    bool baudRateEnabled = !network;
+#ifdef Q_OS_WIN
+    baudRateEnabled = baudRateEnabled || isVirtualComEnabled();
+    m_virtualApplicationPort->setEnabled(!locked);
+    m_virtualClientPort->setEnabled(!locked);
+#endif
+    m_baudRate->setEnabled(!locked && baudRateEnabled);
     m_address->setEnabled(!locked && network);
     m_virtualCom->setEnabled(!locked && network);
-    m_virtualPort->setEnabled(!locked && isVirtualComEnabled());
+    m_virtualPortOptions->setVisible(isVirtualComEnabled());
     m_connect->setEnabled(!locked);
     m_disconnect->setEnabled(m_connected);
     emit stateChanged();

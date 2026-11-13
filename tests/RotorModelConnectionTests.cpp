@@ -48,8 +48,8 @@ private slots:
     void readsConfiguredModel();
     void invalidResponsesPreserveSelection();
     void reconnectClearsAndReadsAgain();
-    void virtualComDoesNotQuery();
 #ifdef Q_OS_UNIX
+    void virtualComDoesNotQuery();
     void serialConnectionReadsModel();
 #endif
 
@@ -188,6 +188,7 @@ void RotorModelConnectionTests::reconnectClearsAndReadsAgain()
     QTRY_COMPARE(m_settings->selectedModelId(), 12);
 }
 
+#ifdef Q_OS_UNIX
 void RotorModelConnectionTests::virtualComDoesNotQuery()
 {
     m_window->findChild<QCheckBox *>(QStringLiteral("virtualCom"))->setChecked(true);
@@ -200,7 +201,6 @@ void RotorModelConnectionTests::virtualComDoesNotQuery()
     QCOMPARE(m_settings->selectedModelId(), 0);
 }
 
-#ifdef Q_OS_UNIX
 void RotorModelConnectionTests::serialConnectionReadsModel()
 {
     const int masterFd = ::posix_openpt(O_RDWR | O_NOCTTY | O_NONBLOCK);

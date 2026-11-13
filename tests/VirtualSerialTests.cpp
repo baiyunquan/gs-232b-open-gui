@@ -1,6 +1,7 @@
 #include "virtual_serial/CrDelimitedBuffer.h"
 #include "virtual_serial/VirtualSerialBridge.h"
 
+#include <QFile>
 #include <QSignalSpy>
 #include <QtTest>
 
@@ -17,6 +18,7 @@ private slots:
     void crDelimiterIgnoresChunkBoundaries();
 #ifdef Q_OS_UNIX
     void ptyBridgeForwardsBothDirections();
+    void ptyCanStopDuringRead();
 #endif
 };
 
@@ -53,8 +55,8 @@ void VirtualSerialTests::ptyBridgeForwardsBothDirections()
     QCOMPARE(lineSpy.at(0).at(0).toByteArray(), QByteArrayLiteral("AB\r"));
     QCOMPARE(lineSpy.at(1).at(0).toByteArray(), QByteArrayLiteral("C\r"));
 
-    bridge.feedWebSocketBytes(QByteArrayLiteral("reply"));
-    bridge.feedWebSocketBytes(QByteArrayLiteral("1\rreply2\r"));
+    QVERIFY(bridge.feedWebSocketBytes(QByteArrayLiteral("reply")));
+    QVERIFY(bridge.feedWebSocketBytes(QByteArrayLiteral("1\rreply2\r")));
     QByteArray received;
     QTRY_VERIFY_WITH_TIMEOUT([&] {
         char buffer[128];
@@ -65,6 +67,25 @@ void VirtualSerialTests::ptyBridgeForwardsBothDirections()
     }(), 1000);
 
     ::close(clientFd);
+}
+
+void VirtualSerialTests::ptyCanStopDuringRead()
+{
+    VirtualSerialBridge bridge;
+    QSignalSpy lines(&bridge, &VirtualSerialBridge::webSocketLineReady);
+    QSignalSpy errors(&bridge, &VirtualSerialBridge::errorOccurred);
+    connect(&bridge, &VirtualSerialBridge::webSocketLineReady, &bridge, &VirtualSerialBridge::stop);
+    QVERIFY(bridge.start());
+    const QByteArray path = bridge.clientPortName().toLocal8Bit();
+    const int fd = ::open(path.constData(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+    QVERIFY(fd >= 0);
+    QFile client;
+    QVERIFY(client.open(fd, QIODevice::ReadWrite, QFileDevice::AutoCloseHandle));
+    QCOMPARE(::write(fd, "C2\rM123\r", 8), 8);
+    QTRY_VERIFY(!bridge.isRunning());
+    QCOMPARE(lines.size(), 1);
+    QCOMPARE(lines.first().first().toByteArray(), QByteArrayLiteral("C2\r"));
+    QVERIFY(errors.isEmpty());
 }
 #endif
 

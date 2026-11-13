@@ -11,6 +11,7 @@
 #include "PasswordChangeDialog.h"
 #include "RotorSettingsPanel.h"
 #include "WifiProvisioningDialog.h"
+#include "virtual_serial/VirtualSerialBridge.h"
 
 #include <QApplication>
 #include <QDialog>
@@ -26,6 +27,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSerialPortInfo>
+#include <QSignalBlocker>
 #include <QStatusBar>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -105,6 +107,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     statusBar()->addWidget(m_connectionStatus, 1);
     statusBar()->addPermanentWidget(m_transportStatus);
     createMenus();
+    setupVirtualSerial();
     connect(m_connection, &ConnectionPanel::stateChanged,
             this, &MainWindow::updateConnectionState);
     connect(m_connection, &ConnectionPanel::connectRequested,
@@ -112,6 +115,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(m_connection, &ConnectionPanel::disconnectRequested,
             this, &MainWindow::closeTransport);
     connect(m_transport, &Communication::Transport::connected, this, [this] {
+        if (m_connection->isVirtualComEnabled() &&
+            !m_virtualSerial->start(m_connection->virtualSerialOptions())) {
+            closeTransport();
+            return;
+        }
         m_connection->setConnecting(false);
         if (!m_connection->isVirtualComEnabled())
             sendControlCommand(QStringLiteral("!ROTOR GET"));
@@ -122,6 +130,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         }
     });
     connect(m_transport, &Communication::Transport::disconnected, this, [this] {
+        m_virtualSerial->stop();
+        m_connection->setVirtualSerialPort({});
         m_connection->setConnecting(false);
         m_connection->setConnected(false);
         m_positionPollTimer->stop();
@@ -200,6 +210,36 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             m_positionPollTimer->start();
     });
     updateConnectionState();
+}
+
+MainWindow::~MainWindow()
+{
+    // NOTE: 先关闭两侧连接，避免 QObject 子对象析构时回调已销毁的界面。
+    const QSignalBlocker transportBlocker(m_transport);
+    const QSignalBlocker virtualSerialBlocker(m_virtualSerial);
+    m_transport->close();
+    m_virtualSerial->stop();
+}
+
+void MainWindow::setupVirtualSerial()
+{
+    m_virtualSerial = new VirtualSerialBridge(this);
+    connect(m_virtualSerial, &VirtualSerialBridge::started, this, [this](const QString &port) {
+        m_connection->setVirtualSerialPort(port);
+        m_console->appendNotice(tr("Virtual serial port ready: %1").arg(port));
+    });
+    connect(m_virtualSerial, &VirtualSerialBridge::webSocketLineReady, this,
+            [this](const QByteArray &line) {
+                // NOTE: 直接发送带 CR 的原始字节，不经过终端命令的 UTF-8 编码。
+                const bool reportAsSent = !line.trimmed().startsWith('!');
+                if (m_transport->isOpen() && !m_transport->sendBytes(line, reportAsSent))
+                    closeTransport();
+            });
+    connect(m_virtualSerial, &VirtualSerialBridge::errorOccurred, this,
+            [this](const QString &error) {
+                m_console->appendError(tr("Virtual serial error: %1").arg(error));
+            });
+    connect(m_virtualSerial, &VirtualSerialBridge::stopped, this, &MainWindow::closeTransport);
 }
 
 void MainWindow::createMenus()
@@ -286,6 +326,8 @@ void MainWindow::openTransport()
 void MainWindow::closeTransport()
 {
     m_transport->close();
+    m_virtualSerial->stop();
+    m_connection->setVirtualSerialPort({});
     m_connection->setConnecting(false);
     m_connection->setConnected(false);
 }
@@ -627,6 +669,12 @@ void MainWindow::beginNetworkConfiguration(const QJsonObject &patch, bool wifiTa
 
 void MainWindow::handleReceivedBytes(const QByteArray &bytes)
 {
+    if (m_connection->isVirtualComEnabled()) {
+        if (!m_virtualSerial->feedWebSocketBytes(bytes))
+            closeTransport();
+        m_console->appendReceived(bytes);
+        return;
+    }
     m_receiveBuffer.append(bytes);
     constexpr qsizetype maximumBuffer = 64 * 1024;
     if (m_receiveBuffer.size() > maximumBuffer) {

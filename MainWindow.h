@@ -15,6 +15,7 @@ class FaultStatusMonitor;
 class QLabel;
 class RotorSettingsPanel;
 class QTimer;
+class VirtualSerialBridge;
 struct EthernetConfiguration;
 
 namespace Communication {
@@ -29,12 +30,15 @@ class MainWindow final : public QMainWindow
 public:
     /** @brief 创建主页面和菜单。 */
     explicit MainWindow(QWidget *parent = nullptr);
+    /** @brief 在界面销毁前关闭传输和虚拟串口。 */
+    ~MainWindow() override;
 
 private:
     void createMenus();
     void updateConnectionState();
     void openTransport();
     void closeTransport();
+    void setupVirtualSerial();
     void authenticateManagement();
     void changeManagementPassword();
     void cancelManagement();
@@ -69,6 +73,7 @@ private:
     QLabel *m_connectionStatus;
     QLabel *m_transportStatus;
     Communication::Transport *m_transport;
+    VirtualSerialBridge *m_virtualSerial;
     QAction *m_authenticateAction;
     QAction *m_changePasswordAction;
     QAction *m_cancelManagementAction;

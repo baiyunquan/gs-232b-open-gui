@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CommunicationProtocol.h"
+#include "virtual_serial/VirtualSerialEndpoint.h"
 
 #include <QGroupBox>
 
@@ -27,6 +28,10 @@ public:
     /** @return 当前表单对应的串口或 WebSocket 连接参数。 */
     Communication::ConnectionOptions connectionOptions(
         Communication::WebSocketEndpoint endpoint = Communication::WebSocketEndpoint::Gs232b) const;
+    /** @return Windows 已配置的虚拟 COM 对；POSIX 使用自动分配的 PTY。 */
+    VirtualSerialOptions virtualSerialOptions() const;
+    /** @brief 显示外部客户端应打开的端口；空值清除上一次连接的路径。 */
+    void setVirtualSerialPort(const QString &port);
     /** @brief 由传输后端更新实际连接状态；点击连接按钮不直接改变此状态。 */
     void setConnected(bool connected);
     /** @brief 在异步 WebSocket 握手期间锁定连接表单。 */
@@ -50,7 +55,12 @@ private:
     QComboBox *m_baudRate;
     QLineEdit *m_address;
     QCheckBox *m_virtualCom;
-    QComboBox *m_virtualPort;
+    QWidget *m_virtualPortOptions;
+    QLineEdit *m_virtualPort;
+#ifdef Q_OS_WIN
+    QComboBox *m_virtualApplicationPort;
+    QComboBox *m_virtualClientPort;
+#endif
     QPushButton *m_connect;
     QPushButton *m_disconnect;
     bool m_connecting = false;

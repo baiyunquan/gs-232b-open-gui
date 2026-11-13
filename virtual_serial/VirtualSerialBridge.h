@@ -20,8 +20,10 @@ public:
     bool isRunning() const;
     /** @return 外部串口软件应打开的路径或 COM 名称。 */
     QString clientPortName() const;
-    /** @brief 输入任意大小的 WebSocket 消息块，完整 CR 行写入串口端点。 */
-    void feedWebSocketBytes(const QByteArray &bytes);
+    /** @brief 输入任意大小的 WebSocket 消息块，完整 CR 行写入串口端点。
+     *  @return 是否成功缓冲或转发；失败时调用方应关闭对应的 WebSocket 连接。
+     */
+    bool feedWebSocketBytes(const QByteArray &bytes);
     /** @brief 清除连接断开时可能遗留的半行数据。 */
     void clearPendingData();
 
