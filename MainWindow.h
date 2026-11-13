@@ -53,7 +53,7 @@ private:
     void openAbout();
     void applyRotorModel();
     void flashFirmware(const QString &port, const QString &file);
-    void sendControlCommand(const QString &command, bool sensitive = false);
+    void sendControlCommand(const QString &command);
     void requestCalibration(const QString &command, const QString &question);
     void runManagementAction(const std::function<void()> &action,
                              const std::function<void()> &cancelled = {});

@@ -21,7 +21,7 @@ public:
 public slots:
     /** @brief 将收到的真实字节追加到终端。 */
     void appendReceived(const QByteArray &bytes);
-    /** @brief 将底层确认发送的真实字节追加到终端。 */
+    /** @brief 将底层接受发送的字节追加到终端；敏感命令由调用方传入脱敏副本。 */
     void appendSent(const QByteArray &bytes);
     /** @brief 将传输错误追加到终端，不伪装成设备响应。 */
     void appendError(const QString &error);

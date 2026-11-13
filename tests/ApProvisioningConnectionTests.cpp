@@ -2,6 +2,7 @@
 #include "ConnectionPanel.h"
 #include "MainWindow.h"
 #include "ManagementKeyDialog.h"
+#include "WifiProvisioningDialog.h"
 
 #include <QAction>
 #include <QComboBox>
@@ -14,6 +15,8 @@
 #include <QWebSocket>
 #include <QWebSocketServer>
 #include <QtTest>
+
+#include <algorithm>
 
 #ifdef Q_OS_UNIX
 #include <cstdlib>
@@ -29,6 +32,7 @@ private slots:
     void init();
     void cleanup();
     void networkStartUsesBareCommand();
+    void wifiPollingReportsEveryRequest();
     void failedAuthenticationDoesNotStartProvisioning();
     void cancelledAuthenticationDoesNotStartProvisioning();
 #ifdef Q_OS_UNIX
@@ -124,6 +128,65 @@ void ApProvisioningConnectionTests::networkStartUsesBareCommand()
     QCOMPARE(m_commands.filter(QStringLiteral("!SESSION AUTH")).size(), 1);
 }
 
+void ApProvisioningConnectionTests::wifiPollingReportsEveryRequest()
+{
+    QSignalSpy sent(m_transport, &Communication::Transport::bytesSent);
+    QVERIFY(connectDevice());
+    connect(m_peer, &QWebSocket::textMessageReceived, this, [this](const QString &message) {
+        QString command;
+        QJsonObject data;
+        if (message.startsWith(QStringLiteral("!SESSION AUTH "))) {
+            command = QStringLiteral("SESSION AUTH");
+        } else if (message == QStringLiteral("!CFG BEGIN\r")) {
+            command = QStringLiteral("CFG BEGIN");
+            data = {{"candidate_id", 7}, {"base_revision", 2}};
+        } else if (message.startsWith(QStringLiteral("!NET SET "))) {
+            command = QStringLiteral("NET SET");
+        } else if (message == QStringLiteral("!CFG CHECK\r")) {
+            command = QStringLiteral("CFG CHECK");
+        } else if (message.startsWith(QStringLiteral("!CFG APPLY "))) {
+            command = QStringLiteral("CFG APPLY");
+            data = {{"trial_id", 11}};
+        } else if (message == QStringLiteral("!NET GET\r")) {
+            command = QStringLiteral("NET GET");
+            data = {{"runtime", QJsonObject{{"wifi", QJsonObject{{"connected", false}}}}}};
+        } else {
+            return;
+        }
+        const QJsonObject response{{"cmd", command}, {"ok", true}, {"data", data}};
+        m_peer->sendTextMessage(QLatin1Char('!') +
+                               QString::fromUtf8(QJsonDocument(response).toJson(QJsonDocument::Compact)) +
+                               QStringLiteral("\r\n"));
+    });
+
+    m_window->findChild<QAction *>(QStringLiteral("wifiAction"))->trigger();
+    submitPassword();
+    QTRY_VERIFY(m_window->findChild<WifiProvisioningDialog *>());
+    m_window->findChild<WifiProvisioningDialog *>()->configurationRequested(
+        QStringLiteral("test-wifi"), QStringLiteral("wifi-secret"));
+    QTRY_VERIFY_WITH_TIMEOUT(m_commands.count(QStringLiteral("!NET GET\r")) >= 3, 5000);
+
+    QList<QByteArray> reported;
+    for (const auto &arguments : sent)
+        reported.append(arguments.first().toByteArray());
+    QCOMPARE(reported.count(QByteArrayLiteral("!NET GET\r")),
+             m_commands.count(QStringLiteral("!NET GET\r")));
+    QVERIFY(reported.contains(QByteArrayLiteral("!ROTOR GET\r")));
+    QVERIFY(reported.contains(QByteArrayLiteral("!CFG BEGIN\r")));
+    QVERIFY(reported.contains(QByteArrayLiteral("!CFG CHECK\r")));
+    QVERIFY(std::any_of(reported.cbegin(), reported.cend(), [](const QByteArray &bytes) {
+        return bytes.startsWith("!CFG APPLY ");
+    }));
+    for (const auto &bytes : reported) {
+        QVERIFY(!bytes.contains("test-password"));
+        QVERIFY(!bytes.contains("wifi-secret"));
+    }
+    const QStringList patches = m_commands.filter(QStringLiteral("!NET SET "));
+    QCOMPARE(patches.size(), 1);
+    QVERIFY(patches.first().contains(QStringLiteral("wifi-secret")));
+    m_connection->disconnectRequested();
+}
+
 void ApProvisioningConnectionTests::failedAuthenticationDoesNotStartProvisioning()
 {
     QVERIFY(connectDevice());
@@ -158,6 +221,7 @@ void ApProvisioningConnectionTests::cancelledAuthenticationDoesNotStartProvision
 #ifdef Q_OS_UNIX
 void ApProvisioningConnectionTests::serialStartUsesBareCommand()
 {
+    QSignalSpy sent(m_transport, &Communication::Transport::bytesSent);
     const int masterFd = ::posix_openpt(O_RDWR | O_NOCTTY | O_NONBLOCK);
     QVERIFY(masterFd >= 0);
     QFile master;
@@ -189,6 +253,9 @@ void ApProvisioningConnectionTests::serialStartUsesBareCommand()
     }
     QCOMPARE(provisioningCommands, QList<QByteArray>{"!PROV START"});
     QVERIFY(!commands.contains("!SESSION AUTH"));
+    QVERIFY(std::any_of(sent.cbegin(), sent.cend(), [](const QList<QVariant> &arguments) {
+        return arguments.first().toByteArray() == QByteArrayLiteral("!PROV START\r");
+    }));
 }
 #endif
 

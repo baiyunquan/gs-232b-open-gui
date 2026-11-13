@@ -32,6 +32,7 @@ private slots:
     void forwardsSerialCommandsAsRawBinaryFrames();
     void forwardsFragmentedTextAndBinaryReplies();
     void forwardsSensitiveCommandsWithoutEcho();
+    void reportsManagementQueries();
     void doesNotSendDirectCommandsOrPoll();
     void disconnectAndReconnect_data();
     void disconnectAndReconnect();
@@ -201,6 +202,18 @@ void VirtualSerialConnectionTests::forwardsSensitiveCommandsWithoutEcho()
     QCOMPARE(::write(m_client.handle(), command.constData(), command.size()), command.size());
     QTRY_COMPARE(m_binaryFrames, QList<QByteArray>{command});
     QVERIFY(sent.isEmpty());
+}
+
+void VirtualSerialConnectionTests::reportsManagementQueries()
+{
+    QVERIFY(connectDevice());
+    QVERIFY(openClient());
+    QSignalSpy sent(m_transport, &Communication::Transport::bytesSent);
+    const QByteArray command = QByteArrayLiteral("!NET GET\r");
+    QCOMPARE(::write(m_client.handle(), command.constData(), command.size()), command.size());
+    QTRY_COMPARE(m_binaryFrames, QList<QByteArray>{command});
+    QCOMPARE(sent.size(), 1);
+    QCOMPARE(sent.first().first().toByteArray(), command);
 }
 
 void VirtualSerialConnectionTests::disconnectAndReconnect_data()

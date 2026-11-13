@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "CommandLog.h"
 #include "CommunicationProtocol.h"
 #include "ConnectionPanel.h"
 #include "ConsolePanel.h"
@@ -207,7 +208,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             m_pendingWifiSsid.clear();
             return;
         }
-        sendControlCommand(QStringLiteral("!NET GET"), true);
+        sendControlCommand(QStringLiteral("!NET GET"));
     });
     connect(m_calibrationTimeoutTimer, &QTimer::timeout, this, [this] {
         m_pendingCalibrationCommand.clear();
@@ -251,9 +252,14 @@ void MainWindow::setupVirtualSerial()
     connect(m_virtualSerial, &VirtualSerialBridge::webSocketLineReady, this,
             [this](const QByteArray &line) {
                 // NOTE: 直接发送带 CR 的原始字节，不经过终端命令的 UTF-8 编码。
-                const bool reportAsSent = !line.trimmed().startsWith('!');
-                if (m_transport->isOpen() && !m_transport->sendBytes(line, reportAsSent))
+                if (!m_transport->isOpen())
+                    return;
+                const QByteArray logBytes = Communication::commandForLog(line);
+                const bool reportAsSent = logBytes == line;
+                if (!m_transport->sendBytes(line, reportAsSent))
                     closeTransport();
+                else if (!reportAsSent)
+                    m_console->appendSent(logBytes);
             });
     connect(m_virtualSerial, &VirtualSerialBridge::errorOccurred, this,
             [this](const QString &error) {
@@ -550,7 +556,7 @@ void MainWindow::flashFirmware(const QString &port, const QString &file)
     process->start(QStringLiteral("esptool"), arguments);
 }
 
-void MainWindow::sendControlCommand(const QString &command, bool sensitive)
+void MainWindow::sendControlCommand(const QString &command)
 {
     if (command.trimmed().isEmpty() || !m_transport->isOpen())
         return;
@@ -558,8 +564,12 @@ void MainWindow::sendControlCommand(const QString &command, bool sensitive)
         m_console->appendError(tr("Direct device commands are disabled in Virtual COM mode."));
         return;
     }
-    const bool redact = sensitive || command.trimmed().startsWith(QLatin1Char('!'));
-    m_transport->sendCommand(command, !redact);
+    const QByteArray bytes = Communication::encodeCommand(command);
+    const QByteArray logBytes = Communication::commandForLog(bytes);
+    const bool reportAsSent = logBytes == bytes;
+    // NOTE: 普通命令沿用真实发送信号；敏感命令仅在发送成功后显示脱敏副本。
+    if (m_transport->sendCommand(command, reportAsSent) && !reportAsSent)
+        m_console->appendSent(logBytes);
 }
 
 void MainWindow::requestCalibration(const QString &command, const QString &question)
@@ -606,7 +616,7 @@ void MainWindow::openManagementKey(const std::function<void()> &continuation,
         m_pendingManagementResponseCommand.clear();
         m_pendingManagementResponseContinuation = {};
         m_pendingManagementContinuation = continuation;
-        sendControlCommand(managementAuthCommand(password), true);
+        sendControlCommand(managementAuthCommand(password));
     });
     connect(dialog, &QDialog::rejected, this, [cancelled] {
         if (cancelled)
@@ -623,7 +633,7 @@ void MainWindow::sendManagementCommand(
         return;
     m_pendingManagementResponseCommand = responseCommand.toUpper();
     m_pendingManagementResponseContinuation = onSuccess;
-    sendControlCommand(command, true);
+    sendControlCommand(command);
 }
 
 void MainWindow::configureWifi(const QString &ssid, const QString &password)
@@ -681,7 +691,7 @@ void MainWindow::beginNetworkConfiguration(const QJsonObject &patch, bool wifiTa
 
     const auto begin = [this] {
         m_networkConfigurationStage = NetworkConfigurationStage::AwaitBegin;
-        sendControlCommand(QStringLiteral("!CFG BEGIN"), true);
+        sendControlCommand(QStringLiteral("!CFG BEGIN"));
     };
     const auto cancel = [this] {
         m_pendingWifiSsid.clear();
@@ -884,7 +894,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         sendControlCommand(QStringLiteral("!NET SET %1")
                                .arg(QString::fromUtf8(
                                    QJsonDocument(m_pendingNetworkPatch)
-                                       .toJson(QJsonDocument::Compact))), true);
+                                       .toJson(QJsonDocument::Compact))));
         return;
     }
 
@@ -892,7 +902,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         command == QStringLiteral("NET SET")) {
         m_pendingNetworkPatch = {};
         m_networkConfigurationStage = NetworkConfigurationStage::AwaitCheck;
-        sendControlCommand(QStringLiteral("!CFG CHECK"), true);
+        sendControlCommand(QStringLiteral("!CFG CHECK"));
         return;
     }
 
@@ -906,7 +916,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         m_networkConfigurationStage = NetworkConfigurationStage::AwaitApply;
         sendControlCommand(QStringLiteral("!CFG APPLY %1")
                                .arg(QString::fromUtf8(
-                                   QJsonDocument(request).toJson(QJsonDocument::Compact))), true);
+                                   QJsonDocument(request).toJson(QJsonDocument::Compact))));
         return;
     }
 
@@ -924,7 +934,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         m_networkConfigurationStage = NetworkConfigurationStage::AwaitRuntime;
         m_wifiTrialPollCount = 0;
         m_wifiTrialPollTimer->start();
-        sendControlCommand(QStringLiteral("!NET GET"), true);
+        sendControlCommand(QStringLiteral("!NET GET"));
         return;
     }
 
@@ -960,14 +970,14 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
             request.insert(QStringLiteral("trial_id"), m_pendingNetworkTrial);
             sendControlCommand(QStringLiteral("!CFG CONFIRM %1")
                                    .arg(QString::fromUtf8(
-                                       QJsonDocument(request).toJson(QJsonDocument::Compact))), true);
+                                       QJsonDocument(request).toJson(QJsonDocument::Compact))));
         } else {
             QJsonObject request;
             request.insert(QStringLiteral("trial_id"), m_pendingNetworkTrial);
             m_networkConfigurationStage = NetworkConfigurationStage::AwaitAbort;
             sendControlCommand(QStringLiteral("!CFG ABORT %1")
                                    .arg(QString::fromUtf8(
-                                       QJsonDocument(request).toJson(QJsonDocument::Compact))), true);
+                                       QJsonDocument(request).toJson(QJsonDocument::Compact))));
         }
         return;
     }

@@ -32,6 +32,8 @@ if(WIN32)
 endif()
 
 set(GUI_SOURCES
+    CommandLog.cpp
+    CommandLog.h
     CommunicationProtocol.cpp
     CommunicationProtocol.h
     MainWindow.cpp
@@ -76,6 +78,16 @@ target_link_libraries(gs_232b_open_gui
 
 if(BUILD_TESTING)
     find_package(Qt6 6.5 REQUIRED COMPONENTS Test)
+    qt_add_executable(command_log_tests
+        tests/CommandLogTests.cpp
+        CommandLog.cpp
+        CommandLog.h
+    )
+    target_compile_features(command_log_tests PRIVATE cxx_std_17)
+    target_include_directories(command_log_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(command_log_tests PRIVATE Qt6::Core Qt6::Test)
+    add_test(NAME command_log_tests COMMAND command_log_tests)
+
     qt_add_executable(virtual_serial_tests
         tests/VirtualSerialTests.cpp
     )
