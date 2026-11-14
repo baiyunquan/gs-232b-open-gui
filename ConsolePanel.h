@@ -3,9 +3,7 @@
 #include <QByteArray>
 #include <QGroupBox>
 
-class QLineEdit;
-class QPlainTextEdit;
-class QPushButton;
+class TerminalWidget;
 
 /** @brief 显示真实收发流并提供手动命令输入的控制台。 */
 class ConsolePanel final : public QGroupBox
@@ -15,7 +13,7 @@ class ConsolePanel final : public QGroupBox
 public:
     /** @brief 创建空白、可选中文字的控制台。 */
     explicit ConsolePanel(QWidget *parent = nullptr);
-    /** @brief 统一切换需要发送数据的输入框与按钮。 */
+    /** @brief 切换终端内的整行命令输入。 */
     void setCommandEnabled(bool enabled);
 
 public slots:
@@ -35,11 +33,8 @@ signals:
     void commandRequested(const QString &command);
 
 private:
-    void requestCommand();
     void appendTraffic(const QByteArray &bytes, bool outgoing);
 
-    QPlainTextEdit *m_output;
-    QLineEdit *m_input;
-    QPushButton *m_send;
+    TerminalWidget *m_output;
     bool m_lineStart = true;
 };

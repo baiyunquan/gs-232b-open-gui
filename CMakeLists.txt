@@ -1,12 +1,25 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(gs_232b_open_gui VERSION 0.1.0 LANGUAGES CXX)
+project(gs_232b_open_gui VERSION 0.1.0 LANGUAGES C CXX)
 
 include(CTest)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets LinguistTools SerialPort WebSockets)
 
 qt_standard_project_setup()
+
+include(cmake/TerminalDependencies.cmake)
+qt_add_library(gs232b_terminal STATIC
+    terminal/CommandLine.cpp
+    terminal/CommandLine.h
+    terminal/TerminalWidget.cpp
+    terminal/TerminalWidget.h
+    terminal/TerminalOutputBuffer.cpp
+    terminal/TerminalOutputBuffer.h
+)
+target_compile_features(gs232b_terminal PUBLIC cxx_std_17)
+target_include_directories(gs232b_terminal PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(gs232b_terminal PUBLIC qtpyte::core)
 
 if(WIN32)
     set(VIRTUAL_SERIAL_PLATFORM_SOURCE virtual_serial/VirtualSerialEndpoint_win.cpp)
@@ -74,10 +87,22 @@ target_link_libraries(gs_232b_open_gui
         Qt6::SerialPort
         Qt6::WebSockets
         gs232b_virtual_serial
+        gs232b_terminal
 )
 
 if(BUILD_TESTING)
     find_package(Qt6 6.5 REQUIRED COMPONENTS Test)
+    qt_add_executable(terminal_tests
+        tests/TerminalTests.cpp
+        ConsolePanel.cpp
+        ConsolePanel.h
+        CommandLog.cpp
+        CommandLog.h
+    )
+    target_link_libraries(terminal_tests PRIVATE gs232b_terminal Qt6::Test)
+    add_test(NAME terminal_tests COMMAND terminal_tests)
+    set_tests_properties(terminal_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
     qt_add_executable(command_log_tests
         tests/CommandLogTests.cpp
         CommandLog.cpp
@@ -116,7 +141,7 @@ if(BUILD_TESTING)
     target_compile_features(rotor_model_connection_tests PRIVATE cxx_std_17)
     target_include_directories(rotor_model_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(rotor_model_connection_tests
-        PRIVATE Qt6::Widgets Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial
+        PRIVATE Qt6::Widgets Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal
     )
     add_test(NAME rotor_model_connection_tests COMMAND rotor_model_connection_tests)
     set_tests_properties(rotor_model_connection_tests PROPERTIES
@@ -130,7 +155,7 @@ if(BUILD_TESTING)
     target_compile_features(ap_provisioning_connection_tests PRIVATE cxx_std_17)
     target_include_directories(ap_provisioning_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(ap_provisioning_connection_tests
-        PRIVATE Qt6::Widgets Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial
+        PRIVATE Qt6::Widgets Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal
     )
     add_test(NAME ap_provisioning_connection_tests COMMAND ap_provisioning_connection_tests)
     set_tests_properties(ap_provisioning_connection_tests PROPERTIES
@@ -144,7 +169,7 @@ if(BUILD_TESTING)
     target_compile_features(virtual_serial_connection_tests PRIVATE cxx_std_17)
     target_include_directories(virtual_serial_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(virtual_serial_connection_tests
-        PRIVATE Qt6::Widgets Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial
+        PRIVATE Qt6::Widgets Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal
     )
     add_test(NAME virtual_serial_connection_tests COMMAND virtual_serial_connection_tests)
     set_tests_properties(virtual_serial_connection_tests PROPERTIES

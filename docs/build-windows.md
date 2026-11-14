@@ -12,6 +12,8 @@ sudo pacman -S --needed cmake ninja python python-pip mingw-w64-gcc wine
 
 SDK 下载器使用单独的 Python 虚拟环境，不向系统 Python 安装包。首次运行自动下载固定版本的 `aqtinstall 3.3.0` 和 Qt 6.8.3：Linux 的 QtBase、QtTools 及配套 ICU，以及 Windows MinGW 的 QtBase、QtTools、QtTranslations、QtSerialPort、QtWebSockets。默认使用阿里云 Qt 镜像并保留下载校验。Linux Qt 提供 `moc`、`rcc` 和 `lrelease` 等构建工具；Windows Qt 提供目标头文件、库和部署工具。
 
+首次配置 CMake 还会下载固定版本的 anytermqt 原生终端组件和 utf8proc，并验证 SHA-256。这两个依赖静态链接，无需额外 DLL；终端交互和离线源码路径见 [设备终端说明](terminal.md)。
+
 ## 构建与输出
 
 从项目根目录运行：
