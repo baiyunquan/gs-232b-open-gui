@@ -50,8 +50,6 @@ EOF
 mkdir -p -- "$package_dir/translations"
 cp -- "$qt_windows/translations/qtbase_zh_CN.qm" "$package_dir/translations/"
 cp -- "$project_dir/LICENSE" "$package_dir/"
-cp -- "$project_dir/docs/virtual-serial.md" "$package_dir/"
-cp -- "$project_dir/docs/terminal.md" "$package_dir/"
 cp -R -- "$build_dir/licenses" "$package_dir/"
 for license_dir in LICENSES licenses; do
     if [[ -d $qt_windows/$license_dir ]]; then
