@@ -1,8 +1,8 @@
 #include "AppSettings.h"
+#include "CalibrationDialog.h"
 #include "CommunicationProtocol.h"
 #include "ConnectionPanel.h"
 #include "MainWindow.h"
-#include "RotorSettingsPanel.h"
 #include "n1mm/N1mmController.h"
 #include "n1mm/N1mmNameDialog.h"
 #include "n1mm/N1mmProtocol.h"
@@ -53,6 +53,7 @@ private slots:
     void forwardsCommandsAndReportsOnlyMeasurements();
     void rejectsCommandsBeforeFeedbackAndAfterReconnect();
     void appliesCompensationAndRenamesImmediately();
+    void pausesDuringCalibration_data();
     void pausesDuringCalibration();
     void stopsWithoutSendingPendingSliderCommand();
     void ignoresVirtualComMode();
@@ -231,12 +232,27 @@ void N1mmConnectionTests::appliesCompensationAndRenamesImmediately()
     QVERIFY(!m_commands.contains(QStringLiteral("M370\r")));
 }
 
+void N1mmConnectionTests::pausesDuringCalibration_data()
+{
+    QTest::addColumn<QString>("buttonName");
+    QTest::addColumn<QString>("command");
+    QTest::newRow("azimuth") << QStringLiteral("azimuthZeroCalibration") << QStringLiteral("O\r");
+    QTest::newRow("elevation") << QStringLiteral("elevationZeroCalibration") << QStringLiteral("O2\r");
+}
+
 void N1mmConnectionTests::pausesDuringCalibration()
 {
+    QFETCH(QString, buttonName);
+    QFETCH(QString, command);
     enable();
     QVERIFY(connectDevice());
     m_peer->sendTextMessage(QStringLiteral("AZ=350 EL=000\r\n"));
     QCOMPARE(receivePosition(), QByteArray("GS232B@350"));
+    m_window->findChild<QAction *>(QStringLiteral("calibrationAction"))->trigger();
+    auto *dialog = m_window->findChild<CalibrationDialog *>();
+    QVERIFY(dialog);
+    auto *button = dialog->findChild<QPushButton *>(buttonName);
+    QVERIFY(button && button->isEnabled());
     QTimer::singleShot(0, this, [this] {
         send(turn());
         for (QWidget *widget : QApplication::topLevelWidgets()) {
@@ -247,8 +263,9 @@ void N1mmConnectionTests::pausesDuringCalibration()
             }
         }
     });
-    m_window->findChild<RotorSettingsPanel *>()->azimuthZeroCalibrationRequested();
-    QTRY_VERIFY(m_commands.contains(QStringLiteral("O\r")));
+    button->click();
+    QTRY_VERIFY(m_commands.contains(command));
+    QVERIFY(!button->isEnabled());
     send(turn());
     send(stop());
     QTest::qWait(30);
@@ -258,6 +275,7 @@ void N1mmConnectionTests::pausesDuringCalibration()
     auto *transport = m_window->findChild<Communication::Transport *>();
     QSignalSpy received(transport, &Communication::Transport::bytesReceived);
     QTRY_COMPARE(received.size(), 1);
+    QVERIFY(button->isEnabled());
     QSignalSpy errors(m_controller, &N1mmController::errorOccurred);
     send(turn());
     QTRY_COMPARE(errors.size(), 1);

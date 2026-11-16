@@ -4,7 +4,6 @@
 #include <QComboBox>
 #include <QGroupBox>
 #include <QHBoxLayout>
-#include <QLabel>
 #include <QPushButton>
 #include <QVBoxLayout>
 
@@ -55,35 +54,6 @@ RotorSettingsPanel::RotorSettingsPanel(QWidget *parent) : QWidget(parent)
     });
     layout->addWidget(m_speed);
 
-    auto *calibrationGroup = new QGroupBox(tr("CALIBRATION"), this);
-    auto *calibrationLayout = new QVBoxLayout(calibrationGroup);
-    auto *calibrationButtons = new QHBoxLayout;
-    m_azimuthZero = new QPushButton(tr("Azimuth zero"), calibrationGroup);
-    m_azimuthZero->setObjectName(QStringLiteral("azimuthZeroCalibration"));
-    m_elevationZero = new QPushButton(tr("Elevation zero"), calibrationGroup);
-    m_elevationZero->setObjectName(QStringLiteral("elevationZeroCalibration"));
-    calibrationButtons->addWidget(m_azimuthZero);
-    calibrationButtons->addWidget(m_elevationZero);
-    calibrationLayout->addLayout(calibrationButtons);
-    auto *zeroNote = new QLabel(
-        tr("Move the azimuth to its counter-clockwise limit or the elevation to 0°, then click the corresponding button to calibrate controller zero."),
-        calibrationGroup);
-    zeroNote->setWordWrap(true);
-    // NOTE: 窄窗口下保留说明的换行高度，避免外层布局把校准文字压缩到不可读。
-    zeroNote->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
-    calibrationLayout->addWidget(zeroNote);
-    auto *fullScaleNote = new QLabel(
-        tr("For full-scale calibration, turn off Settings → Shortest rotation path. Adjust the potentiometer until the reading matches 360° or 450° plus azimuth offset, or 180° elevation."),
-        calibrationGroup);
-    fullScaleNote->setWordWrap(true);
-    fullScaleNote->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
-    calibrationLayout->addWidget(fullScaleNote);
-    layout->addWidget(calibrationGroup);
-    connect(m_azimuthZero, &QPushButton::clicked,
-            this, &RotorSettingsPanel::azimuthZeroCalibrationRequested);
-    connect(m_elevationZero, &QPushButton::clicked,
-            this, &RotorSettingsPanel::elevationZeroCalibrationRequested);
-
     layout->addStretch(1);
     setCommandEnabled(false);
 }
@@ -93,8 +63,6 @@ void RotorSettingsPanel::setCommandEnabled(bool enabled)
     m_model->setEnabled(enabled);
     m_apply->setEnabled(enabled && m_model->currentIndex() >= 0);
     m_speed->setEnabled(enabled);
-    m_azimuthZero->setEnabled(enabled);
-    m_elevationZero->setEnabled(enabled);
 }
 
 int RotorSettingsPanel::selectedModelId() const

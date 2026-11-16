@@ -92,11 +92,14 @@ set(GUI_SOURCES
     AzimuthScale.h
     AzimuthOffsetDialog.cpp
     AzimuthOffsetDialog.h
+    CalibrationDialog.cpp
+    CalibrationDialog.h
     CommandLog.cpp
     CommandLog.h
     CommunicationProtocol.cpp
     CommunicationProtocol.h
     MainWindow.cpp
+    MainWindowCalibration.cpp
     MainWindowNetworkAddresses.cpp
     MainWindowN1mm.cpp
     MainWindow.h

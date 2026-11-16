@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include "AppSettings.h"
 #include "AzimuthOffsetDialog.h"
+#include "CalibrationDialog.h"
 #include "CommandLog.h"
 #include "CommunicationProtocol.h"
 #include "ConnectionPanel.h"
@@ -152,6 +153,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         m_receiveBuffer.clear();
         m_consoleForwardedBytes = 0;
         m_pendingCalibrationCommand.clear();
+        updateCalibrationState();
         m_faultStatus->setPaused(false);
         m_networkConfigurationStage = NetworkConfigurationStage::Idle;
         m_pendingNetworkPatch = {};
@@ -184,18 +186,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             this, [this](const QString &command) { sendControlCommand(command); });
     connect(m_settings, &RotorSettingsPanel::modelApplyRequested,
             this, &MainWindow::applyRotorModel);
-    connect(m_settings, &RotorSettingsPanel::azimuthZeroCalibrationRequested,
-            this, [this] {
-                requestCalibration(
-                    QStringLiteral("O"),
-                    tr("Move the azimuth to the counter-clockwise limit, then continue."));
-            });
-    connect(m_settings, &RotorSettingsPanel::elevationZeroCalibrationRequested,
-            this, [this] {
-                requestCalibration(
-                    QStringLiteral("O2"),
-                    tr("Move the elevation to 0 degrees, then continue."));
-            });
     connect(m_positionPollTimer, &QTimer::timeout, this, [this] {
         sendControlCommand(QStringLiteral("C2"));
     });
@@ -218,6 +208,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(m_calibrationTimeoutTimer, &QTimer::timeout, this, [this] {
         m_pendingCalibrationCommand.clear();
         updateN1mmState();
+        updateCalibrationState();
         m_faultStatus->setPaused(false);
         if (m_transport->isOpen())
             m_positionPollTimer->start();
@@ -314,6 +305,10 @@ void MainWindow::createMenus()
             QMessageBox::warning(this, tr("Application settings"),
                                  tr("Could not save application settings."));
     });
+    settings->addSeparator();
+    m_calibrationAction = settings->addAction(
+        tr("Calibration..."), this, &MainWindow::openCalibration);
+    m_calibrationAction->setObjectName(QStringLiteral("calibrationAction"));
     auto *management = menuBar()->addMenu(tr("Management"));
     m_authenticateAction = management->addAction(
         tr("Authenticate"), this, &MainWindow::authenticateManagement);
@@ -359,6 +354,7 @@ void MainWindow::updateConnectionState()
     m_control->setCommandEnabled(commandEnabled);
     m_console->setCommandEnabled(commandEnabled);
     m_settings->setCommandEnabled(commandEnabled);
+    updateCalibrationState();
     m_faultStatus->setEnabled(commandEnabled);
     const bool managementEnabled = m_connection->isConnected() && !virtualCom;
     m_authenticateAction->setEnabled(managementEnabled);
@@ -377,9 +373,18 @@ void MainWindow::updateConnectionState()
     m_connectionStatus->setText(m_connection->isConnected() ? tr("Connected") : tr("Disconnected"));
     m_transportStatus->setText(m_connection->isNetworkMode() ? tr("WebSocket") : tr("Serial"));
     if (!m_connection->isConnected()) {
-        m_control->setPosition(0, 0);
+        setDevicePosition(0, 0);
         m_settings->clearModelSelection();
     }
+}
+
+void MainWindow::setDevicePosition(int azimuth, int elevation)
+{
+    // NOTE: 校准保留设备原值，避免越过满量程的反馈被主控件钳位为 450° 或 180°。
+    m_controllerAzimuth = azimuth;
+    m_controllerElevation = elevation;
+    m_control->setPosition(azimuth, elevation);
+    updateCalibrationPosition();
 }
 
 void MainWindow::openTransport()
@@ -492,6 +497,7 @@ void MainWindow::openAzimuthOffset()
     connect(dialog, &QDialog::accepted, this, [this] {
         m_control->setAzimuthOffset(AppSettings().azimuthOffset());
         m_n1mm->setAzimuthOffset(AppSettings().azimuthOffset());
+        updateCalibrationPosition();
     });
     dialog->open();
 }
@@ -636,27 +642,6 @@ void MainWindow::sendControlCommand(const QString &command)
     // NOTE: 普通命令沿用真实发送信号；敏感命令仅在发送成功后显示脱敏副本。
     if (m_transport->sendCommand(command, reportAsSent) && !reportAsSent)
         m_console->appendSent(logBytes);
-}
-
-void MainWindow::requestCalibration(const QString &command, const QString &question)
-{
-    if (!m_transport->isOpen() || m_connection->isVirtualComEnabled())
-        return;
-    // NOTE: 确认弹窗也暂停外部定位，避免用户确认零点前被 N1MM 或延迟滑条命令转离。
-    m_n1mm->setControlAvailable(false);
-    m_control->cancelPendingMotion();
-    if (QMessageBox::question(this, tr("Calibration confirmation"), question,
-                              QMessageBox::Ok | QMessageBox::Cancel,
-                              QMessageBox::Ok) == QMessageBox::Ok) {
-        m_pendingCalibrationCommand = command;
-        updateN1mmState();
-        m_faultStatus->setPaused(true);
-        m_positionPollTimer->stop();
-        m_calibrationTimeoutTimer->start();
-        sendControlCommand(command);
-    } else {
-        updateN1mmState();
-    }
 }
 
 void MainWindow::runManagementAction(const std::function<void()> &action,
@@ -807,8 +792,9 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
         const QString text = QString::fromUtf8(line).trimmed();
         if (!m_pendingCalibrationCommand.isEmpty() &&
             text.contains(QStringLiteral("are you sure?"), Qt::CaseInsensitive)) {
+            QWidget *promptParent = m_calibrationDialog ? static_cast<QWidget *>(m_calibrationDialog.data()) : this;
             const auto answer = QMessageBox::question(
-                this, tr("Confirm calibration"),
+                promptParent, tr("Confirm calibration"),
                 tr("The device is ready to store this calibration point. Continue?"),
                 QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
             if (answer == QMessageBox::Yes) {
@@ -818,6 +804,7 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
                 sendControlCommand(QStringLiteral("NO"));
                 m_pendingCalibrationCommand.clear();
                 updateN1mmState();
+                updateCalibrationState();
                 m_faultStatus->setPaused(false);
                 m_calibrationTimeoutTimer->stop();
                 if (m_transport->isOpen())
@@ -828,6 +815,7 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
                     text.startsWith(QStringLiteral("?>")))) {
             m_pendingCalibrationCommand.clear();
             updateN1mmState();
+            updateCalibrationState();
             m_faultStatus->setPaused(false);
             m_calibrationTimeoutTimer->stop();
             if (m_transport->isOpen())
@@ -841,14 +829,14 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
             QStringLiteral("^EL\\s*=\\s*(\\d{1,3})$"));
         const auto azElMatch = azimuthElevation.match(text);
         if (azElMatch.hasMatch()) {
-            m_control->setPosition(azElMatch.captured(1).toInt(),
-                                   azElMatch.captured(2).toInt());
+            setDevicePosition(azElMatch.captured(1).toInt(),
+                              azElMatch.captured(2).toInt());
             m_n1mm->setPosition(azElMatch.captured(1).toInt());
         } else if (const auto azMatch = azimuthOnly.match(text); azMatch.hasMatch()) {
-            m_control->setPosition(azMatch.captured(1).toInt(), m_control->elevation());
+            setDevicePosition(azMatch.captured(1).toInt(), m_controllerElevation);
             m_n1mm->setPosition(azMatch.captured(1).toInt());
         } else if (const auto elMatch = elevationOnly.match(text); elMatch.hasMatch()) {
-            m_control->setPosition(m_control->azimuth(), elMatch.captured(1).toInt());
+            setDevicePosition(m_controllerAzimuth, elMatch.captured(1).toInt());
         }
     }
     // NOTE: 仅缓冲扩展响应以便按命令过滤；普通终端输出仍随字节到达立即显示。

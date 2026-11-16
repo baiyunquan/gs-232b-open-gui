@@ -3,11 +3,13 @@
 #include <QByteArray>
 #include <QJsonObject>
 #include <QMainWindow>
+#include <QPointer>
 #include <QString>
 
 #include <functional>
 
 class QAction;
+class CalibrationDialog;
 class ConnectionPanel;
 class ConsolePanel;
 class ControlPanel;
@@ -41,6 +43,8 @@ private:
     void updateN1mmState();
     void openN1mmName();
     void updateConnectionState();
+    /** @brief 将设备原始角度同步到主控件和校准窗口，保留超出主控件显示范围的校准反馈。 */
+    void setDevicePosition(int azimuth, int elevation);
     void openTransport();
     void closeTransport();
     void setupVirtualSerial();
@@ -51,6 +55,9 @@ private:
     void startApProvisioning();
     void openStationGrid();
     void openAzimuthOffset();
+    void openCalibration();
+    void updateCalibrationState();
+    void updateCalibrationPosition();
     void openWifiProvisioning();
     void openNetworkPortConfig();
     void resetNetworkConfiguration();
@@ -79,6 +86,7 @@ private:
     ControlPanel *m_control;
     ConsolePanel *m_console;
     RotorSettingsPanel *m_settings;
+    QPointer<CalibrationDialog> m_calibrationDialog;
     FaultStatusMonitor *m_faultStatus;
     QLabel *m_connectionStatus;
     QLabel *m_transportStatus;
@@ -95,8 +103,11 @@ private:
     QAction *m_networkPortAction;
     QAction *m_resetNetworkAction;
     QAction *m_upgradeAction;
+    QAction *m_calibrationAction;
     QByteArray m_receiveBuffer;
     qsizetype m_consoleForwardedBytes = 0;
+    int m_controllerAzimuth = 0;
+    int m_controllerElevation = 0;
     QString m_pendingWifiSsid;
     QJsonObject m_pendingNetworkPatch;
     qint64 m_pendingNetworkCandidate = -1;

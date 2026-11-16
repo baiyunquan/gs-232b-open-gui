@@ -266,6 +266,10 @@
             <translation>设置</translation>
         </message>
         <message>
+            <source>Calibration...</source>
+            <translation>校准…</translation>
+        </message>
+        <message>
             <source>My grid...</source>
             <translation>我的网格...</translation>
         </message>
@@ -692,9 +696,32 @@ Wireless IP: %2</source>
             <source>AZIMUTH SPEED</source>
             <translation>方位速度</translation>
         </message>
+    </context>
+    <context>
+        <name>CalibrationDialog</name>
         <message>
-            <source>CALIBRATION</source>
+            <source>Current angles</source>
+            <translation>当前角度</translation>
+        </message>
+        <message>
+            <source>Azimuth</source>
+            <translation>方位角</translation>
+        </message>
+        <message>
+            <source>Elevation</source>
+            <translation>俯仰角</translation>
+        </message>
+        <message>
+            <source>Calibration</source>
             <translation>校准</translation>
+        </message>
+        <message>
+            <source>Zero calibration</source>
+            <translation>零点校准</translation>
+        </message>
+        <message>
+            <source>Full-scale calibration</source>
+            <translation>满量程校准</translation>
         </message>
         <message>
             <source>Azimuth zero</source>
@@ -709,8 +736,12 @@ Wireless IP: %2</source>
             <translation>将方位转至逆时针限位，或将俯仰角转至 0°，再点击对应按钮校准控制器零点。</translation>
         </message>
         <message>
-            <source>For full-scale calibration, turn off Settings → Shortest rotation path. Adjust the potentiometer until the reading matches 360° or 450° plus azimuth offset, or 180° elevation.</source>
-            <translation>满量程校准前，关闭“设置 → 最短路径旋转”。调节电位器，直到方位读数为 360° 或 450° 加上方位角补偿值，或俯仰读数为 180°。</translation>
+            <source>For full-scale calibration, adjust the potentiometer until the azimuth reading matches 360° or 450° plus azimuth offset, or the elevation reading matches 180°.</source>
+            <translation>满量程校准时，调节电位器，直到方位读数为 360° 或 450° 加上方位角补偿值，或俯仰读数为 180°。</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>关闭</translation>
         </message>
     </context>
     <context>

@@ -5,10 +5,9 @@
 
 class QComboBox;
 class QGroupBox;
-class QLabel;
 class QPushButton;
 
-/** @brief 旋转器型号、方位速度和校准设置视图，不包含网络配置或 M/W 命令表单。 */
+/** @brief 旋转器型号和方位速度设置视图，不包含网络配置或 M/W 命令表单。 */
 class RotorSettingsPanel final : public QWidget
 {
     Q_OBJECT
@@ -30,15 +29,9 @@ signals:
     void commandRequested(const QString &command);
     /** @brief 用户请求写入所选型号；网络传输的管理认证由宿主窗口按需处理。 */
     void modelApplyRequested();
-    /** @brief 用户请求方位零点校准。 */
-    void azimuthZeroCalibrationRequested();
-    /** @brief 用户请求俯仰零点校准。 */
-    void elevationZeroCalibrationRequested();
 
 private:
     QComboBox *m_model;
     QPushButton *m_apply;
-    QPushButton *m_azimuthZero;
-    QPushButton *m_elevationZero;
     QGroupBox *m_speed;
 };
