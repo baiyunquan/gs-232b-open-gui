@@ -47,6 +47,7 @@ signals:
 
 private:
     void updateControls();
+    void reportSettingsResult(bool saved);
 
     bool m_connected = false;
     QRadioButton *m_serialMode;

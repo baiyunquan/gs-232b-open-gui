@@ -1,3 +1,4 @@
+#include "AppSettings.h"
 #include "CommunicationProtocol.h"
 #include "ConnectionPanel.h"
 #include "MainWindow.h"
@@ -12,6 +13,8 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSignalSpy>
+#include <QSettings>
+#include <QTemporaryDir>
 #include <QWebSocket>
 #include <QWebSocketServer>
 #include <QtTest>
@@ -42,8 +45,11 @@ class RotorModelConnectionTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void initTestCase();
     void init();
     void cleanup();
+    void persistsAndRestoresConnectionPreferences();
+    void restoresOnlyScannedSerialPorts();
     void readsConfiguredModel_data();
     void readsConfiguredModel();
     void invalidResponsesPreserveSelection();
@@ -56,6 +62,7 @@ private slots:
 private:
     bool connectDevice();
 
+    QTemporaryDir m_settingsDirectory;
     MainWindow *m_window = nullptr;
     ConnectionPanel *m_connection = nullptr;
     RotorSettingsPanel *m_settings = nullptr;
@@ -64,6 +71,12 @@ private:
     QPointer<QWebSocket> m_peer;
     QStringList m_commands;
 };
+
+void RotorModelConnectionTests::initTestCase()
+{
+    QVERIFY(m_settingsDirectory.isValid());
+    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, m_settingsDirectory.path());
+}
 
 void RotorModelConnectionTests::init()
 {
@@ -101,6 +114,60 @@ bool RotorModelConnectionTests::connectDevice()
 {
     m_connection->connectRequested();
     return QTest::qWaitFor([this] { return m_peer && m_connection->isConnected(); }, 3000);
+}
+
+void RotorModelConnectionTests::persistsAndRestoresConnectionPreferences()
+{
+    ConnectionPanel panel;
+    auto *serial = panel.findChild<QComboBox *>(QStringLiteral("serialPort"));
+    const QString selectedPort = serial->itemData(serial->count() - 1).toString();
+    if (!selectedPort.isEmpty()) {
+        // NOTE: 连接操作也保存用户接受的默认串口，无需先切换到其他项。
+        panel.findChild<QRadioButton *>(QStringLiteral("serialMode"))->setChecked(true);
+        panel.connectRequested();
+        QSettings raw(QSettings::NativeFormat, QSettings::UserScope,
+                      QStringLiteral("BG5GEB"), QStringLiteral("GS-232B Open Control"));
+        QCOMPARE(raw.value(QStringLiteral("connection/serialPort")).toString(), panel.connectionOptions().serialPort);
+        serial->setCurrentIndex(serial->count() - 1);
+    }
+    panel.findChild<QComboBox *>(QStringLiteral("baudRate"))->setCurrentText(QStringLiteral("2400"));
+    panel.findChild<QLineEdit *>(QStringLiteral("websocketAddress"))->setText(QStringLiteral("192.0.2.10"));
+    for (bool network : {true, false}) {
+        panel.findChild<QRadioButton *>(network ? QStringLiteral("networkMode")
+                                                : QStringLiteral("serialMode"))->setChecked(true);
+        ConnectionPanel restored;
+        const auto options = restored.connectionOptions();
+        QCOMPARE(options.serialPort, selectedPort);
+        QCOMPARE(options.baudRate, 2400);
+        QCOMPARE(options.address, QStringLiteral("192.0.2.10"));
+        QCOMPARE(restored.isNetworkMode(), network);
+        QVERIFY(!restored.isConnected());
+        QCOMPARE(restored.findChild<QComboBox *>(QStringLiteral("serialPort"))->isEnabled(), !network);
+        QCOMPARE(AppSettings().baudRate(), 2400);
+        QCOMPARE(AppSettings().connectionAddress(), QStringLiteral("192.0.2.10"));
+        QCOMPARE(AppSettings().networkMode(), network);
+    }
+}
+
+void RotorModelConnectionTests::restoresOnlyScannedSerialPorts()
+{
+    const QString missingPort = QStringLiteral("gs232b-missing-port");
+    QVERIFY(AppSettings().setSerialPort(missingPort));
+    {
+        ConnectionPanel panel;
+        auto *serial = panel.findChild<QComboBox *>(QStringLiteral("serialPort"));
+        const QString firstPort = serial->itemData(0).toString();
+        QCOMPARE(serial->currentIndex(), 0);
+        QCOMPARE(panel.connectionOptions().serialPort, firstPort);
+        panel.findChild<QComboBox *>(QStringLiteral("baudRate"))->setCurrentText(QStringLiteral("4800"));
+        panel.findChild<QLineEdit *>(QStringLiteral("websocketAddress"))->setText(QStringLiteral("rotor.local"));
+        panel.findChild<QRadioButton *>(QStringLiteral("serialMode"))->setChecked(true);
+        panel.setConnecting(true);
+        panel.setConnecting(false);
+    }
+    QSettings raw(QSettings::NativeFormat, QSettings::UserScope,
+                  QStringLiteral("BG5GEB"), QStringLiteral("GS-232B Open Control"));
+    QCOMPARE(raw.value(QStringLiteral("connection/serialPort")).toString(), missingPort);
 }
 
 void RotorModelConnectionTests::readsConfiguredModel_data()

@@ -139,6 +139,16 @@ set(GUI_SOURCES
 
 qt_add_executable(gs_232b_open_gui main.cpp ${GUI_SOURCES})
 
+qt_add_resources(gs_232b_open_gui branding
+    PREFIX "/branding"
+    BASE assets
+    FILES assets/logo.png
+)
+if(WIN32)
+    target_sources(gs_232b_open_gui PRIVATE assets/app.rc)
+    target_include_directories(gs_232b_open_gui PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/assets")
+endif()
+
 target_compile_features(gs_232b_open_gui PRIVATE cxx_std_17)
 
 target_link_libraries(gs_232b_open_gui

@@ -11,6 +11,8 @@
 #include <QPointer>
 #include <QRadioButton>
 #include <QSignalSpy>
+#include <QSettings>
+#include <QTemporaryDir>
 #include <QWebSocket>
 #include <QWebSocketServer>
 #include <QtTest>
@@ -25,6 +27,7 @@ class VirtualSerialConnectionTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void initTestCase();
     void init();
     void cleanup();
     void failedConnectionDoesNotCreatePort();
@@ -44,6 +47,7 @@ private slots:
 
 private:
     bool connectDevice();
+    QTemporaryDir m_settingsDirectory;
 #ifdef Q_OS_UNIX
     bool openClient();
     QByteArray readReply(qsizetype expectedSize);
@@ -58,6 +62,12 @@ private:
     QList<QByteArray> m_binaryFrames;
     QStringList m_textFrames;
 };
+
+void VirtualSerialConnectionTests::initTestCase()
+{
+    QVERIFY(m_settingsDirectory.isValid());
+    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, m_settingsDirectory.path());
+}
 
 void VirtualSerialConnectionTests::init()
 {

@@ -23,6 +23,14 @@
     <context>
         <name>ConnectionPanel</name>
         <message>
+            <source>Application settings</source>
+            <translation>应用设置</translation>
+        </message>
+        <message>
+            <source>Could not save application settings.</source>
+            <translation>无法保存应用设置。</translation>
+        </message>
+        <message>
             <location filename="../ConnectionPanel.cpp" line="12" />
             <source>CONNECTION</source>
             <translation>连接</translation>

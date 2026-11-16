@@ -6,6 +6,10 @@
 
 namespace {
 
+const QString SerialPortKey = QStringLiteral("connection/serialPort");
+const QString BaudRateKey = QStringLiteral("connection/baudRate");
+const QString ConnectionAddressKey = QStringLiteral("connection/address");
+const QString NetworkModeKey = QStringLiteral("connection/networkMode");
 const QString ConsoleVisibleKey = QStringLiteral("view/consoleVisible");
 const QString GreatCircleMapEnabledKey = QStringLiteral("view/greatCircleMapEnabled");
 const QString StationGridKey = QStringLiteral("station/grid");
@@ -13,6 +17,11 @@ const QString AzimuthOffsetKey = QStringLiteral("rotor/azimuthOffset");
 const QString ShortestPathEnabledKey = QStringLiteral("rotor/shortestPathEnabled");
 const QString N1mmEnabledKey = QStringLiteral("n1mm/enabled");
 const QString N1mmRotorNameKey = QStringLiteral("n1mm/rotorName");
+
+bool isSupportedBaudRate(int baudRate)
+{
+    return baudRate == 1200 || baudRate == 2400 || baudRate == 4800 || baudRate == 9600;
+}
 
 bool readBoolean(const QVariant &stored, bool fallback = false)
 {
@@ -58,6 +67,50 @@ AppSettings::AppSettings()
 AppSettings::AppSettings(const QString &fileName)
     : m_settings(fileName, QSettings::IniFormat)
 {
+}
+
+QString AppSettings::serialPort(const QStringList &availablePorts) const
+{
+    const QString savedPort = m_settings.value(SerialPortKey).toString().trimmed();
+    return availablePorts.contains(savedPort) ? savedPort : availablePorts.value(0);
+}
+
+bool AppSettings::setSerialPort(const QString &port)
+{
+    return storeValue(SerialPortKey, port.trimmed());
+}
+
+int AppSettings::baudRate() const
+{
+    bool ok = false;
+    const int baudRate = m_settings.value(BaudRateKey).toString().toInt(&ok);
+    return ok && isSupportedBaudRate(baudRate) ? baudRate : 9600;
+}
+
+bool AppSettings::setBaudRate(int baudRate)
+{
+    return isSupportedBaudRate(baudRate) && storeValue(BaudRateKey, baudRate);
+}
+
+QString AppSettings::connectionAddress() const
+{
+    return m_settings.value(ConnectionAddressKey, QStringLiteral("192.168.1.50"))
+        .toString().trimmed();
+}
+
+bool AppSettings::setConnectionAddress(const QString &address)
+{
+    return storeValue(ConnectionAddressKey, address.trimmed());
+}
+
+bool AppSettings::networkMode() const
+{
+    return readBoolean(m_settings.value(NetworkModeKey));
+}
+
+bool AppSettings::setNetworkMode(bool enabled)
+{
+    return storeValue(NetworkModeKey, enabled);
 }
 
 bool AppSettings::consoleVisible() const

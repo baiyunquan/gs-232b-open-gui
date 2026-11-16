@@ -15,6 +15,10 @@ class AppSettingsTests final : public QObject
 private slots:
     void defaultsDoNotWrite();
     void savesImmediatelyAndPreservesOtherKeys();
+    void persistsConnectionPreferences();
+    void restoresSerialPortFromScan();
+    void invalidConnectionPreferencesUseDefaults_data();
+    void invalidConnectionPreferencesUseDefaults();
     void readsExistingPresets();
     void persistsPresetBoundaries();
     void invalidValuesUseDefaults_data();
@@ -40,6 +44,11 @@ void AppSettingsTests::defaultsDoNotWrite()
     QVERIFY(directory.isValid());
     const QString fileName = directory.filePath(QStringLiteral("settings.ini"));
     AppSettings settings(fileName);
+    QVERIFY(settings.serialPort({}).isEmpty());
+    QCOMPARE(settings.serialPort({QStringLiteral("COM3"), QStringLiteral("COM7")}), QStringLiteral("COM3"));
+    QCOMPARE(settings.baudRate(), 9600);
+    QCOMPARE(settings.connectionAddress(), QStringLiteral("192.168.1.50"));
+    QVERIFY(!settings.networkMode());
     QVERIFY(!settings.consoleVisible());
     QVERIFY(!settings.greatCircleMapEnabled());
     QVERIFY(settings.stationGrid().isEmpty());
@@ -86,6 +95,94 @@ void AppSettingsTests::savesImmediatelyAndPreservesOtherKeys()
         QSettings raw(fileName, QSettings::IniFormat);
         QCOMPARE(raw.value(QStringLiteral("other/value")).toString(), QStringLiteral("keep"));
     }
+}
+
+void AppSettingsTests::persistsConnectionPreferences()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString fileName = directory.filePath(QStringLiteral("settings.ini"));
+    AppSettings settings(fileName);
+    QVERIFY(settings.setPresetAngle(AppSettings::Axis::Azimuth, 3, 123));
+    QVERIFY(settings.setSerialPort(QStringLiteral(" COM7 ")));
+    QVERIFY(settings.setConnectionAddress(QStringLiteral(" ws://rotor.local:8080 ")));
+    for (int baudRate : {1200, 2400, 4800, 9600}) {
+        QVERIFY(settings.setBaudRate(baudRate));
+        for (bool network : {true, false}) {
+            QVERIFY(settings.setNetworkMode(network));
+            QFile file(fileName);
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            const QByteArray content = file.readAll();
+            QVERIFY(content.contains("serialPort=COM7"));
+            QVERIFY(content.contains("address=ws://rotor.local:8080"));
+            QVERIFY(content.contains("baudRate=" + QByteArray::number(baudRate)));
+            QVERIFY(content.contains(network ? "networkMode=true" : "networkMode=false"));
+            AppSettings reopened(fileName);
+            QCOMPARE(reopened.serialPort({QStringLiteral("COM3"), QStringLiteral("COM7")}), QStringLiteral("COM7"));
+            QCOMPARE(reopened.baudRate(), baudRate);
+            QCOMPARE(reopened.connectionAddress(), QStringLiteral("ws://rotor.local:8080"));
+            QCOMPARE(reopened.networkMode(), network);
+            QCOMPARE(reopened.presetAngle(AppSettings::Axis::Azimuth, 3), 123);
+        }
+    }
+    for (int invalid : {-1, 0, 9601, 115200}) {
+        QVERIFY(!settings.setBaudRate(invalid));
+        QCOMPARE(AppSettings(fileName).baudRate(), 9600);
+    }
+    QVERIFY(settings.setConnectionAddress(QString()));
+    QVERIFY(AppSettings(fileName).connectionAddress().isEmpty());
+}
+
+void AppSettingsTests::restoresSerialPortFromScan()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString fileName = directory.filePath(QStringLiteral("settings.ini"));
+    QVERIFY(AppSettings(fileName).setSerialPort(QStringLiteral("COM7")));
+    {
+        AppSettings settings(fileName);
+        QCOMPARE(settings.serialPort({QStringLiteral("COM3"), QStringLiteral("COM7")}), QStringLiteral("COM7"));
+        QCOMPARE(settings.serialPort({QStringLiteral("COM3"), QStringLiteral("COM9")}), QStringLiteral("COM3"));
+        QVERIFY(settings.serialPort({}).isEmpty());
+        QVERIFY(settings.setBaudRate(4800));
+        QVERIFY(settings.setConnectionAddress(QStringLiteral("192.0.2.10")));
+    }
+    QSettings raw(fileName, QSettings::IniFormat);
+    QCOMPARE(raw.value(QStringLiteral("connection/serialPort")).toString(), QStringLiteral("COM7"));
+    AppSettings restarted(fileName);
+    QCOMPARE(restarted.serialPort({QStringLiteral("COM9"), QStringLiteral("COM7")}), QStringLiteral("COM7"));
+    QVERIFY(restarted.setSerialPort(QString()));
+    QCOMPARE(AppSettings(fileName).serialPort({QStringLiteral("COM3"), QStringLiteral("COM7")}), QStringLiteral("COM3"));
+}
+
+void AppSettingsTests::invalidConnectionPreferencesUseDefaults_data()
+{
+    QTest::addColumn<QByteArray>("baudRate");
+    for (const QByteArray &value : {QByteArray(), QByteArray("bad"), QByteArray("true"),
+                                   QByteArray("-1"), QByteArray("0"), QByteArray("9600.5"),
+                                   QByteArray("115200"), QByteArray("2147483648")})
+        QTest::newRow(value.isEmpty() ? "empty" : value.constData()) << value;
+}
+
+void AppSettingsTests::invalidConnectionPreferencesUseDefaults()
+{
+    QFETCH(QByteArray, baudRate);
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString fileName = directory.filePath(QStringLiteral("settings.ini"));
+    const QByteArray content = "[connection]\nbaudRate=" + baudRate + "\nnetworkMode=invalid\nserialPort=COM7\n";
+    {
+        QFile file(fileName);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write(content), content.size());
+    }
+    const AppSettings settings(fileName);
+    QCOMPARE(settings.baudRate(), 9600);
+    QVERIFY(!settings.networkMode());
+    QCOMPARE(settings.serialPort({QStringLiteral("COM3")}), QStringLiteral("COM3"));
+    QFile file(fileName);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QCOMPARE(file.readAll(), content);
 }
 
 void AppSettingsTests::readsExistingPresets()
@@ -409,6 +506,10 @@ void AppSettingsTests::reportsStorageFailure()
     const QString fileName = directory.filePath(QStringLiteral("settings.ini"));
     QVERIFY(QDir().mkdir(fileName));
     AppSettings settings(fileName);
+    QVERIFY(!settings.setSerialPort(QStringLiteral("COM7")));
+    QVERIFY(!settings.setBaudRate(4800));
+    QVERIFY(!settings.setConnectionAddress(QStringLiteral("192.0.2.10")));
+    QVERIFY(!settings.setNetworkMode(true));
     QVERIFY(!settings.setConsoleVisible(true));
     QVERIFY(!settings.setGreatCircleMapEnabled(true));
     QVERIFY(!settings.setAzimuthOffset(-30));

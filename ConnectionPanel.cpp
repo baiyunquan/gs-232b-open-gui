@@ -1,4 +1,5 @@
 #include "ConnectionPanel.h"
+#include "AppSettings.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -6,6 +7,7 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSerialPortInfo>
@@ -14,6 +16,7 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
     : QGroupBox(tr("CONNECTION"), parent)
 {
     setObjectName(QStringLiteral("connectionPanel"));
+    const AppSettings settings;
     auto *layout = new QGridLayout(this);
     m_serialMode = new QRadioButton(tr("Serial"), this);
     m_serialMode->setObjectName(QStringLiteral("serialMode"));
@@ -22,10 +25,15 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
     m_serialPort->setObjectName(QStringLiteral("serialPort"));
     m_serialPort->setEditable(true);
     const auto availablePorts = QSerialPortInfo::availablePorts();
-    for (const QSerialPortInfo &port : availablePorts)
+    QStringList availablePortNames;
+    for (const QSerialPortInfo &port : availablePorts) {
+        availablePortNames.append(port.portName());
         m_serialPort->addItem(port.portName(), port.portName());
+    }
     if (m_serialPort->count() == 0)
         m_serialPort->addItem(tr("No serial ports found"), QString());
+    else
+        m_serialPort->setCurrentIndex(m_serialPort->findData(settings.serialPort(availablePortNames)));
     layout->addWidget(m_serialMode, 0, 0);
     layout->addWidget(m_serialPort, 0, 1);
 
@@ -33,7 +41,7 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
     m_baudRate->setObjectName(QStringLiteral("baudRate"));
     m_baudRate->addItems({QStringLiteral("1200"), QStringLiteral("2400"),
                           QStringLiteral("4800"), QStringLiteral("9600")});
-    m_baudRate->setCurrentIndex(3);
+    m_baudRate->setCurrentText(QString::number(settings.baudRate()));
     auto *baudLabel = new QLabel(tr("Baud rate"), this);
     baudLabel->setBuddy(m_baudRate);
     layout->addWidget(baudLabel, 1, 0);
@@ -41,7 +49,8 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
 
     m_networkMode = new QRadioButton(tr("Network"), this);
     m_networkMode->setObjectName(QStringLiteral("networkMode"));
-    m_address = new QLineEdit(QStringLiteral("192.168.1.50"), this);
+    m_networkMode->setChecked(settings.networkMode());
+    m_address = new QLineEdit(settings.connectionAddress(), this);
     m_address->setObjectName(QStringLiteral("websocketAddress"));
     layout->addWidget(m_networkMode, 2, 0);
     layout->addWidget(m_address, 2, 1);
@@ -86,12 +95,37 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
     layout->addWidget(m_disconnect, 5, 1);
     layout->setColumnStretch(1, 1);
 
+    // NOTE: 先恢复全部偏好再绑定保存，自动回退串口时保留原选择，等待设备重新接入。
+    connect(m_serialPort, &QComboBox::currentTextChanged, this, [this] {
+        reportSettingsResult(AppSettings().setSerialPort(connectionOptions().serialPort));
+    });
+    connect(m_baudRate, &QComboBox::currentTextChanged, this, [this] {
+        reportSettingsResult(AppSettings().setBaudRate(m_baudRate->currentText().toInt()));
+    });
+    connect(m_address, &QLineEdit::textChanged, this, [this](const QString &address) {
+        reportSettingsResult(AppSettings().setConnectionAddress(address));
+    });
+    connect(m_networkMode, &QRadioButton::toggled, this, [this](bool enabled) {
+        reportSettingsResult(AppSettings().setNetworkMode(enabled));
+    });
+    connect(this, &ConnectionPanel::connectRequested, this, [this] {
+        const auto options = connectionOptions();
+        if (!isNetworkMode() && !options.serialPort.isEmpty())
+            reportSettingsResult(AppSettings().setSerialPort(options.serialPort));
+    });
     connect(m_networkMode, &QRadioButton::toggled, this, &ConnectionPanel::updateControls);
     connect(m_virtualCom, &QCheckBox::toggled, this, &ConnectionPanel::updateControls);
     connect(m_connect, &QPushButton::clicked, this, &ConnectionPanel::connectRequested);
     connect(m_disconnect, &QPushButton::clicked, this, &ConnectionPanel::disconnectRequested);
     // NOTE: 连接状态只由真实传输后端回写，面板按钮不伪造成功状态。
     updateControls();
+}
+
+void ConnectionPanel::reportSettingsResult(bool saved)
+{
+    if (!saved)
+        QMessageBox::warning(this, tr("Application settings"),
+                             tr("Could not save application settings."));
 }
 
 bool ConnectionPanel::isConnected() const { return m_connected; }
