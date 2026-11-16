@@ -27,7 +27,6 @@
 #include <QProcess>
 #include <QPushButton>
 #include <QRegularExpression>
-#include <QResizeEvent>
 #include <QSerialPortInfo>
 #include <QSignalBlocker>
 #include <QStatusBar>
@@ -35,9 +34,6 @@
 #include <QVBoxLayout>
 
 namespace {
-
-// NOTE: 窄窗口优先保留连接、控制和设置面板，终端在恢复足够宽度后自动显示。
-constexpr int kConsoleHideWidth = 1024;
 
 QString managementAuthCommand(const QString &password)
 {
@@ -80,6 +76,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     leftLayout->addWidget(m_control, 1);
     columns->addWidget(left);
     m_console = new ConsolePanel(central);
+    m_console->hide();
     columns->addWidget(m_console, 1);
     auto *right = new QWidget(central);
     right->setMinimumWidth(250);
@@ -95,7 +92,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     rightLayout->addStretch(1);
     columns->addWidget(right);
     setCentralWidget(central);
-    updateConsoleVisibility();
 
     m_transport = new Communication::Transport(this);
     m_positionPollTimer = new QTimer(this);
@@ -228,20 +224,6 @@ MainWindow::~MainWindow()
     m_virtualSerial->stop();
 }
 
-void MainWindow::resizeEvent(QResizeEvent *event)
-{
-    QMainWindow::resizeEvent(event);
-    if (m_console)
-        updateConsoleVisibility();
-}
-
-void MainWindow::updateConsoleVisibility()
-{
-    const bool hideConsole = width() < kConsoleHideWidth;
-    if (m_console->isHidden() != hideConsole)
-        m_console->setHidden(hideConsole);
-}
-
 void MainWindow::setupVirtualSerial()
 {
     m_virtualSerial = new VirtualSerialBridge(this);
@@ -274,6 +256,11 @@ void MainWindow::createMenus()
     menuBar()->setNativeMenuBar(false);
     auto *files = menuBar()->addMenu(tr("Files"));
     files->addAction(tr("Exit"), qApp, &QCoreApplication::quit);
+    auto *view = menuBar()->addMenu(tr("View"));
+    auto *consoleAction = view->addAction(tr("Console"));
+    consoleAction->setObjectName(QStringLiteral("consoleAction"));
+    consoleAction->setCheckable(true);
+    connect(consoleAction, &QAction::toggled, m_console, &QWidget::setVisible);
     auto *management = menuBar()->addMenu(tr("Management"));
     m_authenticateAction = management->addAction(
         tr("Authenticate"), this, &MainWindow::authenticateManagement);

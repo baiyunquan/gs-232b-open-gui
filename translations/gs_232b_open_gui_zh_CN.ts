@@ -220,6 +220,14 @@
             <translation>退出</translation>
         </message>
         <message>
+            <source>View</source>
+            <translation>视图</translation>
+        </message>
+        <message>
+            <source>Console</source>
+            <translation>控制台</translation>
+        </message>
+        <message>
             <location filename="../MainWindow.cpp" line="72" />
             <source>Network</source>
             <translation>网络</translation>
