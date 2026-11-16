@@ -165,6 +165,8 @@ void ControlPanel::updateAzimuthInput()
 
 void ControlPanel::setCommandEnabled(bool enabled)
 {
+    if (!enabled)
+        cancelPendingMotion();
     m_compass->setEnabled(enabled);
     m_slider->setEnabled(enabled);
     m_azimuth->setEditingEnabled(enabled);
@@ -172,6 +174,11 @@ void ControlPanel::setCommandEnabled(bool enabled)
     // NOTE: 预设编辑属于本地偏好设置，断开或透传时仍可编辑；发送端会校验真实连接状态。
     m_azimuthPresets->setEnabled(true);
     m_elevationPresets->setEnabled(true);
+}
+
+void ControlPanel::cancelPendingMotion()
+{
+    m_elevationCommandTimer->stop();
 }
 
 void ControlPanel::setPosition(int azimuth, int elevation)

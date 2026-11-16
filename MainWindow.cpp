@@ -16,6 +16,7 @@
 #include "StationGridDialog.h"
 #include "WifiProvisioningDialog.h"
 #include "virtual_serial/VirtualSerialBridge.h"
+#include "n1mm/N1mmController.h"
 
 #include <QApplication>
 #include <QDialog>
@@ -216,6 +217,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     });
     connect(m_calibrationTimeoutTimer, &QTimer::timeout, this, [this] {
         m_pendingCalibrationCommand.clear();
+        updateN1mmState();
         m_faultStatus->setPaused(false);
         if (m_transport->isOpen())
             m_positionPollTimer->start();
@@ -226,6 +228,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 MainWindow::~MainWindow()
 {
     // NOTE: 先关闭两侧连接，避免 QObject 子对象析构时回调已销毁的界面。
+    m_n1mm->setEnabled(false);
     const QSignalBlocker transportBlocker(m_transport);
     const QSignalBlocker virtualSerialBlocker(m_virtualSerial);
     m_transport->close();
@@ -306,6 +309,7 @@ void MainWindow::createMenus()
     shortestPathAction->setChecked(preferences.shortestPathEnabled());
     connect(shortestPathAction, &QAction::toggled, this, [this](bool enabled) {
         m_control->setShortestPathEnabled(enabled);
+        m_n1mm->setShortestPathEnabled(enabled);
         if (!AppSettings().setShortestPathEnabled(enabled))
             QMessageBox::warning(this, tr("Application settings"),
                                  tr("Could not save application settings."));
@@ -333,7 +337,7 @@ void MainWindow::createMenus()
     m_resetNetworkAction = management->addAction(
         tr("Reset network configuration"), this, &MainWindow::resetNetworkConfiguration);
     m_resetNetworkAction->setObjectName(QStringLiteral("resetNetworkAction"));
-    menuBar()->addMenu(tr("Bridge"));
+    createN1mmMenu(menuBar()->addMenu(tr("Bridge")));
     auto *upgrade = menuBar()->addMenu(tr("Upgrade"));
     m_upgradeAction = upgrade->addAction(tr("Flash firmware..."),
                                         this, &MainWindow::openFirmwareUpgrade);
@@ -346,6 +350,7 @@ void MainWindow::createMenus()
 
 void MainWindow::updateConnectionState()
 {
+    updateN1mmState();
     const bool virtualCom = m_connection->isVirtualComEnabled();
     const bool commandEnabled = m_connection->isConnected() && !virtualCom;
     m_control->setCommandEnabled(commandEnabled);
@@ -482,6 +487,7 @@ void MainWindow::openAzimuthOffset()
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     connect(dialog, &QDialog::accepted, this, [this] {
         m_control->setAzimuthOffset(AppSettings().azimuthOffset());
+        m_n1mm->setAzimuthOffset(AppSettings().azimuthOffset());
     });
     dialog->open();
 }
@@ -632,14 +638,20 @@ void MainWindow::requestCalibration(const QString &command, const QString &quest
 {
     if (!m_transport->isOpen() || m_connection->isVirtualComEnabled())
         return;
+    // NOTE: 确认弹窗也暂停外部定位，避免用户确认零点前被 N1MM 或延迟滑条命令转离。
+    m_n1mm->setControlAvailable(false);
+    m_control->cancelPendingMotion();
     if (QMessageBox::question(this, tr("Calibration confirmation"), question,
                               QMessageBox::Ok | QMessageBox::Cancel,
                               QMessageBox::Ok) == QMessageBox::Ok) {
         m_pendingCalibrationCommand = command;
+        updateN1mmState();
         m_faultStatus->setPaused(true);
         m_positionPollTimer->stop();
         m_calibrationTimeoutTimer->start();
         sendControlCommand(command);
+    } else {
+        updateN1mmState();
     }
 }
 
@@ -801,6 +813,7 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
             } else {
                 sendControlCommand(QStringLiteral("NO"));
                 m_pendingCalibrationCommand.clear();
+                updateN1mmState();
                 m_faultStatus->setPaused(false);
                 m_calibrationTimeoutTimer->stop();
                 if (m_transport->isOpen())
@@ -810,6 +823,7 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
                    (text.contains(QStringLiteral("Completed"), Qt::CaseInsensitive) ||
                     text.startsWith(QStringLiteral("?>")))) {
             m_pendingCalibrationCommand.clear();
+            updateN1mmState();
             m_faultStatus->setPaused(false);
             m_calibrationTimeoutTimer->stop();
             if (m_transport->isOpen())
@@ -825,8 +839,10 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
         if (azElMatch.hasMatch()) {
             m_control->setPosition(azElMatch.captured(1).toInt(),
                                    azElMatch.captured(2).toInt());
+            m_n1mm->setPosition(azElMatch.captured(1).toInt());
         } else if (const auto azMatch = azimuthOnly.match(text); azMatch.hasMatch()) {
             m_control->setPosition(azMatch.captured(1).toInt(), m_control->elevation());
+            m_n1mm->setPosition(azMatch.captured(1).toInt());
         } else if (const auto elMatch = elevationOnly.match(text); elMatch.hasMatch()) {
             m_control->setPosition(m_control->azimuth(), elMatch.captured(1).toInt());
         }

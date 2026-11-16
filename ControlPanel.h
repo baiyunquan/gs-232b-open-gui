@@ -22,6 +22,8 @@ public:
     explicit ControlPanel(QWidget *parent = nullptr);
     /** @brief 按实际连接和透传状态统一切换命令控件。 */
     void setCommandEnabled(bool enabled);
+    /** @brief 外部定位或停止前取消尚未发送的滑条命令，避免随后覆盖外部指令。 */
+    void cancelPendingMotion();
     /** @brief 更新设备实测角度，不触发滑条定位请求。 */
     void setPosition(int azimuth, int elevation);
     /** @brief 更新显示、数字输入和预设的方位补偿；保留设备读数，不发送命令。 */

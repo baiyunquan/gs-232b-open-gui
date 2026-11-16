@@ -25,6 +25,8 @@ private slots:
     void invalidStoredAzimuthOffset();
     void readsShortestPathPreference_data();
     void readsShortestPathPreference();
+    void persistsN1mmPreferences();
+    void invalidN1mmPreferencesUseDefaults();
     void validatesAndPersistsStationGrid_data();
     void validatesAndPersistsStationGrid();
     void clearsStationGrid();
@@ -43,6 +45,8 @@ void AppSettingsTests::defaultsDoNotWrite()
     QVERIFY(settings.stationGrid().isEmpty());
     QCOMPARE(settings.azimuthOffset(), 0);
     QVERIFY(settings.shortestPathEnabled());
+    QVERIFY(!settings.n1mmEnabled());
+    QCOMPARE(settings.n1mmRotorName(), QStringLiteral("GS232B"));
     const std::array<int, 10> azimuth{0, 45, 90, 135, 180, 225, 270, 315, 360, 405};
     const std::array<int, 6> elevation{0, 25, 50, 75, 100, 125};
     QCOMPARE(AppSettings::presetCount(AppSettings::Axis::Azimuth), int(azimuth.size()));
@@ -357,6 +361,47 @@ void AppSettingsTests::readsShortestPathPreference()
     QCOMPARE(file.readAll(), content);
 }
 
+void AppSettingsTests::persistsN1mmPreferences()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString fileName = directory.filePath(QStringLiteral("settings.ini"));
+    AppSettings settings(fileName);
+    QVERIFY(settings.setN1mmEnabled(true));
+    QVERIFY(settings.setN1mmRotorName(QStringLiteral(" Tower A ")));
+    {
+        AppSettings reopened(fileName);
+        QVERIFY(reopened.n1mmEnabled());
+        QCOMPARE(reopened.n1mmRotorName(), QStringLiteral("Tower A"));
+    }
+    for (const QString &invalid : {QString(), QStringLiteral("A,B"), QStringLiteral("A@B"),
+                                   QStringLiteral("A\nB"), QString(65, QLatin1Char('A'))}) {
+        QVERIFY(!settings.setN1mmRotorName(invalid));
+        QCOMPARE(AppSettings(fileName).n1mmRotorName(), QStringLiteral("Tower A"));
+    }
+    QVERIFY(settings.setN1mmEnabled(false));
+    QVERIFY(!AppSettings(fileName).n1mmEnabled());
+}
+
+void AppSettingsTests::invalidN1mmPreferencesUseDefaults()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString fileName = directory.filePath(QStringLiteral("settings.ini"));
+    const QByteArray content("[n1mm]\nenabled=broken\nrotorName=Bad@Name\n");
+    {
+        QFile file(fileName);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write(content), content.size());
+    }
+    AppSettings settings(fileName);
+    QVERIFY(!settings.n1mmEnabled());
+    QCOMPARE(settings.n1mmRotorName(), QStringLiteral("GS232B"));
+    QFile file(fileName);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QCOMPARE(file.readAll(), content);
+}
+
 void AppSettingsTests::reportsStorageFailure()
 {
     QTemporaryDir directory;
@@ -368,6 +413,8 @@ void AppSettingsTests::reportsStorageFailure()
     QVERIFY(!settings.setGreatCircleMapEnabled(true));
     QVERIFY(!settings.setAzimuthOffset(-30));
     QVERIFY(!settings.setShortestPathEnabled(false));
+    QVERIFY(!settings.setN1mmEnabled(true));
+    QVERIFY(!settings.setN1mmRotorName(QStringLiteral("Tower A")));
     QVERIFY(!settings.setStationGrid(QStringLiteral("PM95AA")));
     QVERIFY(!settings.setPresetAngle(AppSettings::Axis::Azimuth, 0, 90));
 }

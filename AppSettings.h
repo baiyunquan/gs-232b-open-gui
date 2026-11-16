@@ -39,6 +39,15 @@ public:
     /** @return 立即同步最短路径模式到存储是否成功。 */
     bool setShortestPathEnabled(bool enabled);
 
+    /** @brief 读取同机 N1MM 接入偏好；缺失或无效时默认关闭。 */
+    bool n1mmEnabled() const;
+    /** @return 立即同步 N1MM 接入偏好到存储是否成功。 */
+    bool setN1mmEnabled(bool enabled);
+    /** @brief 读取 N1MM 转台名；缺失或无效时返回 GS232B。 */
+    QString n1mmRotorName() const;
+    /** @brief 去除首尾空白并立即保存合法转台名；非法值不写入。 */
+    bool setN1mmRotorName(const QString &name);
+
     /** @brief 读取本站 Maidenhead 网格；返回大写，缺失或无效时返回空字符串。 */
     QString stationGrid() const;
     /**

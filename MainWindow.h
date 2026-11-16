@@ -13,9 +13,11 @@ class ConsolePanel;
 class ControlPanel;
 class FaultStatusMonitor;
 class QLabel;
+class QMenu;
 class RotorSettingsPanel;
 class QTimer;
 class VirtualSerialBridge;
+class N1mmController;
 struct EthernetConfiguration;
 
 namespace Communication {
@@ -35,6 +37,9 @@ public:
 
 private:
     void createMenus();
+    void createN1mmMenu(QMenu *bridge);
+    void updateN1mmState();
+    void openN1mmName();
     void updateConnectionState();
     void openTransport();
     void closeTransport();
@@ -78,6 +83,8 @@ private:
     QLabel *m_transportStatus;
     Communication::Transport *m_transport;
     VirtualSerialBridge *m_virtualSerial;
+    N1mmController *m_n1mm;
+    QAction *m_n1mmEnableAction;
     QAction *m_authenticateAction;
     QAction *m_changePasswordAction;
     QAction *m_cancelManagementAction;

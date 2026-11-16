@@ -72,6 +72,16 @@ if(WIN32)
     target_link_libraries(gs232b_virtual_serial PRIVATE Qt6::SerialPort)
 endif()
 
+qt_add_library(gs232b_n1mm STATIC
+    n1mm/N1mmProtocol.cpp
+    n1mm/N1mmProtocol.h
+    n1mm/N1mmController.cpp
+    n1mm/N1mmController.h
+)
+target_compile_features(gs232b_n1mm PUBLIC cxx_std_17)
+target_include_directories(gs232b_n1mm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(gs232b_n1mm PUBLIC Qt6::Core Qt6::Network)
+
 set(GUI_SOURCES
     AppSettings.cpp
     AppSettings.h
@@ -87,7 +97,10 @@ set(GUI_SOURCES
     CommunicationProtocol.cpp
     CommunicationProtocol.h
     MainWindow.cpp
+    MainWindowN1mm.cpp
     MainWindow.h
+    n1mm/N1mmNameDialog.cpp
+    n1mm/N1mmNameDialog.h
     ConnectionPanel.cpp
     ConnectionPanel.h
     ControlPanel.cpp
@@ -132,6 +145,7 @@ target_link_libraries(gs_232b_open_gui
         gs232b_virtual_serial
         gs232b_terminal
         gs232b_targeting
+        gs232b_n1mm
 )
 
 if(BUILD_TESTING)
@@ -143,8 +157,22 @@ if(BUILD_TESTING)
     )
     target_compile_features(app_settings_tests PRIVATE cxx_std_17)
     target_include_directories(app_settings_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(app_settings_tests PRIVATE gs232b_targeting Qt6::Test)
+    target_link_libraries(app_settings_tests PRIVATE gs232b_targeting gs232b_n1mm Qt6::Test)
     add_test(NAME app_settings_tests COMMAND app_settings_tests)
+
+    qt_add_executable(n1mm_tests tests/N1mmTests.cpp)
+    target_link_libraries(n1mm_tests PRIVATE gs232b_n1mm Qt6::Test)
+    add_test(NAME n1mm_tests COMMAND n1mm_tests)
+
+    qt_add_executable(n1mm_connection_tests tests/N1mmConnectionTests.cpp ${GUI_SOURCES})
+    target_link_libraries(n1mm_connection_tests PRIVATE
+        Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test
+        gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm)
+    add_test(NAME n1mm_connection_tests COMMAND n1mm_connection_tests)
+    set_tests_properties(n1mm_connection_tests PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        RESOURCE_LOCK n1mm_udp_ports)
+    set_tests_properties(n1mm_tests PROPERTIES RESOURCE_LOCK n1mm_udp_ports)
 
     qt_add_executable(great_circle_map_tests
         tests/GreatCircleMapTests.cpp
@@ -171,7 +199,7 @@ if(BUILD_TESTING)
         GreatCircleMap.cpp GreatCircleMap.h
     )
     target_link_libraries(target_control_tests PRIVATE
-        gs232b_targeting Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::Test)
+        gs232b_targeting gs232b_n1mm Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::Test)
     add_test(NAME target_control_tests COMMAND target_control_tests)
     set_tests_properties(target_control_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
@@ -186,7 +214,7 @@ if(BUILD_TESTING)
         GreatCircleMap.cpp GreatCircleMap.h
     )
     target_link_libraries(angle_compensation_tests PRIVATE
-        gs232b_targeting Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::Test)
+        gs232b_targeting gs232b_n1mm Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::Test)
     add_test(NAME angle_compensation_tests COMMAND angle_compensation_tests)
     set_tests_properties(angle_compensation_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
@@ -200,7 +228,7 @@ if(BUILD_TESTING)
         GreatCircleMap.cpp GreatCircleMap.h
     )
     target_link_libraries(shortest_path_tests PRIVATE
-        gs232b_targeting Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::Test)
+        gs232b_targeting gs232b_n1mm Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::Test)
     add_test(NAME shortest_path_tests COMMAND shortest_path_tests)
     set_tests_properties(shortest_path_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
@@ -253,7 +281,7 @@ if(BUILD_TESTING)
     target_compile_features(rotor_model_connection_tests PRIVATE cxx_std_17)
     target_include_directories(rotor_model_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(rotor_model_connection_tests
-        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting
+        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm
     )
     add_test(NAME rotor_model_connection_tests COMMAND rotor_model_connection_tests)
     set_tests_properties(rotor_model_connection_tests PROPERTIES
@@ -267,7 +295,7 @@ if(BUILD_TESTING)
     target_compile_features(ap_provisioning_connection_tests PRIVATE cxx_std_17)
     target_include_directories(ap_provisioning_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(ap_provisioning_connection_tests
-        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting
+        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm
     )
     add_test(NAME ap_provisioning_connection_tests COMMAND ap_provisioning_connection_tests)
     set_tests_properties(ap_provisioning_connection_tests PROPERTIES
@@ -281,7 +309,7 @@ if(BUILD_TESTING)
     target_compile_features(virtual_serial_connection_tests PRIVATE cxx_std_17)
     target_include_directories(virtual_serial_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(virtual_serial_connection_tests
-        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting
+        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm
     )
     add_test(NAME virtual_serial_connection_tests COMMAND virtual_serial_connection_tests)
     set_tests_properties(virtual_serial_connection_tests PROPERTIES

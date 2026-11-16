@@ -238,6 +238,22 @@
     <context>
         <name>MainWindow</name>
         <message>
+            <source>N1MM Logger+...</source>
+            <translation>N1MM Logger+…</translation>
+        </message>
+        <message>
+            <source>N1MM Logger+</source>
+            <translation>N1MM Logger+</translation>
+        </message>
+        <message>
+            <source>Enable</source>
+            <translation>启用</translation>
+        </message>
+        <message>
+            <source>Configure name...</source>
+            <translation>配置名称…</translation>
+        </message>
+        <message>
             <source>Shortest rotation path</source>
             <translation>最短路径旋转</translation>
         </message>
@@ -999,6 +1015,52 @@ Turn the map off and on to retry</source>
         <message>
             <source>Could not save the azimuth offset.</source>
             <translation>无法保存方位角补偿。</translation>
+        </message>
+    </context>
+    <context>
+        <name>N1mmController</name>
+        <message>
+            <source>Could not enable N1MM Logger+ integration: %1</source>
+            <translation>无法启用 N1MM Logger+ 接入：%1</translation>
+        </message>
+        <message>
+            <source>Could not report the rotator position to N1MM Logger+: %1</source>
+            <translation>无法向 N1MM Logger+ 回传转台位置：%1</translation>
+        </message>
+        <message>
+            <source>N1MM turn command ignored: no recent rotator position is available.</source>
+            <translation>已忽略 N1MM 转向命令：尚无最新的转台方位读数。</translation>
+        </message>
+    </context>
+    <context>
+        <name>N1mmNameDialog</name>
+        <message>
+            <source>N1MM rotator name</source>
+            <translation>N1MM 转台名称</translation>
+        </message>
+        <message>
+            <source>Rotator name</source>
+            <translation>转台名称</translation>
+        </message>
+        <message>
+            <source>Use exactly the same name in N1MM Logger+ → Configurer → Antennas → Rotor Description. Names are case-sensitive.</source>
+            <translation>请在 N1MM Logger+ → Configurer → Antennas → Rotor Description 中填写完全相同的名称，名称区分大小写。</translation>
+        </message>
+        <message>
+            <source>Enter 1–64 characters. Commas, @ and control characters are not allowed.</source>
+            <translation>请输入 1–64 个字符，不可包含逗号、@ 或控制字符。</translation>
+        </message>
+        <message>
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <source>Save</source>
+            <translation>保存</translation>
+        </message>
+        <message>
+            <source>Could not save the rotator name.</source>
+            <translation>无法保存转台名称。</translation>
         </message>
     </context>
 </TS>

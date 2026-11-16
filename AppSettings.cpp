@@ -1,5 +1,6 @@
 #include "AppSettings.h"
 #include "MaidenheadLocator.h"
+#include "n1mm/N1mmProtocol.h"
 
 #include <array>
 
@@ -10,6 +11,8 @@ const QString GreatCircleMapEnabledKey = QStringLiteral("view/greatCircleMapEnab
 const QString StationGridKey = QStringLiteral("station/grid");
 const QString AzimuthOffsetKey = QStringLiteral("rotor/azimuthOffset");
 const QString ShortestPathEnabledKey = QStringLiteral("rotor/shortestPathEnabled");
+const QString N1mmEnabledKey = QStringLiteral("n1mm/enabled");
+const QString N1mmRotorNameKey = QStringLiteral("n1mm/rotorName");
 
 bool readBoolean(const QVariant &stored, bool fallback = false)
 {
@@ -97,6 +100,27 @@ bool AppSettings::shortestPathEnabled() const
 bool AppSettings::setShortestPathEnabled(bool enabled)
 {
     return storeValue(ShortestPathEnabledKey, enabled);
+}
+
+bool AppSettings::n1mmEnabled() const
+{
+    return readBoolean(m_settings.value(N1mmEnabledKey));
+}
+
+bool AppSettings::setN1mmEnabled(bool enabled)
+{
+    return storeValue(N1mmEnabledKey, enabled);
+}
+
+QString AppSettings::n1mmRotorName() const
+{
+    const QString name = m_settings.value(N1mmRotorNameKey).toString();
+    return N1mm::isValidRotorName(name) ? name.trimmed() : QStringLiteral("GS232B");
+}
+
+bool AppSettings::setN1mmRotorName(const QString &name)
+{
+    return N1mm::isValidRotorName(name) && storeValue(N1mmRotorNameKey, name.trimmed());
 }
 
 QString AppSettings::stationGrid() const
