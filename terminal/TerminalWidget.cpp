@@ -35,7 +35,6 @@ TerminalWidget::TerminalWidget(QWidget *parent) : qtpyte::TerminalWidget(parent)
 {
     setObjectName(QStringLiteral("consoleOutput"));
     setAccessibleName(tr("Device terminal"));
-    setToolTip(tr("Enter sends a command. Up/Down recalls history. Ctrl+Shift+C/V copies/pastes."));
     setAttribute(Qt::WA_InputMethodEnabled);
     connect(this, &qtpyte::TerminalWidget::dataReady, this, &TerminalWidget::handleTerminalData);
     feed(QByteArrayLiteral("\x1b[?25l\x1b[?2004h"));

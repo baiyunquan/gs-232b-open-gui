@@ -826,10 +826,6 @@
             <translation>设备终端</translation>
         </message>
         <message>
-            <source>Enter sends a command. Up/Down recalls history. Ctrl+Shift+C/V copies/pastes.</source>
-            <translation>按 Enter 发送命令，上下方向键切换历史命令，Ctrl+Shift+C/V 复制或粘贴。</translation>
-        </message>
-        <message>
             <source>Copy</source>
             <translation>复制</translation>
         </message>
