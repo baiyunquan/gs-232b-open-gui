@@ -35,12 +35,14 @@ void AppSettingsTests::defaultsDoNotWrite()
     QVERIFY(!settings.consoleVisible());
     QVERIFY(!settings.greatCircleMapEnabled());
     QVERIFY(settings.stationGrid().isEmpty());
-    const std::array<int, 8> azimuth{0, 45, 90, 135, 180, 225, 270, 315};
-    const std::array<int, 8> elevation{0, 25, 50, 75, 100, 125, 150, 180};
-    for (int index = 0; index < AppSettings::PresetCount; ++index) {
+    const std::array<int, 10> azimuth{0, 45, 90, 135, 180, 225, 270, 315, 360, 405};
+    const std::array<int, 6> elevation{0, 25, 50, 75, 100, 125};
+    QCOMPARE(AppSettings::presetCount(AppSettings::Axis::Azimuth), int(azimuth.size()));
+    QCOMPARE(AppSettings::presetCount(AppSettings::Axis::Elevation), int(elevation.size()));
+    for (int index = 0; index < int(azimuth.size()); ++index)
         QCOMPARE(settings.presetAngle(AppSettings::Axis::Azimuth, index), azimuth[index]);
+    for (int index = 0; index < int(elevation.size()); ++index)
         QCOMPARE(settings.presetAngle(AppSettings::Axis::Elevation, index), elevation[index]);
-    }
     QVERIFY(!QFile::exists(fileName));
 }
 
@@ -80,17 +82,18 @@ void AppSettingsTests::readsExistingPresets()
     {
         QFile file(fileName);
         QVERIFY(file.open(QIODevice::WriteOnly));
-        const QByteArray content("[General]\nazimuthPreset0=450\nelevationPreset7=90\n");
+        const QByteArray content("[General]\nazimuthPreset0=450\nelevationPreset5=90\nelevationPreset7=77\n");
         QCOMPARE(file.write(content), content.size());
     }
     AppSettings settings(fileName);
     QCOMPARE(settings.presetAngle(AppSettings::Axis::Azimuth, 0), 450);
-    QCOMPARE(settings.presetAngle(AppSettings::Axis::Elevation, 7), 90);
-    QVERIFY(settings.setPresetAngle(AppSettings::Axis::Elevation, 7, 180));
+    QCOMPARE(settings.presetAngle(AppSettings::Axis::Elevation, 5), 90);
+    QVERIFY(settings.setPresetAngle(AppSettings::Axis::Elevation, 5, 180));
     QSettings raw(fileName, QSettings::IniFormat);
     QCOMPARE(raw.value(QStringLiteral("azimuthPreset0")).toInt(), 450);
-    QCOMPARE(raw.value(QStringLiteral("elevationPreset7")).toInt(), 180);
-    QCOMPARE(raw.allKeys().size(), 2);
+    QCOMPARE(raw.value(QStringLiteral("elevationPreset5")).toInt(), 180);
+    QCOMPARE(raw.value(QStringLiteral("elevationPreset7")).toInt(), 77);
+    QCOMPARE(raw.allKeys().size(), 3);
 }
 
 void AppSettingsTests::persistsPresetBoundaries()
@@ -101,16 +104,18 @@ void AppSettingsTests::persistsPresetBoundaries()
     {
         AppSettings settings(fileName);
         QVERIFY(settings.setConsoleVisible(true));
-        for (int index = 0; index < AppSettings::PresetCount; ++index) {
-            QVERIFY(settings.setPresetAngle(AppSettings::Axis::Azimuth, index, index % 2 ? 450 : 0));
-            QVERIFY(settings.setPresetAngle(AppSettings::Axis::Elevation, index, index % 2 ? 180 : 0));
+        for (auto axis : {AppSettings::Axis::Azimuth, AppSettings::Axis::Elevation}) {
+            const int maximum = axis == AppSettings::Axis::Azimuth ? 450 : 180;
+            for (int index = 0; index < AppSettings::presetCount(axis); ++index)
+                QVERIFY(settings.setPresetAngle(axis, index, index % 2 ? maximum : 0));
         }
     }
     AppSettings reopened(fileName);
     QVERIFY(reopened.consoleVisible());
-    for (int index = 0; index < AppSettings::PresetCount; ++index) {
-        QCOMPARE(reopened.presetAngle(AppSettings::Axis::Azimuth, index), index % 2 ? 450 : 0);
-        QCOMPARE(reopened.presetAngle(AppSettings::Axis::Elevation, index), index % 2 ? 180 : 0);
+    for (auto axis : {AppSettings::Axis::Azimuth, AppSettings::Axis::Elevation}) {
+        const int maximum = axis == AppSettings::Axis::Azimuth ? 450 : 180;
+        for (int index = 0; index < AppSettings::presetCount(axis); ++index)
+            QCOMPARE(reopened.presetAngle(axis, index), index % 2 ? maximum : 0);
     }
 }
 
@@ -167,11 +172,11 @@ void AppSettingsTests::rejectsInvalidPresetWrites()
     for (auto axis : {AppSettings::Axis::Azimuth, AppSettings::Axis::Elevation}) {
         const int beyondMaximum = axis == AppSettings::Axis::Azimuth ? 451 : 181;
         QVERIFY(!settings.setPresetAngle(axis, -1, 90));
-        QVERIFY(!settings.setPresetAngle(axis, AppSettings::PresetCount, 90));
+        QVERIFY(!settings.setPresetAngle(axis, AppSettings::presetCount(axis), 90));
         QVERIFY(!settings.setPresetAngle(axis, 0, -1));
         QVERIFY(!settings.setPresetAngle(axis, 0, beyondMaximum));
         QCOMPARE(settings.presetAngle(axis, -1), 0);
-        QCOMPARE(settings.presetAngle(axis, AppSettings::PresetCount), 0);
+        QCOMPARE(settings.presetAngle(axis, AppSettings::presetCount(axis)), 0);
     }
     QVERIFY(!QFile::exists(fileName));
 }

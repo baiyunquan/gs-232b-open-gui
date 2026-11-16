@@ -9,13 +9,13 @@ class QSlider;
 class QTimer;
 class QWidget;
 
-/** @brief 方位与俯仰读数、选角控件及各八个预设的视图。 */
+/** @brief 方位与俯仰读数、选角控件及十个方位、六个仰角预设的视图。 */
 class ControlPanel final : public QGroupBox
 {
     Q_OBJECT
 
 public:
-    /** @brief 创建零读数、零预设且命令控件禁用的面板。 */
+    /** @brief 创建零读数、载入已保存预设且命令控件禁用的面板。 */
     explicit ControlPanel(QWidget *parent = nullptr);
     /** @brief 按实际连接和透传状态统一切换命令控件。 */
     void setCommandEnabled(bool enabled);

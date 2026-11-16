@@ -8,8 +8,11 @@ class AppSettings final
 public:
     /** @brief 角度预设所属的转台轴。 */
     enum class Axis { Azimuth, Elevation };
-    /** @brief 每个轴的预设数量。 */
-    static constexpr int PresetCount = 8;
+    /** @brief 返回指定轴的预设数量：方位 10 个，仰角 6 个。 */
+    static constexpr int presetCount(Axis axis)
+    {
+        return axis == Axis::Azimuth ? 10 : 6;
+    }
 
     /** @brief 使用当前用户的系统配置存储，沿用现有角度预设的位置。 */
     AppSettings();
@@ -43,7 +46,7 @@ public:
     int presetAngle(Axis axis, int index) const;
     /**
      * @brief 保存角度预设，方位范围为 0–450 度，仰角范围为 0–180 度。
-     * @param index 从 0 开始的预设位置，必须小于 PresetCount。
+     * @param index 从 0 开始的预设位置，必须小于 presetCount(axis)。
      * @return 参数合法且立即同步到存储成功时返回 true；非法参数不写入。
      */
     bool setPresetAngle(Axis axis, int index, int angle);

@@ -33,7 +33,8 @@ int maximumAngle(AppSettings::Axis axis)
 
 int defaultAngle(AppSettings::Axis axis, int index)
 {
-    constexpr std::array<int, AppSettings::PresetCount> elevation{0, 25, 50, 75, 100, 125, 150, 180};
+    constexpr std::array<int, AppSettings::presetCount(AppSettings::Axis::Elevation)> elevation{
+        0, 25, 50, 75, 100, 125};
     return axis == AppSettings::Axis::Azimuth ? index * 45 : elevation[index];
 }
 
@@ -93,7 +94,7 @@ bool AppSettings::isValidStationGrid(const QString &grid)
 
 int AppSettings::presetAngle(Axis axis, int index) const
 {
-    if (index < 0 || index >= PresetCount)
+    if (index < 0 || index >= presetCount(axis))
         return 0;
 
     bool ok = false;
@@ -103,7 +104,7 @@ int AppSettings::presetAngle(Axis axis, int index) const
 
 bool AppSettings::setPresetAngle(Axis axis, int index, int angle)
 {
-    if (index < 0 || index >= PresetCount || angle < 0 || angle > maximumAngle(axis))
+    if (index < 0 || index >= presetCount(axis) || angle < 0 || angle > maximumAngle(axis))
         return false;
 
     return storeValue(presetKey(axis, index), angle);

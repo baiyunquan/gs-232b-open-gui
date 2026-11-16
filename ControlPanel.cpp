@@ -31,12 +31,13 @@ QWidget *makePresets(AppSettings::Axis axis, QWidget *parent)
     auto *presets = new QWidget(parent);
     auto *grid = new QGridLayout(presets);
     grid->setContentsMargins(0, 0, 0, 0);
-    for (int index = 0; index < AppSettings::PresetCount; ++index) {
+    for (int index = 0; index < AppSettings::presetCount(axis); ++index) {
         auto *button = new QPushButton(
             formatAngle(settings.presetAngle(axis, index), azimuth ? 450 : 180),
             presets);
         button->setObjectName(prefix + QString::number(index));
-        button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        // NOTE: 预设只显示三位数字，按字体保留留白，将横向空间优先分配给罗盘。
+        button->setFixedWidth(button->fontMetrics().horizontalAdvance(QStringLiteral("000")) + 24);
         button->setProperty("presetIndex", index);
         button->setContextMenuPolicy(Qt::CustomContextMenu);
         button->setToolTip(QCoreApplication::translate(
@@ -51,11 +52,11 @@ QWidget *makePresets(AppSettings::Axis axis, QWidget *parent)
 ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
 {
     setObjectName(QStringLiteral("controlPanel"));
-    // NOTE: 方位与仰角共用列宽，保持预设等宽并使滑条对齐罗盘中轴。
+    // NOTE: 共用紧凑预设列，按五行方位、三行仰角分配高度，扩大罗盘并保持滑条对齐。
     auto *layout = new QGridLayout(this);
-    layout->setColumnStretch(1, 1);
-    layout->setRowStretch(0, 1);
-    layout->setRowStretch(2, 1);
+    layout->setColumnStretch(0, 1);
+    layout->setRowStretch(0, 5);
+    layout->setRowStretch(2, 3);
     auto *azimuthColumn = new QVBoxLayout;
     m_compass = new Compass(this);
     connect(m_compass, &Compass::mapError, this, &ControlPanel::mapError);
@@ -108,7 +109,7 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     m_slider = new QSlider(Qt::Vertical, this);
     m_slider->setObjectName(QStringLiteral("elevationSlider"));
     m_slider->setRange(0, 180);
-    m_slider->setMinimumHeight(120);
+    m_slider->setMinimumHeight(90);
     m_elevationCommandTimer = new QTimer(this);
     m_elevationCommandTimer->setSingleShot(true);
     m_elevationCommandTimer->setInterval(150);
