@@ -7,15 +7,24 @@
 #include <QLineEdit>
 #include <QMouseEvent>
 #include <QResizeEvent>
+#include <QToolTip>
+
+#include <utility>
 
 AngleReading::AngleReading(int maximum, QWidget *parent)
-    : QLabel(parent), m_editor(new QLineEdit(this)), m_maximum(maximum)
+    : QLabel(parent), m_editor(new QLineEdit(this)),
+      m_numericValidator(new QIntValidator(0, maximum, m_editor)), m_maximum(maximum)
 {
     setAlignment(Qt::AlignCenter);
     m_editor->setObjectName(QStringLiteral("angleEditor"));
     m_editor->setAlignment(Qt::AlignCenter);
     m_editor->setMaxLength(QString::number(maximum).size());
-    m_editor->setValidator(new QIntValidator(0, maximum, m_editor));
+    m_editor->setValidator(m_numericValidator);
+    connect(m_editor, &QLineEdit::textChanged, this, [this] {
+        m_editor->setToolTip(toolTip());
+        m_editor->setAccessibleDescription(toolTip());
+        QToolTip::hideText();
+    });
     m_editor->hide();
     setMinimumHeight(m_editor->sizeHint().height());
     setAngle(0);
@@ -36,9 +45,22 @@ void AngleReading::setEditingEnabled(bool enabled)
     setCursor(enabled ? Qt::PointingHandCursor : Qt::ArrowCursor);
     setFocusPolicy(enabled ? Qt::StrongFocus : Qt::NoFocus);
     setToolTip(enabled
-                   ? tr("Click to enter an angle (0–%1°). Press Enter to move or Esc to cancel.")
-                         .arg(m_maximum)
+                   ? (m_inputResolver ? m_inputHint
+                                      : tr("Click to enter an angle (0–%1°). Press Enter to move or Esc to cancel.")
+                                            .arg(m_maximum))
                    : QString());
+    m_editor->setToolTip(toolTip());
+    setAccessibleDescription(toolTip());
+}
+
+void AngleReading::setInputResolver(InputResolver resolver, const QString &hint)
+{
+    finishEditing(false);
+    m_inputResolver = std::move(resolver);
+    m_inputHint = hint;
+    m_editor->setValidator(m_inputResolver ? nullptr : m_numericValidator);
+    m_editor->setMaxLength(m_inputResolver ? 64 : QString::number(m_maximum).size());
+    setEditingEnabled(m_editingEnabled);
 }
 
 bool AngleReading::eventFilter(QObject *watched, QEvent *event)
@@ -53,8 +75,7 @@ bool AngleReading::eventFilter(QObject *watched, QEvent *event)
             const int key = static_cast<QKeyEvent *>(event)->key();
             if (key == Qt::Key_Escape || key == Qt::Key_Return || key == Qt::Key_Enter) {
                 const bool submit = key != Qt::Key_Escape;
-                if (!submit || m_editor->hasAcceptableInput())
-                    finishEditing(submit);
+                finishEditing(submit);
                 event->accept();
                 return true;
             }
@@ -116,11 +137,27 @@ void AngleReading::finishEditing(bool submit)
 {
     if (!m_editing)
         return;
-    bool ok = false;
-    const int angle = m_editor->text().toInt(&ok);
-    if (submit && (!ok || !m_editor->hasAcceptableInput() ||
-                   angle < 0 || angle > m_maximum))
-        return;
+    InputResult input;
+    if (submit) {
+        bool ok = false;
+        const QString text = m_editor->text().trimmed();
+        const int angle = text.toInt(&ok);
+        if (ok && angle >= 0 && angle <= m_maximum)
+            input.angle = angle;
+        else if (!ok && m_inputResolver)
+            input = m_inputResolver(text);
+        if (!input.angle || *input.angle < 0 || *input.angle > m_maximum) {
+            const QString error = input.error.isEmpty()
+                                      ? tr("Enter an angle from 0 to %1°.").arg(m_maximum)
+                                      : input.error;
+            m_editor->setToolTip(error);
+            m_editor->setAccessibleDescription(error);
+            QToolTip::showText(m_editor->mapToGlobal(QPoint(0, m_editor->height())),
+                               error, m_editor);
+            emit inputRejected(error);
+            return;
+        }
+    }
 
     // NOTE: 先结束编辑再移交焦点和隐藏输入框，避免失焦事件重复处理。
     m_editing = false;
@@ -128,7 +165,8 @@ void AngleReading::finishEditing(bool submit)
     if (m_editor->hasFocus())
         setFocus(Qt::OtherFocusReason);
     m_editor->hide();
+    QToolTip::hideText();
     emit editingFinished();
     if (submit && m_editingEnabled)
-        emit angleRequested(angle);
+        emit angleRequested(*input.angle);
 }

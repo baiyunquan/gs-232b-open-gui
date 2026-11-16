@@ -17,6 +17,25 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets LinguistTools Network Pdf 
 
 qt_standard_project_setup()
 
+qt_add_library(gs232b_targeting STATIC
+    MaidenheadLocator.cpp
+    MaidenheadLocator.h
+    targeting/DxccDatabase.cpp
+    targeting/DxccDatabase.h
+    targeting/TargetBearing.cpp
+    targeting/TargetBearing.h
+)
+target_compile_features(gs232b_targeting PUBLIC cxx_std_17)
+target_include_directories(gs232b_targeting PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(gs232b_targeting PUBLIC Qt6::Core)
+qt_add_resources(gs232b_targeting dxcc_data
+    PREFIX "/dxcc"
+    BASE targeting/data
+    FILES targeting/data/cty.dat targeting/data/COPYING
+)
+configure_file(targeting/data/COPYING
+    "${CMAKE_CURRENT_BINARY_DIR}/licenses/country-files-COPYING" COPYONLY)
+
 include(cmake/TerminalDependencies.cmake)
 qt_add_library(gs232b_terminal STATIC
     terminal/CommandLine.cpp
@@ -72,8 +91,6 @@ set(GUI_SOURCES
     Compass.h
     GreatCircleMap.cpp
     GreatCircleMap.h
-    MaidenheadLocator.cpp
-    MaidenheadLocator.h
     ConsolePanel.cpp
     ConsolePanel.h
     RotorSettingsPanel.cpp
@@ -109,6 +126,7 @@ target_link_libraries(gs_232b_open_gui
         Qt6::WebSockets
         gs232b_virtual_serial
         gs232b_terminal
+        gs232b_targeting
 )
 
 if(BUILD_TESTING)
@@ -117,26 +135,39 @@ if(BUILD_TESTING)
         tests/AppSettingsTests.cpp
         AppSettings.cpp
         AppSettings.h
-        MaidenheadLocator.cpp
-        MaidenheadLocator.h
     )
     target_compile_features(app_settings_tests PRIVATE cxx_std_17)
     target_include_directories(app_settings_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(app_settings_tests PRIVATE Qt6::Core Qt6::Test)
+    target_link_libraries(app_settings_tests PRIVATE gs232b_targeting Qt6::Test)
     add_test(NAME app_settings_tests COMMAND app_settings_tests)
 
     qt_add_executable(great_circle_map_tests
         tests/GreatCircleMapTests.cpp
         GreatCircleMap.cpp
         GreatCircleMap.h
-        MaidenheadLocator.cpp
-        MaidenheadLocator.h
     )
     target_compile_features(great_circle_map_tests PRIVATE cxx_std_17)
     target_include_directories(great_circle_map_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(great_circle_map_tests PRIVATE Qt6::Gui Qt6::Network Qt6::Pdf Qt6::Test)
+    target_link_libraries(great_circle_map_tests PRIVATE gs232b_targeting Qt6::Gui Qt6::Network Qt6::Pdf Qt6::Test)
     add_test(NAME great_circle_map_tests COMMAND great_circle_map_tests)
     set_tests_properties(great_circle_map_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+    qt_add_executable(target_bearing_tests tests/TargetBearingTests.cpp)
+    target_link_libraries(target_bearing_tests PRIVATE gs232b_targeting Qt6::Test)
+    add_test(NAME target_bearing_tests COMMAND target_bearing_tests)
+
+    qt_add_executable(target_control_tests
+        tests/TargetControlTests.cpp
+        AngleReading.cpp AngleReading.h
+        ControlPanel.cpp ControlPanel.h
+        AppSettings.cpp AppSettings.h
+        Compass.cpp Compass.h
+        GreatCircleMap.cpp GreatCircleMap.h
+    )
+    target_link_libraries(target_control_tests PRIVATE
+        gs232b_targeting Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::Test)
+    add_test(NAME target_control_tests COMMAND target_control_tests)
+    set_tests_properties(target_control_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
     qt_add_executable(terminal_tests
         tests/TerminalTests.cpp
@@ -187,7 +218,7 @@ if(BUILD_TESTING)
     target_compile_features(rotor_model_connection_tests PRIVATE cxx_std_17)
     target_include_directories(rotor_model_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(rotor_model_connection_tests
-        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal
+        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting
     )
     add_test(NAME rotor_model_connection_tests COMMAND rotor_model_connection_tests)
     set_tests_properties(rotor_model_connection_tests PROPERTIES
@@ -201,7 +232,7 @@ if(BUILD_TESTING)
     target_compile_features(ap_provisioning_connection_tests PRIVATE cxx_std_17)
     target_include_directories(ap_provisioning_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(ap_provisioning_connection_tests
-        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal
+        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting
     )
     add_test(NAME ap_provisioning_connection_tests COMMAND ap_provisioning_connection_tests)
     set_tests_properties(ap_provisioning_connection_tests PROPERTIES
@@ -215,7 +246,7 @@ if(BUILD_TESTING)
     target_compile_features(virtual_serial_connection_tests PRIVATE cxx_std_17)
     target_include_directories(virtual_serial_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(virtual_serial_connection_tests
-        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal
+        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting
     )
     add_test(NAME virtual_serial_connection_tests COMMAND virtual_serial_connection_tests)
     set_tests_properties(virtual_serial_connection_tests PROPERTIES

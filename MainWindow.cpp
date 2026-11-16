@@ -113,6 +113,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(m_control, &ControlPanel::mapError, this, [this](const QString &message) {
         statusBar()->showMessage(message, 15000);
     });
+    connect(m_control, &ControlPanel::inputError, this, [this](const QString &message) {
+        statusBar()->showMessage(message, 15000);
+    });
     createMenus();
     setupVirtualSerial();
     connect(m_connection, &ConnectionPanel::stateChanged,

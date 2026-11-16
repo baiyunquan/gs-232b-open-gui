@@ -2,6 +2,7 @@
 #include "AngleReading.h"
 #include "AppSettings.h"
 #include "Compass.h"
+#include "targeting/TargetBearing.h"
 
 #include <QFrame>
 #include <QCoreApplication>
@@ -93,7 +94,23 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     });
     m_azimuth = new AngleReading(450, this);
     m_azimuth->setObjectName(QStringLiteral("azimuthReading"));
-    m_azimuth->setAccessibleName(tr("Azimuth angle"));
+    connect(m_azimuth, &AngleReading::inputRejected, this, &ControlPanel::inputError);
+    m_azimuth->setAccessibleName(tr("Azimuth angle, grid or callsign"));
+    m_azimuth->setInputResolver([this](const QString &text) -> AngleReading::InputResult {
+        const auto result = TargetBearing::calculate(m_stationGrid, text);
+        if (result.solution)
+            return {result.solution->roundedDegrees(), {}};
+        switch (result.error) {
+        case TargetBearing::Error::InvalidStationGrid:
+            return {std::nullopt, tr("Set your grid in Settings → My grid… before using a grid or callsign.")};
+        case TargetBearing::Error::UndefinedBearing:
+            return {std::nullopt, tr("This target has no unique bearing from your grid.")};
+        case TargetBearing::Error::UnknownTarget:
+        case TargetBearing::Error::None:
+            return {std::nullopt, tr("Unknown target. Enter a 4, 6 or 8 character grid, callsign or DXCC prefix.")};
+        }
+        return {};
+    }, tr("Click to enter an angle (0–450°), grid, callsign or prefix. Callsigns use DXCC coordinates. Press Enter to move or Esc to cancel."));
     connect(m_azimuth, &AngleReading::angleRequested, this, [this](int angle) {
         m_elevationCommandTimer->stop();
         emit commandRequested(QStringLiteral("M%1").arg(formatAngle(angle, 450)));
@@ -129,6 +146,7 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     m_elevationCommandTimer->setInterval(150);
     m_elevation = new AngleReading(180, this);
     m_elevation->setObjectName(QStringLiteral("elevationReading"));
+    connect(m_elevation, &AngleReading::inputRejected, this, &ControlPanel::inputError);
     m_elevation->setAccessibleName(tr("Elevation angle"));
     connect(m_elevation, &AngleReading::angleRequested, this, [this](int angle) {
         m_elevationCommandTimer->stop();
@@ -200,6 +218,7 @@ void ControlPanel::setGreatCircleMapEnabled(bool enabled)
 
 void ControlPanel::setStationGrid(const QString &grid)
 {
+    m_stationGrid = grid.trimmed().toUpper();
     m_compass->setStationGrid(grid);
 }
 

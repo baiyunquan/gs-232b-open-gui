@@ -4,6 +4,10 @@
     <context>
         <name>AngleReading</name>
         <message>
+            <source>Enter an angle from 0 to %1°.</source>
+            <translation>请输入 0 到 %1° 之间的角度。</translation>
+        </message>
+        <message>
             <source>Click to enter an angle (0–%1°). Press Enter to move or Esc to cancel.</source>
             <translation>点击输入角度（0–%1°）。按回车开始转动，按 Esc 取消。</translation>
         </message>
@@ -103,8 +107,24 @@
             <translation>编辑方位预设</translation>
         </message>
         <message>
-            <source>Azimuth angle</source>
-            <translation>方位角</translation>
+            <source>Azimuth angle, grid or callsign</source>
+            <translation>方位角、网格或呼号</translation>
+        </message>
+        <message>
+            <source>Click to enter an angle (0–450°), grid, callsign or prefix. Callsigns use DXCC coordinates. Press Enter to move or Esc to cancel.</source>
+            <translation>点击输入角度（0–450°）、网格、呼号或前缀。按回车转动，按 Esc 取消。</translation>
+        </message>
+        <message>
+            <source>Set your grid in Settings → My grid… before using a grid or callsign.</source>
+            <translation>使用网格或呼号前，请先在“设置 → 我的网格…”中设置本站网格。</translation>
+        </message>
+        <message>
+            <source>This target has no unique bearing from your grid.</source>
+            <translation>无法从本站网格确定指向此目标的唯一方位。</translation>
+        </message>
+        <message>
+            <source>Unknown target. Enter a 4, 6 or 8 character grid, callsign or DXCC prefix.</source>
+            <translation>无法识别目标。请输入 4、6 或 8 位网格、呼号或 DXCC 前缀。</translation>
         </message>
         <message>
             <source>Edit elevation preset</source>

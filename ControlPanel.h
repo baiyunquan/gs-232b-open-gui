@@ -23,7 +23,7 @@ public:
     void setPosition(int azimuth, int elevation);
     /** @brief 切换方位罗盘的大圆图显示，不影响设备连接或角度读数。 */
     void setGreatCircleMapEnabled(bool enabled);
-    /** @brief 更新大圆图使用的本站网格。 */
+    /** @brief 更新大圆图与目标方位计算使用的本站网格，后续提交立即使用新值。 */
     void setStationGrid(const QString &grid);
     /** @return 当前界面保留的方位读数。 */
     int azimuth() const;
@@ -35,6 +35,8 @@ signals:
     void commandRequested(const QString &command);
     /** @brief 大圆图生成或缓存失败，供主窗口显示状态提示。 */
     void mapError(const QString &message);
+    /** @brief 角度或目标输入无效，未发送旋转命令，供主窗口展示错误。 */
+    void inputError(const QString &message);
 
 private:
     Compass *m_compass;
@@ -44,6 +46,7 @@ private:
     QTimer *m_elevationCommandTimer;
     QWidget *m_azimuthPresets;
     QWidget *m_elevationPresets;
+    QString m_stationGrid;
     int m_azimuthValue = 0;
     int m_elevationValue = 0;
 };
