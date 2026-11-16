@@ -58,6 +58,7 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     layout->setRowStretch(2, 1);
     auto *azimuthColumn = new QVBoxLayout;
     m_compass = new Compass(this);
+    connect(m_compass, &Compass::mapError, this, &ControlPanel::mapError);
     connect(m_compass, &Compass::angleRequested, this, [this](int angle) {
         emit commandRequested(QStringLiteral("M%1").arg(formatAngle(angle, 450)));
     });
@@ -189,6 +190,16 @@ void ControlPanel::setPosition(int azimuth, int elevation)
 int ControlPanel::azimuth() const
 {
     return m_azimuthValue;
+}
+
+void ControlPanel::setGreatCircleMapEnabled(bool enabled)
+{
+    m_compass->setGreatCircleMapEnabled(enabled);
+}
+
+void ControlPanel::setStationGrid(const QString &grid)
+{
+    m_compass->setStationGrid(grid);
 }
 
 int ControlPanel::elevation() const

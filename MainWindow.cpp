@@ -110,6 +110,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     statusBar()->setSizeGripEnabled(false);
     statusBar()->addWidget(m_connectionStatus, 1);
     statusBar()->addPermanentWidget(m_transportStatus);
+    connect(m_control, &ControlPanel::mapError, this, [this](const QString &message) {
+        statusBar()->showMessage(message, 15000);
+    });
     createMenus();
     setupVirtualSerial();
     connect(m_connection, &ConnectionPanel::stateChanged,
@@ -270,6 +273,21 @@ void MainWindow::createMenus()
         if (!AppSettings().setConsoleVisible(visible))
             QMessageBox::warning(this, tr("Application settings"),
                                  tr("Could not save application settings."));
+    });
+    auto *mapAction = view->addAction(tr("Great-circle map"));
+    mapAction->setObjectName(QStringLiteral("greatCircleMapAction"));
+    mapAction->setCheckable(true);
+    const AppSettings preferences;
+    m_control->setStationGrid(preferences.stationGrid());
+    mapAction->setChecked(preferences.greatCircleMapEnabled());
+    m_control->setGreatCircleMapEnabled(mapAction->isChecked());
+    connect(mapAction, &QAction::toggled, this, [this](bool enabled) {
+        m_control->setGreatCircleMapEnabled(enabled);
+        if (!AppSettings().setGreatCircleMapEnabled(enabled))
+            QMessageBox::warning(this, tr("Application settings"),
+                                 tr("Could not save application settings."));
+        if (enabled && AppSettings().stationGrid().isEmpty())
+            openStationGrid();
     });
     auto *settings = menuBar()->addMenu(tr("Settings"));
     auto *stationGridAction = settings->addAction(
@@ -435,6 +453,9 @@ void MainWindow::openStationGrid()
 {
     auto *dialog = new StationGridDialog(this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
+    connect(dialog, &QDialog::accepted, this, [this] {
+        m_control->setStationGrid(AppSettings().stationGrid());
+    });
     dialog->open();
 }
 

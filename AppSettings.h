@@ -21,6 +21,11 @@ public:
     /** @return 立即同步控制台显示偏好到存储是否成功。 */
     bool setConsoleVisible(bool visible);
 
+    /** @brief 读取罗盘大圆图模式；缺失或无效时默认关闭。 */
+    bool greatCircleMapEnabled() const;
+    /** @return 立即同步大圆图模式偏好到存储是否成功。 */
+    bool setGreatCircleMapEnabled(bool enabled);
+
     /** @brief 读取本站 Maidenhead 网格；返回大写，缺失或无效时返回空字符串。 */
     QString stationGrid() const;
     /**

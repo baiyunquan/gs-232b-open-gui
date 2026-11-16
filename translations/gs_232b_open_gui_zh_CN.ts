@@ -259,6 +259,10 @@
             <translation>控制台</translation>
         </message>
         <message>
+            <source>Great-circle map</source>
+            <translation>大圆图</translation>
+        </message>
+        <message>
             <location filename="../MainWindow.cpp" line="72" />
             <source>Network</source>
             <translation>网络</translation>
@@ -867,6 +871,56 @@
         <message>
             <source>Could not save your grid.</source>
             <translation>无法保存你的网格。</translation>
+        </message>
+    </context>
+    <context>
+        <name>Compass</name>
+        <message>
+            <source>Azimuth compass</source>
+            <translation>方位罗盘</translation>
+        </message>
+        <message>
+            <source>Set your grid in Settings → My grid… to center the map.</source>
+            <translation>在“设置 → 我的网格…”中设置网格，地图将以其为中心。</translation>
+        </message>
+        <message>
+            <source>Great-circle map centered on %1. Map by NS6T.</source>
+            <translation>以 %1 为中心的大圆图。地图由 NS6T 提供。</translation>
+        </message>
+        <message>
+            <source>Set your grid
+to show the map</source>
+            <translation>设置本站网格
+以显示大圆图</translation>
+        </message>
+        <message>
+            <source>Generating map…</source>
+            <translation>正在生成大圆图…</translation>
+        </message>
+        <message>
+            <source>Map unavailable
+Turn the map off and on to retry</source>
+            <translation>大圆图暂不可用
+关闭后重新开启可重试</translation>
+        </message>
+    </context>
+    <context>
+        <name>GreatCircleMap</name>
+        <message>
+            <source>The map service returned too much data.</source>
+            <translation>地图服务返回的数据过大。</translation>
+        </message>
+        <message>
+            <source>Could not generate the great-circle map: %1</source>
+            <translation>无法生成大圆图：%1</translation>
+        </message>
+        <message>
+            <source>The map service returned an invalid map.</source>
+            <translation>地图服务返回了无效的大圆图。</translation>
+        </message>
+        <message>
+            <source>The map is ready, but could not be saved for offline use.</source>
+            <translation>大圆图已生成，但无法保存供离线使用。</translation>
         </message>
     </context>
 </TS>

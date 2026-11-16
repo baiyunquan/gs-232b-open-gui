@@ -1,13 +1,21 @@
 #include "AppSettings.h"
-
-#include <QRegularExpression>
+#include "MaidenheadLocator.h"
 
 #include <array>
 
 namespace {
 
 const QString ConsoleVisibleKey = QStringLiteral("view/consoleVisible");
+const QString GreatCircleMapEnabledKey = QStringLiteral("view/greatCircleMapEnabled");
 const QString StationGridKey = QStringLiteral("station/grid");
+
+bool readBoolean(const QVariant &stored)
+{
+    // NOTE: INI 重启后布尔值可能作为字符串读取，拒绝将任意非空损坏值解释为 true。
+    const QString value = stored.toString();
+    return value.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0 ||
+           value == QStringLiteral("1");
+}
 
 QString presetKey(AppSettings::Axis axis, int index)
 {
@@ -45,15 +53,22 @@ AppSettings::AppSettings(const QString &fileName)
 
 bool AppSettings::consoleVisible() const
 {
-    // NOTE: INI 重启后布尔值可能作为字符串读取，拒绝将任意非空损坏值解释为 true。
-    const QString value = m_settings.value(ConsoleVisibleKey).toString();
-    return value.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0 ||
-           value == QStringLiteral("1");
+    return readBoolean(m_settings.value(ConsoleVisibleKey));
 }
 
 bool AppSettings::setConsoleVisible(bool visible)
 {
     return storeValue(ConsoleVisibleKey, visible);
+}
+
+bool AppSettings::greatCircleMapEnabled() const
+{
+    return readBoolean(m_settings.value(GreatCircleMapEnabledKey));
+}
+
+bool AppSettings::setGreatCircleMapEnabled(bool enabled)
+{
+    return storeValue(GreatCircleMapEnabledKey, enabled);
 }
 
 QString AppSettings::stationGrid() const
@@ -73,10 +88,7 @@ bool AppSettings::setStationGrid(const QString &grid)
 
 bool AppSettings::isValidStationGrid(const QString &grid)
 {
-    // NOTE: Maidenhead 前两位限 A–R，子网格限 A–X，后续数字对决定更高精度。
-    static const QRegularExpression pattern(
-        QStringLiteral("\\A[A-Ra-r]{2}[0-9]{2}(?:[A-Xa-x]{2}(?:[0-9]{2})?)?\\z"));
-    return pattern.match(grid.trimmed()).hasMatch();
+    return MaidenheadLocator::isValid(grid);
 }
 
 int AppSettings::presetAngle(Axis axis, int index) const

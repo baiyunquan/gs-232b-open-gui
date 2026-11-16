@@ -2,6 +2,8 @@
 
 #include <QWidget>
 
+class GreatCircleMap;
+
 /** @brief 使用系统调色板绘制的方位角罗盘。 */
 class Compass final : public QWidget
 {
@@ -12,17 +14,29 @@ public:
     explicit Compass(QWidget *parent = nullptr);
     /** @brief 更新设备实测方位；允许保留超过 360° 的机械行程。 */
     void setAngle(int degrees);
+    /** @brief 切换大圆图模式；关闭后恢复普通罗盘并取消地图请求。 */
+    void setGreatCircleMapEnabled(bool enabled);
+    /** @brief 设置地图中心网格；开启大圆图时立即加载对应缓存或请求生成。 */
+    void setStationGrid(const QString &grid);
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
 
 signals:
     /** @brief 用户点击罗盘后请求定位到该方位。 */
     void angleRequested(int degrees);
+    /** @brief 地图生成或本地缓存失败，供主窗口非模态提示。 */
+    void mapError(const QString &message);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
 
 private:
+    qreal radius() const;
+    void updateMapStatus();
+
+    GreatCircleMap *m_map;
+    QString m_stationGrid;
+    bool m_mapEnabled = false;
     int m_angle = 0;
 };

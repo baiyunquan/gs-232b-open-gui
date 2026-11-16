@@ -17,7 +17,7 @@ sudo pacman -S --needed cmake ninja python python-pip wine msitools curl tar bin
 首次运行下载：
 
 - 固定版本的 `msvc-wine`（提交 `5dd115047b7ddcbb53cbc8b5b14163a20f4334fe`，校验 SHA-256），以及微软 MSVC 14.44（VS 2022 v143）、Windows SDK 10.0.26100。微软组件由下载器根据官方安装清单校验。
-- `aqtinstall 3.3.0` 和 Qt 6.8.3：Linux QtBase、QtTools、ICU，以及 Windows **msvc2022_64** 的 QtBase、QtTools、QtTranslations、QtSerialPort、QtWebSockets。
+- `aqtinstall 3.3.0` 和 Qt 6.8.3：Linux QtBase、QtTools、ICU，以及 Windows **msvc2022_64** 的 QtBase、QtTools、QtTranslations、QtSerialPort、QtWebSockets、QtPdf。
 - 固定版本并校验 SHA-256 的 anytermqt 和 utf8proc；这两个依赖使用同一 MSVC 静态编译，无需额外 DLL。
 
 SDK 下载器使用独立 Python 虚拟环境，默认使用阿里云 Qt 镜像并保留下载校验。首次安装微软工具链时，下载器会要求接受[微软许可](https://go.microsoft.com/fwlink/?LinkId=2086102)。阅读并接受后，可以用 `MSVC_ACCEPT_LICENSE=1` 进行非交互安装；脚本不会默认替用户接受许可。MSVC/SDK 安装目录是本机的构建缓存，不应随应用分发。

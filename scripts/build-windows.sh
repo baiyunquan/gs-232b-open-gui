@@ -105,15 +105,15 @@ install_qt() {
 if [[ -z ${QT_HOST_PATH:-} && ( ! -f $qt_host/.gs232b-sdk-ready || ! -f $qt_host/lib/libicui18n.so.73 ) ]]; then
     install_qt linux linux_gcc_64 "$qt_host" --archives qtbase qttools icu
 fi
-if [[ -z ${QT_WINDOWS_PREFIX:-} && ! -f $qt_windows/.gs232b-sdk-ready ]]; then
+if [[ -z ${QT_WINDOWS_PREFIX:-} && ( ! -f $qt_windows/.gs232b-sdk-ready || ! -f $qt_windows/lib/cmake/Qt6Pdf/Qt6PdfConfig.cmake ) ]]; then
     install_qt windows win64_msvc2022_64 "$qt_windows" --archives qtbase qttools qttranslations \
-        --modules qtserialport qtwebsockets
+        --modules qtserialport qtwebsockets qtpdf
 fi
 
 for config in Qt6CoreTools Qt6LinguistTools; do
     [[ -f $qt_host/lib/cmake/$config/${config}Config.cmake ]] || fail "Linux Qt 缺少 $config：$qt_host"
 done
-for config in Qt6Core Qt6Widgets Qt6SerialPort Qt6WebSockets Qt6LinguistTools; do
+for config in Qt6Core Qt6Widgets Qt6Network Qt6Pdf Qt6SerialPort Qt6WebSockets Qt6LinguistTools; do
     [[ -f $qt_windows/lib/cmake/$config/${config}Config.cmake ]] || fail "Windows Qt 缺少 $config：$qt_windows"
 done
 for tool in windeployqt qtpaths6; do

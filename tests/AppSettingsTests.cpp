@@ -33,6 +33,7 @@ void AppSettingsTests::defaultsDoNotWrite()
     const QString fileName = directory.filePath(QStringLiteral("settings.ini"));
     AppSettings settings(fileName);
     QVERIFY(!settings.consoleVisible());
+    QVERIFY(!settings.greatCircleMapEnabled());
     QVERIFY(settings.stationGrid().isEmpty());
     const std::array<int, 8> azimuth{0, 45, 90, 135, 180, 225, 270, 315};
     const std::array<int, 8> elevation{0, 25, 50, 75, 100, 125, 150, 180};
@@ -57,12 +58,14 @@ void AppSettingsTests::savesImmediatelyAndPreservesOtherKeys()
     AppSettings settings(fileName);
     for (bool visible : {true, false}) {
         QVERIFY(settings.setConsoleVisible(visible));
+        QVERIFY(settings.setGreatCircleMapEnabled(visible));
         QFile file(fileName);
         QVERIFY(file.open(QIODevice::ReadOnly));
         const QByteArray content = file.readAll();
         QVERIFY(content.contains(visible ? "consoleVisible=true" : "consoleVisible=false"));
         AppSettings reopened(fileName);
         QCOMPARE(reopened.consoleVisible(), visible);
+        QCOMPARE(reopened.greatCircleMapEnabled(), visible);
         QCOMPARE(reopened.presetAngle(AppSettings::Axis::Azimuth, 3), 123);
         QSettings raw(fileName, QSettings::IniFormat);
         QCOMPARE(raw.value(QStringLiteral("other/value")).toString(), QStringLiteral("keep"));
@@ -138,7 +141,8 @@ void AppSettingsTests::invalidValuesUseDefaults()
     const QString fileName = directory.filePath(QStringLiteral("settings.ini"));
     const QByteArray content = "[General]\nazimuthPreset1=" + azimuth +
                                "\nelevationPreset1=" + elevation +
-                               "\n[view]\nconsoleVisible=" + console + '\n';
+                               "\n[view]\nconsoleVisible=" + console +
+                               "\ngreatCircleMapEnabled=" + console + '\n';
     {
         QFile file(fileName);
         QVERIFY(file.open(QIODevice::WriteOnly));
@@ -148,6 +152,7 @@ void AppSettingsTests::invalidValuesUseDefaults()
     QCOMPARE(settings.presetAngle(AppSettings::Axis::Azimuth, 1), 45);
     QCOMPARE(settings.presetAngle(AppSettings::Axis::Elevation, 1), 25);
     QCOMPARE(settings.consoleVisible(), visible);
+    QCOMPARE(settings.greatCircleMapEnabled(), visible);
     QFile file(fileName);
     QVERIFY(file.open(QIODevice::ReadOnly));
     QCOMPARE(file.readAll(), content);
@@ -267,6 +272,7 @@ void AppSettingsTests::reportsStorageFailure()
     QVERIFY(QDir().mkdir(fileName));
     AppSettings settings(fileName);
     QVERIFY(!settings.setConsoleVisible(true));
+    QVERIFY(!settings.setGreatCircleMapEnabled(true));
     QVERIFY(!settings.setStationGrid(QStringLiteral("PM95AA")));
     QVERIFY(!settings.setPresetAngle(AppSettings::Axis::Azimuth, 0, 90));
 }
