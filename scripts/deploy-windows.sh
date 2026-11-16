@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# NOTE: 内部打包入口，由 build-windows.sh 传入 Qt 前缀、构建目录、缓存目录。
+# NOTE: 内部打包入口，由 build-windows.sh 传入 Qt 前缀、构建目录、缓存目录及 MSVC_ROOT。
 [[ $# == 3 ]] || { printf '用法：%s <Windows Qt 前缀> <构建目录> <缓存目录>\n' "$0" >&2; exit 2; }
 qt_windows=$1
 build_dir=$2
@@ -14,29 +14,45 @@ package_dir=$staging_dir/$package_name
 mkdir -p -- "$package_dir"
 cp -- "$build_dir/gs_232b_open_gui.exe" "$package_dir/"
 
-# NOTE: 使用实际交叉编译器的运行库，避免 Qt SDK 自带旧版 libstdc++ 缺少符号。
-mingw_import_lib=$(x86_64-w64-mingw32-gcc -print-file-name=libkernel32.a)
-runtime_dir=${MINGW_RUNTIME_DIR:-$(dirname -- "$mingw_import_lib")/../bin}
-for dll in libstdc++-6.dll libgcc_s_seh-1.dll libwinpthread-1.dll; do
-    runtime=$(x86_64-w64-mingw32-g++ -print-file-name="$dll")
-    if [[ -n ${MINGW_RUNTIME_DIR:-} || ! -f $runtime ]]; then
-        runtime=$runtime_dir/$dll
-    fi
-    if [[ ! -f $runtime ]]; then
-        printf '找不到 %s；请设置 MINGW_RUNTIME_DIR 为当前 MinGW 的 DLL 目录。\n' "$dll" >&2
-        exit 1
-    fi
-    cp -- "$runtime" "$package_dir/$dll"
-done
+# NOTE: 仅部署所选 MSVC 的可再分发 CRT，禁止从 Wine 系统目录或其他编译器补 DLL。
+[[ -n ${MSVC_ROOT:-} ]] || { printf '缺少 MSVC_ROOT。\n' >&2; exit 1; }
+redist_dir=${MSVC_REDIST_DIR:-}
+if [[ -z $redist_dir ]]; then
+    redist_dir=$(python3 - "$MSVC_ROOT" <<'PY'
+import pathlib
+import sys
 
-# NOTE: 独立 Wine 前缀只用于执行部署工具，不改动用户已有的 Wine 环境。
-export WINEPREFIX=$cache_dir/wine
+folders = list(pathlib.Path(sys.argv[1]).glob("VC/Redist/MSVC/*/x64/Microsoft.VC143.CRT"))
+if folders:
+    print(max(folders, key=lambda folder: tuple(int(part) for part in folder.parts[-3].split("."))))
+PY
+)
+fi
+for dll in msvcp140.dll vcruntime140.dll vcruntime140_1.dll; do
+    [[ -f $redist_dir/$dll ]] || { printf '缺少 MSVC x64 CRT：%s；请检查 MSVC_REDIST_DIR。\n' "$dll" >&2; exit 1; }
+done
+cp -- "$redist_dir/"*.dll "$package_dir/"
+
+# NOTE: 部署工具也使用应用本地 CRT；Wine 的 system32 占位 DLL 会先于 PATH 被搜索。
+# NOTE: 临时工具目录中的 qt.conf 指回所选 SDK，不改写自备 SDK，也不依赖注册表中的 Qt。
+tools_dir=$staging_dir/deploy-tools
+mkdir -p -- "$tools_dir"
+cp -- "$qt_windows/bin/windeployqt.exe" "$qt_windows/bin/qtpaths6.exe" \
+    "$qt_windows/bin/Qt6Core.dll" "$tools_dir/"
+cp -- "$redist_dir/"*.dll "$tools_dir/"
+
+# NOTE: 独立 Wine 前缀供编译和部署使用，不改动用户已有的 Wine 环境。
+export WINEPREFIX=$cache_dir/wine-msvc
 export WINEDEBUG=-all
-export WINEDLLOVERRIDES='mscoree,mshtml='
+export WINEDLLOVERRIDES='mscoree,mshtml=;vcruntime140,vcruntime140_1,msvcp140,msvcp140_1=n'
 package_windows=$(winepath -w "$package_dir")
 qt_bin_windows=$(winepath -w "$qt_windows/bin")
-export WINEPATH="$package_windows;$qt_bin_windows"
-wine "$qt_windows/bin/windeployqt.exe" --release --no-compiler-runtime \
+qt_prefix_windows=$(winepath -w "$qt_windows")
+tools_windows=$(winepath -w "$tools_dir")
+printf '[Paths]\nPrefix=%s\n' "${qt_prefix_windows//\\//}" > "$tools_dir/qt.conf"
+export WINEPATH="$tools_windows;$qt_bin_windows"
+wine "$tools_dir/windeployqt.exe" --qtpaths "$tools_windows\\qtpaths6.exe" \
+    --release --no-compiler-runtime \
     --no-opengl-sw --no-system-d3d-compiler --no-translations \
     --dir "$package_windows" "$package_windows\\gs_232b_open_gui.exe"
 
@@ -57,6 +73,8 @@ for license_dir in LICENSES licenses; do
         break
     fi
 done
+
+python3 "$project_dir/scripts/verify-windows-runtime.py" "$package_dir"
 
 python3 - "$staging_dir" "$package_name" "$build_dir" <<'PY'
 import pathlib

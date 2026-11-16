@@ -2,6 +2,15 @@ cmake_minimum_required(VERSION 3.21)
 
 project(gs_232b_open_gui VERSION 0.1.0 LANGUAGES C CXX)
 
+if(WIN32)
+    if(NOT MSVC)
+        message(FATAL_ERROR "Windows builds require MSVC and the Qt msvc2022_64 SDK; use scripts/build-windows.sh")
+    endif()
+    # NOTE: 与 Qt 共享动态 CRT，避免跨模块分配和释放内存时使用不同的堆。
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    add_compile_options(/utf-8)
+endif()
+
 include(CTest)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets LinguistTools SerialPort WebSockets)
