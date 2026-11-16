@@ -1,0 +1,80 @@
+#include "AppSettings.h"
+
+#include <array>
+
+namespace {
+
+const QString ConsoleVisibleKey = QStringLiteral("view/consoleVisible");
+
+QString presetKey(AppSettings::Axis axis, int index)
+{
+    // NOTE: 预设键沿用既有格式，与控件 objectName 解耦后仍可直接读取用户数据。
+    const QString prefix = axis == AppSettings::Axis::Azimuth
+                               ? QStringLiteral("azimuthPreset")
+                               : QStringLiteral("elevationPreset");
+    return prefix + QString::number(index);
+}
+
+int maximumAngle(AppSettings::Axis axis)
+{
+    return axis == AppSettings::Axis::Azimuth ? 450 : 180;
+}
+
+int defaultAngle(AppSettings::Axis axis, int index)
+{
+    constexpr std::array<int, AppSettings::PresetCount> elevation{0, 25, 50, 75, 100, 125, 150, 180};
+    return axis == AppSettings::Axis::Azimuth ? index * 45 : elevation[index];
+}
+
+} // namespace
+
+AppSettings::AppSettings()
+    // NOTE: 保留既有组织名、应用名和原生存储格式，集中读写无需迁移已保存的预设。
+    : m_settings(QSettings::NativeFormat, QSettings::UserScope,
+                 QStringLiteral("BG5GEB"), QStringLiteral("GS-232B Open Control"))
+{
+}
+
+AppSettings::AppSettings(const QString &fileName)
+    : m_settings(fileName, QSettings::IniFormat)
+{
+}
+
+bool AppSettings::consoleVisible() const
+{
+    // NOTE: INI 重启后布尔值可能作为字符串读取，拒绝将任意非空损坏值解释为 true。
+    const QString value = m_settings.value(ConsoleVisibleKey).toString();
+    return value.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0 ||
+           value == QStringLiteral("1");
+}
+
+bool AppSettings::setConsoleVisible(bool visible)
+{
+    return storeValue(ConsoleVisibleKey, visible);
+}
+
+int AppSettings::presetAngle(Axis axis, int index) const
+{
+    if (index < 0 || index >= PresetCount)
+        return 0;
+
+    bool ok = false;
+    const int angle = m_settings.value(presetKey(axis, index)).toString().toInt(&ok);
+    return ok && angle >= 0 && angle <= maximumAngle(axis) ? angle : defaultAngle(axis, index);
+}
+
+bool AppSettings::setPresetAngle(Axis axis, int index, int angle)
+{
+    if (index < 0 || index >= PresetCount || angle < 0 || angle > maximumAngle(axis))
+        return false;
+
+    return storeValue(presetKey(axis, index), angle);
+}
+
+bool AppSettings::storeValue(const QString &key, const QVariant &value)
+{
+    m_settings.setValue(key, value);
+    // NOTE: 偏好在交互时立即落盘，不依赖正常退出；保留 QSettings 的原子写入机制。
+    m_settings.sync();
+    return m_settings.status() == QSettings::NoError;
+}

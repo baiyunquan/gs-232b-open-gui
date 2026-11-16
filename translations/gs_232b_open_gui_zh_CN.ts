@@ -86,6 +86,14 @@
     <context>
         <name>ControlPanel</name>
         <message>
+            <source>Application settings</source>
+            <translation>应用设置</translation>
+        </message>
+        <message>
+            <source>Could not save application settings.</source>
+            <translation>无法保存应用设置。</translation>
+        </message>
+        <message>
             <location filename="../ControlPanel.cpp" line="32" />
             <source>CONTROL</source>
             <translation>控制</translation>
@@ -209,6 +217,14 @@
     </context>
     <context>
         <name>MainWindow</name>
+        <message>
+            <source>Application settings</source>
+            <translation>应用设置</translation>
+        </message>
+        <message>
+            <source>Could not save application settings.</source>
+            <translation>无法保存应用设置。</translation>
+        </message>
         <message>
             <location filename="../MainWindow.cpp" line="24" />
             <location filename="../MainWindow.cpp" line="82" />

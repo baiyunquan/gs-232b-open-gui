@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "AppSettings.h"
 #include "CommandLog.h"
 #include "CommunicationProtocol.h"
 #include "ConnectionPanel.h"
@@ -76,7 +77,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     leftLayout->addWidget(m_control, 1);
     columns->addWidget(left);
     m_console = new ConsolePanel(central);
-    m_console->hide();
     columns->addWidget(m_console, 1);
     auto *right = new QWidget(central);
     right->setMinimumWidth(250);
@@ -260,7 +260,16 @@ void MainWindow::createMenus()
     auto *consoleAction = view->addAction(tr("Console"));
     consoleAction->setObjectName(QStringLiteral("consoleAction"));
     consoleAction->setCheckable(true);
-    connect(consoleAction, &QAction::toggled, m_console, &QWidget::setVisible);
+    const bool consoleVisible = AppSettings().consoleVisible();
+    consoleAction->setChecked(consoleVisible);
+    m_console->setVisible(consoleVisible);
+    // NOTE: 恢复状态后再连接保存，启动读取不覆盖缺失或无效的配置值。
+    connect(consoleAction, &QAction::toggled, this, [this](bool visible) {
+        m_console->setVisible(visible);
+        if (!AppSettings().setConsoleVisible(visible))
+            QMessageBox::warning(this, tr("Application settings"),
+                                 tr("Could not save application settings."));
+    });
     auto *management = menuBar()->addMenu(tr("Management"));
     m_authenticateAction = management->addAction(
         tr("Authenticate"), this, &MainWindow::authenticateManagement);

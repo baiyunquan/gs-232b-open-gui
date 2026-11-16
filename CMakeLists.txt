@@ -45,6 +45,8 @@ if(WIN32)
 endif()
 
 set(GUI_SOURCES
+    AppSettings.cpp
+    AppSettings.h
     AngleReading.cpp
     AngleReading.h
     CommandLog.cpp
@@ -94,6 +96,16 @@ target_link_libraries(gs_232b_open_gui
 
 if(BUILD_TESTING)
     find_package(Qt6 6.5 REQUIRED COMPONENTS Test)
+    qt_add_executable(app_settings_tests
+        tests/AppSettingsTests.cpp
+        AppSettings.cpp
+        AppSettings.h
+    )
+    target_compile_features(app_settings_tests PRIVATE cxx_std_17)
+    target_include_directories(app_settings_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(app_settings_tests PRIVATE Qt6::Core Qt6::Test)
+    add_test(NAME app_settings_tests COMMAND app_settings_tests)
+
     qt_add_executable(terminal_tests
         tests/TerminalTests.cpp
         ConsolePanel.cpp

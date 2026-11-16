@@ -1,20 +1,19 @@
 #include "ControlPanel.h"
 #include "AngleReading.h"
+#include "AppSettings.h"
 #include "Compass.h"
 
 #include <QFrame>
 #include <QCoreApplication>
 #include <QGridLayout>
 #include <QInputDialog>
+#include <QMessageBox>
 #include <QPushButton>
-#include <QSettings>
 #include <QSignalBlocker>
 #include <QSlider>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QtGlobal>
-
-#include <array>
 
 namespace {
 
@@ -23,19 +22,18 @@ QString formatAngle(int angle, int maximum)
     return QStringLiteral("%1").arg(qBound(0, angle, maximum), 3, 10, QLatin1Char('0'));
 }
 
-QWidget *makePresets(const QString &prefix, QWidget *parent)
+QWidget *makePresets(AppSettings::Axis axis, QWidget *parent)
 {
+    AppSettings settings;
+    const bool azimuth = axis == AppSettings::Axis::Azimuth;
+    const QString prefix = azimuth ? QStringLiteral("azimuthPreset")
+                                   : QStringLiteral("elevationPreset");
     auto *presets = new QWidget(parent);
     auto *grid = new QGridLayout(presets);
     grid->setContentsMargins(0, 0, 0, 0);
-    for (int index = 0; index < 8; ++index) {
-        const int defaultAngle = prefix == QStringLiteral("azimuthPreset")
-                                     ? index * 45
-                                     : std::array<int, 8>{0, 25, 50, 75, 100, 125, 150, 180}[index];
-        QSettings settings(QStringLiteral("BG5GEB"), QStringLiteral("GS-232B Open Control"));
+    for (int index = 0; index < AppSettings::PresetCount; ++index) {
         auto *button = new QPushButton(
-            formatAngle(settings.value(prefix + QString::number(index), defaultAngle).toInt(),
-                        prefix == QStringLiteral("azimuthPreset") ? 450 : 180),
+            formatAngle(settings.presetAngle(axis, index), azimuth ? 450 : 180),
             presets);
         button->setObjectName(prefix + QString::number(index));
         button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -73,7 +71,7 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     azimuthColumn->addWidget(m_compass, 1);
     azimuthColumn->addWidget(m_azimuth);
     layout->addLayout(azimuthColumn, 0, 0);
-    m_azimuthPresets = makePresets(QStringLiteral("azimuthPreset"), this);
+    m_azimuthPresets = makePresets(AppSettings::Axis::Azimuth, this);
     layout->addWidget(m_azimuthPresets, 0, 1);
 
     const auto azimuthPresets = m_azimuthPresets->findChildren<QPushButton *>();
@@ -87,9 +85,10 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
             if (!ok)
                 return;
             button->setText(formatAngle(angle, 450));
-            QSettings settings(QStringLiteral("BG5GEB"),
-                               QStringLiteral("GS-232B Open Control"));
-            settings.setValue(button->objectName(), angle);
+            const int index = button->property("presetIndex").toInt();
+            if (!AppSettings().setPresetAngle(AppSettings::Axis::Azimuth, index, angle))
+                QMessageBox::warning(this, tr("Application settings"),
+                                     tr("Could not save application settings."));
         });
         connect(button, &QPushButton::clicked, this, [this, button] {
             bool ok = false;
@@ -124,7 +123,7 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     elevationColumn->addWidget(m_slider, 1, Qt::AlignHCenter);
     elevationColumn->addWidget(m_elevation);
     layout->addLayout(elevationColumn, 2, 0);
-    m_elevationPresets = makePresets(QStringLiteral("elevationPreset"), this);
+    m_elevationPresets = makePresets(AppSettings::Axis::Elevation, this);
     layout->addWidget(m_elevationPresets, 2, 1);
 
     const auto elevationPresets = m_elevationPresets->findChildren<QPushButton *>();
@@ -138,9 +137,10 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
             if (!ok)
                 return;
             button->setText(formatAngle(angle, 180));
-            QSettings settings(QStringLiteral("BG5GEB"),
-                               QStringLiteral("GS-232B Open Control"));
-            settings.setValue(button->objectName(), angle);
+            const int index = button->property("presetIndex").toInt();
+            if (!AppSettings().setPresetAngle(AppSettings::Axis::Elevation, index, angle))
+                QMessageBox::warning(this, tr("Application settings"),
+                                     tr("Could not save application settings."));
         });
         connect(button, &QPushButton::clicked, this, [this, button] {
             bool ok = false;
