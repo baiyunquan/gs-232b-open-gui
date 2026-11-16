@@ -2,10 +2,10 @@
 
 #include <QApplication>
 #include <QFocusEvent>
-#include <QIntValidator>
 #include <QKeyEvent>
 #include <QLineEdit>
 #include <QMouseEvent>
+#include <QRegularExpressionValidator>
 #include <QResizeEvent>
 #include <QToolTip>
 
@@ -13,12 +13,14 @@
 
 AngleReading::AngleReading(int maximum, QWidget *parent)
     : QLabel(parent), m_editor(new QLineEdit(this)),
-      m_numericValidator(new QIntValidator(0, maximum, m_editor)), m_maximum(maximum)
+      m_numericValidator(new QRegularExpressionValidator(
+          QRegularExpression(QStringLiteral("^[+-]?[0-9]+$")), m_editor)), m_maximum(maximum)
 {
     setAlignment(Qt::AlignCenter);
     m_editor->setObjectName(QStringLiteral("angleEditor"));
     m_editor->setAlignment(Qt::AlignCenter);
-    m_editor->setMaxLength(QString::number(maximum).size());
+    // NOTE: 保留符号及超界输入，让提交校验拒绝原值，避免截断后误发另一个合法角度。
+    m_editor->setMaxLength(64);
     m_editor->setValidator(m_numericValidator);
     connect(m_editor, &QLineEdit::textChanged, this, [this] {
         m_editor->setToolTip(toolTip());
@@ -31,9 +33,19 @@ AngleReading::AngleReading(int maximum, QWidget *parent)
     setEditingEnabled(false);
 }
 
-void AngleReading::setAngle(int angle)
+void AngleReading::setRange(qint64 minimum, qint64 maximum)
 {
-    m_angle = qBound(0, angle, m_maximum);
+    Q_ASSERT(minimum <= maximum);
+    finishEditing(false);
+    m_minimum = minimum;
+    m_maximum = maximum;
+    setAngle(m_angle);
+    setEditingEnabled(m_editingEnabled);
+}
+
+void AngleReading::setAngle(qint64 angle)
+{
+    m_angle = qBound(m_minimum, angle, m_maximum);
     setText(QStringLiteral("%1°").arg(m_angle, 3, 10, QLatin1Char('0')));
 }
 
@@ -46,8 +58,8 @@ void AngleReading::setEditingEnabled(bool enabled)
     setFocusPolicy(enabled ? Qt::StrongFocus : Qt::NoFocus);
     setToolTip(enabled
                    ? (m_inputResolver ? m_inputHint
-                                      : tr("Click to enter an angle (0–%1°). Press Enter to move or Esc to cancel.")
-                                            .arg(m_maximum))
+                                      : tr("Click to enter an angle (%1–%2°). Press Enter to move or Esc to cancel.")
+                                            .arg(m_minimum).arg(m_maximum))
                    : QString());
     m_editor->setToolTip(toolTip());
     setAccessibleDescription(toolTip());
@@ -59,7 +71,6 @@ void AngleReading::setInputResolver(InputResolver resolver, const QString &hint)
     m_inputResolver = std::move(resolver);
     m_inputHint = hint;
     m_editor->setValidator(m_inputResolver ? nullptr : m_numericValidator);
-    m_editor->setMaxLength(m_inputResolver ? 64 : QString::number(m_maximum).size());
     setEditingEnabled(m_editingEnabled);
 }
 
@@ -141,14 +152,15 @@ void AngleReading::finishEditing(bool submit)
     if (submit) {
         bool ok = false;
         const QString text = m_editor->text().trimmed();
-        const int angle = text.toInt(&ok);
-        if (ok && angle >= 0 && angle <= m_maximum)
+        const qint64 angle = text.toLongLong(&ok);
+        if (ok && angle >= m_minimum && angle <= m_maximum)
             input.angle = angle;
-        else if (!ok && m_inputResolver)
+        else if (!ok && m_inputResolver &&
+                 !m_numericValidator->regularExpression().match(text).hasMatch())
             input = m_inputResolver(text);
-        if (!input.angle || *input.angle < 0 || *input.angle > m_maximum) {
+        if (!input.angle || *input.angle < m_minimum || *input.angle > m_maximum) {
             const QString error = input.error.isEmpty()
-                                      ? tr("Enter an angle from 0 to %1°.").arg(m_maximum)
+                                      ? tr("Enter an angle from %1 to %2°.").arg(m_minimum).arg(m_maximum)
                                       : input.error;
             m_editor->setToolTip(error);
             m_editor->setAccessibleDescription(error);

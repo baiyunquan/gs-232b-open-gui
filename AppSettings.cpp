@@ -8,6 +8,7 @@ namespace {
 const QString ConsoleVisibleKey = QStringLiteral("view/consoleVisible");
 const QString GreatCircleMapEnabledKey = QStringLiteral("view/greatCircleMapEnabled");
 const QString StationGridKey = QStringLiteral("station/grid");
+const QString AzimuthOffsetKey = QStringLiteral("rotor/azimuthOffset");
 
 bool readBoolean(const QVariant &stored)
 {
@@ -70,6 +71,18 @@ bool AppSettings::greatCircleMapEnabled() const
 bool AppSettings::setGreatCircleMapEnabled(bool enabled)
 {
     return storeValue(GreatCircleMapEnabledKey, enabled);
+}
+
+int AppSettings::azimuthOffset() const
+{
+    bool ok = false;
+    const int offset = m_settings.value(AzimuthOffsetKey).toString().toInt(&ok);
+    return ok ? offset : 0;
+}
+
+bool AppSettings::setAzimuthOffset(int degrees)
+{
+    return storeValue(AzimuthOffsetKey, degrees);
 }
 
 QString AppSettings::stationGrid() const

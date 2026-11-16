@@ -6,6 +6,7 @@
 #include <QtTest>
 
 #include <array>
+#include <limits>
 
 class AppSettingsTests final : public QObject
 {
@@ -19,6 +20,9 @@ private slots:
     void invalidValuesUseDefaults_data();
     void invalidValuesUseDefaults();
     void rejectsInvalidPresetWrites();
+    void persistsAzimuthOffset();
+    void invalidStoredAzimuthOffset_data();
+    void invalidStoredAzimuthOffset();
     void validatesAndPersistsStationGrid_data();
     void validatesAndPersistsStationGrid();
     void clearsStationGrid();
@@ -35,6 +39,7 @@ void AppSettingsTests::defaultsDoNotWrite()
     QVERIFY(!settings.consoleVisible());
     QVERIFY(!settings.greatCircleMapEnabled());
     QVERIFY(settings.stationGrid().isEmpty());
+    QCOMPARE(settings.azimuthOffset(), 0);
     const std::array<int, 10> azimuth{0, 45, 90, 135, 180, 225, 270, 315, 360, 405};
     const std::array<int, 6> elevation{0, 25, 50, 75, 100, 125};
     QCOMPARE(AppSettings::presetCount(AppSettings::Axis::Azimuth), int(azimuth.size()));
@@ -181,6 +186,51 @@ void AppSettingsTests::rejectsInvalidPresetWrites()
     QVERIFY(!QFile::exists(fileName));
 }
 
+void AppSettingsTests::persistsAzimuthOffset()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString fileName = directory.filePath(QStringLiteral("settings.ini"));
+    AppSettings settings(fileName);
+    QVERIFY(settings.setPresetAngle(AppSettings::Axis::Azimuth, 0, 450));
+    for (int offset : {0, -30, 30, -360, 360,
+                       std::numeric_limits<int>::min(), std::numeric_limits<int>::max()}) {
+        QVERIFY(settings.setAzimuthOffset(offset));
+        AppSettings reopened(fileName);
+        QCOMPARE(reopened.azimuthOffset(), offset);
+        QCOMPARE(reopened.presetAngle(AppSettings::Axis::Azimuth, 0), 450);
+        QSettings raw(fileName, QSettings::IniFormat);
+        QCOMPARE(raw.value(QStringLiteral("rotor/azimuthOffset")).toInt(), offset);
+    }
+}
+
+void AppSettingsTests::invalidStoredAzimuthOffset_data()
+{
+    QTest::addColumn<QByteArray>("value");
+    for (const QByteArray &value : {QByteArray(), QByteArray("bad"), QByteArray("30.5"),
+                                   QByteArray("true"), QByteArray("2147483648"), QByteArray("-2147483649")})
+        QTest::newRow(value.isEmpty() ? "empty" : value.constData()) << value;
+}
+
+void AppSettingsTests::invalidStoredAzimuthOffset()
+{
+    QFETCH(QByteArray, value);
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString fileName = directory.filePath(QStringLiteral("settings.ini"));
+    const QByteArray content = "[rotor]\nazimuthOffset=" + value + '\n';
+    {
+        QFile file(fileName);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write(content), content.size());
+    }
+    AppSettings settings(fileName);
+    QCOMPARE(settings.azimuthOffset(), 0);
+    QFile file(fileName);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QCOMPARE(file.readAll(), content);
+}
+
 void AppSettingsTests::validatesAndPersistsStationGrid_data()
 {
     QTest::addColumn<QString>("grid");
@@ -278,6 +328,7 @@ void AppSettingsTests::reportsStorageFailure()
     AppSettings settings(fileName);
     QVERIFY(!settings.setConsoleVisible(true));
     QVERIFY(!settings.setGreatCircleMapEnabled(true));
+    QVERIFY(!settings.setAzimuthOffset(-30));
     QVERIFY(!settings.setStationGrid(QStringLiteral("PM95AA")));
     QVERIFY(!settings.setPresetAngle(AppSettings::Axis::Azimuth, 0, 90));
 }

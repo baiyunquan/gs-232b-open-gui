@@ -3,7 +3,6 @@
 #include <QButtonGroup>
 #include <QComboBox>
 #include <QGroupBox>
-#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -57,23 +56,28 @@ RotorSettingsPanel::RotorSettingsPanel(QWidget *parent) : QWidget(parent)
     layout->addWidget(m_speed);
 
     auto *calibrationGroup = new QGroupBox(tr("CALIBRATION"), this);
-    auto *calibrationLayout = new QGridLayout(calibrationGroup);
+    auto *calibrationLayout = new QVBoxLayout(calibrationGroup);
+    auto *calibrationButtons = new QHBoxLayout;
     m_azimuthZero = new QPushButton(tr("Azimuth zero"), calibrationGroup);
     m_azimuthZero->setObjectName(QStringLiteral("azimuthZeroCalibration"));
     m_elevationZero = new QPushButton(tr("Elevation zero"), calibrationGroup);
     m_elevationZero->setObjectName(QStringLiteral("elevationZeroCalibration"));
-    calibrationLayout->addWidget(m_azimuthZero, 0, 0);
-    calibrationLayout->addWidget(m_elevationZero, 0, 1);
+    calibrationButtons->addWidget(m_azimuthZero);
+    calibrationButtons->addWidget(m_elevationZero);
+    calibrationLayout->addLayout(calibrationButtons);
     auto *zeroNote = new QLabel(
-        tr("Set the rotator azimuth and elevation to 0 degrees, then click the corresponding button to calibrate the zero point."),
+        tr("Move the azimuth to its counter-clockwise limit or the elevation to 0°, then click the corresponding button to calibrate controller zero."),
         calibrationGroup);
     zeroNote->setWordWrap(true);
-    calibrationLayout->addWidget(zeroNote, 1, 0, 1, 2);
+    // NOTE: 窄窗口下保留说明的换行高度，避免外层布局把校准文字压缩到不可读。
+    zeroNote->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+    calibrationLayout->addWidget(zeroNote);
     auto *fullScaleNote = new QLabel(
-        tr("Move the rotator to full scale and adjust its potentiometer until the displayed angle matches the applicable full scale: 360, 450, or 180 degrees."),
+        tr("At full scale, adjust the potentiometer until the displayed angle matches 360° or 450° plus azimuth offset, or 180° elevation."),
         calibrationGroup);
     fullScaleNote->setWordWrap(true);
-    calibrationLayout->addWidget(fullScaleNote, 2, 0, 1, 2);
+    fullScaleNote->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+    calibrationLayout->addWidget(fullScaleNote);
     layout->addWidget(calibrationGroup);
     connect(m_azimuthZero, &QPushButton::clicked,
             this, &RotorSettingsPanel::azimuthZeroCalibrationRequested);

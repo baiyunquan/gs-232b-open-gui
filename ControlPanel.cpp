@@ -1,17 +1,14 @@
 #include "ControlPanel.h"
 #include "AngleReading.h"
+#include "AnglePresets.h"
 #include "AppSettings.h"
 #include "Compass.h"
 #include "targeting/TargetBearing.h"
 
 #include <QFrame>
-#include <QCoreApplication>
 #include <QGridLayout>
-#include <QMessageBox>
-#include <QPushButton>
 #include <QSignalBlocker>
 #include <QSlider>
-#include <QStackedLayout>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QtGlobal>
@@ -21,59 +18,6 @@ namespace {
 QString formatAngle(int angle, int maximum)
 {
     return QStringLiteral("%1").arg(qBound(0, angle, maximum), 3, 10, QLatin1Char('0'));
-}
-
-QWidget *makePresets(AppSettings::Axis axis, QWidget *parent)
-{
-    AppSettings settings;
-    const bool azimuth = axis == AppSettings::Axis::Azimuth;
-    const int maximum = azimuth ? 450 : 180;
-    const QString prefix = azimuth ? QStringLiteral("azimuthPreset")
-                                   : QStringLiteral("elevationPreset");
-    auto *presets = new QWidget(parent);
-    auto *grid = new QGridLayout(presets);
-    grid->setContentsMargins(0, 0, 0, 0);
-    for (int index = 0; index < AppSettings::presetCount(axis); ++index) {
-        auto *cell = new QWidget(presets);
-        cell->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-        auto *stack = new QStackedLayout(cell);
-        stack->setContentsMargins(0, 0, 0, 0);
-        auto *button = new QPushButton(
-            formatAngle(settings.presetAngle(axis, index), maximum), cell);
-        button->setObjectName(prefix + QString::number(index));
-        // NOTE: 预设只显示三位数字，按字体保留留白，将横向空间优先分配给罗盘。
-        cell->setFixedWidth(button->fontMetrics().horizontalAdvance(QStringLiteral("000")) + 24);
-        button->setProperty("presetIndex", index);
-        button->setContextMenuPolicy(Qt::CustomContextMenu);
-        button->setToolTip(QCoreApplication::translate(
-            "ControlPanel", "Right-click to edit this preset. Press Enter to save or Esc to cancel."));
-        auto *reading = new AngleReading(maximum, cell);
-        reading->setEditingEnabled(true);
-        reading->setAccessibleName(QCoreApplication::translate(
-            "ControlPanel", azimuth ? "Edit azimuth preset" : "Edit elevation preset"));
-        reading->setToolTip(button->toolTip());
-        stack->addWidget(button);
-        stack->addWidget(reading);
-        QObject::connect(button, &QPushButton::customContextMenuRequested, reading,
-                         [button, reading, stack] {
-            reading->setAngle(button->text().toInt());
-            stack->setCurrentWidget(reading);
-            reading->beginEditing();
-        });
-        QObject::connect(reading, &AngleReading::editingFinished, stack, [button, stack] {
-            stack->setCurrentWidget(button);
-        });
-        QObject::connect(reading, &AngleReading::angleRequested, button,
-                         [axis, index, maximum, button, parent](int angle) {
-            button->setText(formatAngle(angle, maximum));
-            if (!AppSettings().setPresetAngle(axis, index, angle))
-                QMessageBox::warning(parent,
-                    QCoreApplication::translate("ControlPanel", "Application settings"),
-                    QCoreApplication::translate("ControlPanel", "Could not save application settings."));
-        });
-        grid->addWidget(cell, index / 2, index % 2);
-    }
-    return presets;
 }
 
 } // namespace
@@ -90,46 +34,23 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     m_compass = new Compass(this);
     connect(m_compass, &Compass::mapError, this, &ControlPanel::mapError);
     connect(m_compass, &Compass::angleRequested, this, [this](int angle) {
-        emit commandRequested(QStringLiteral("M%1").arg(formatAngle(angle, 450)));
+        requestAzimuth(m_azimuthScale.mechanicalBearing(angle, m_azimuthValue));
     });
     m_azimuth = new AngleReading(450, this);
     m_azimuth->setObjectName(QStringLiteral("azimuthReading"));
     connect(m_azimuth, &AngleReading::inputRejected, this, &ControlPanel::inputError);
     m_azimuth->setAccessibleName(tr("Azimuth angle, grid or callsign"));
-    m_azimuth->setInputResolver([this](const QString &text) -> AngleReading::InputResult {
-        const auto result = TargetBearing::calculate(m_stationGrid, text);
-        if (result.solution)
-            return {result.solution->roundedDegrees(), {}};
-        switch (result.error) {
-        case TargetBearing::Error::InvalidStationGrid:
-            return {std::nullopt, tr("Set your grid in Settings → My grid… before using a grid or callsign.")};
-        case TargetBearing::Error::UndefinedBearing:
-            return {std::nullopt, tr("This target has no unique bearing from your grid.")};
-        case TargetBearing::Error::UnknownTarget:
-        case TargetBearing::Error::None:
-            return {std::nullopt, tr("Unknown target. Enter a 4, 6 or 8 character grid, callsign or DXCC prefix.")};
-        }
-        return {};
-    }, tr("Click to enter an angle (0–450°), grid, callsign or prefix. Callsigns use DXCC coordinates. Press Enter to move or Esc to cancel."));
-    connect(m_azimuth, &AngleReading::angleRequested, this, [this](int angle) {
-        m_elevationCommandTimer->stop();
-        emit commandRequested(QStringLiteral("M%1").arg(formatAngle(angle, 450)));
+    connect(m_azimuth, &AngleReading::angleRequested, this, [this](qint64 angle) {
+        if (const auto mechanical = m_azimuthScale.mechanical(angle))
+            requestAzimuth(*mechanical);
     });
     azimuthColumn->addWidget(m_compass, 1);
     azimuthColumn->addWidget(m_azimuth);
     layout->addLayout(azimuthColumn, 0, 0);
-    m_azimuthPresets = makePresets(AppSettings::Axis::Azimuth, this);
+    m_azimuthPresets = new AnglePresets(AppSettings::Axis::Azimuth, this);
     layout->addWidget(m_azimuthPresets, 0, 1);
 
-    const auto azimuthPresets = m_azimuthPresets->findChildren<QPushButton *>();
-    for (auto *button : azimuthPresets) {
-        connect(button, &QPushButton::clicked, this, [this, button] {
-            bool ok = false;
-            const int angle = button->text().trimmed().toInt(&ok);
-            if (ok)
-                emit commandRequested(QStringLiteral("M%1").arg(formatAngle(angle, 450)));
-        });
-    }
+    connect(m_azimuthPresets, &AnglePresets::angleRequested, this, &ControlPanel::requestAzimuth);
 
     auto *separator = new QFrame(this);
     separator->setFrameShape(QFrame::HLine);
@@ -148,30 +69,24 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     m_elevation->setObjectName(QStringLiteral("elevationReading"));
     connect(m_elevation, &AngleReading::inputRejected, this, &ControlPanel::inputError);
     m_elevation->setAccessibleName(tr("Elevation angle"));
-    connect(m_elevation, &AngleReading::angleRequested, this, [this](int angle) {
+    connect(m_elevation, &AngleReading::angleRequested, this, [this](qint64 angle) {
+        m_elevationCommandTimer->stop();
+        emit commandRequested(QStringLiteral("W%1 %2")
+                                  .arg(formatAngle(m_azimuthValue, 450))
+                                  .arg(formatAngle(int(angle), 180)));
+    });
+    elevationColumn->addWidget(m_slider, 1, Qt::AlignHCenter);
+    elevationColumn->addWidget(m_elevation);
+    layout->addLayout(elevationColumn, 2, 0);
+    m_elevationPresets = new AnglePresets(AppSettings::Axis::Elevation, this);
+    layout->addWidget(m_elevationPresets, 2, 1);
+
+    connect(m_elevationPresets, &AnglePresets::angleRequested, this, [this](int angle) {
         m_elevationCommandTimer->stop();
         emit commandRequested(QStringLiteral("W%1 %2")
                                   .arg(formatAngle(m_azimuthValue, 450))
                                   .arg(formatAngle(angle, 180)));
     });
-    elevationColumn->addWidget(m_slider, 1, Qt::AlignHCenter);
-    elevationColumn->addWidget(m_elevation);
-    layout->addLayout(elevationColumn, 2, 0);
-    m_elevationPresets = makePresets(AppSettings::Axis::Elevation, this);
-    layout->addWidget(m_elevationPresets, 2, 1);
-
-    const auto elevationPresets = m_elevationPresets->findChildren<QPushButton *>();
-    for (auto *button : elevationPresets) {
-        connect(button, &QPushButton::clicked, this, [this, button] {
-            bool ok = false;
-            const int angle = button->text().trimmed().toInt(&ok);
-            if (ok) {
-                emit commandRequested(QStringLiteral("W%1 %2")
-                                          .arg(formatAngle(m_azimuthValue, 450))
-                                          .arg(formatAngle(angle, 180)));
-            }
-        });
-    }
 
     connect(m_slider, &QSlider::valueChanged, m_elevationCommandTimer,
             qOverload<>(&QTimer::start));
@@ -181,7 +96,47 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
                                   .arg(formatAngle(m_slider->value(), 180)));
     });
 
+    setAzimuthOffset(AppSettings().azimuthOffset());
     setCommandEnabled(false);
+}
+
+void ControlPanel::requestAzimuth(int mechanical)
+{
+    m_elevationCommandTimer->stop();
+    emit commandRequested(QStringLiteral("M%1").arg(formatAngle(mechanical, AzimuthScale::Maximum)));
+}
+
+void ControlPanel::setAzimuthOffset(int degrees)
+{
+    m_azimuthScale = AzimuthScale(degrees);
+    m_elevationCommandTimer->stop();
+    updateAzimuthInput();
+    m_azimuthPresets->setAzimuthOffset(degrees);
+    setPosition(m_azimuthValue, m_elevationValue);
+}
+
+void ControlPanel::updateAzimuthInput()
+{
+    m_azimuth->setRange(m_azimuthScale.minimum(), m_azimuthScale.maximum());
+    m_azimuth->setInputResolver([this](const QString &text) -> AngleReading::InputResult {
+        const auto result = TargetBearing::calculate(m_stationGrid, text);
+        if (result.solution) {
+            const int mechanical = m_azimuthScale.mechanicalBearing(
+                result.solution->roundedDegrees(), m_azimuthValue);
+            return {m_azimuthScale.corrected(mechanical), {}};
+        }
+        switch (result.error) {
+        case TargetBearing::Error::InvalidStationGrid:
+            return {std::nullopt, tr("Set your grid in Settings → My grid… before using a grid or callsign.")};
+        case TargetBearing::Error::UndefinedBearing:
+            return {std::nullopt, tr("This target has no unique bearing from your grid.")};
+        case TargetBearing::Error::UnknownTarget:
+        case TargetBearing::Error::None:
+            return {std::nullopt, tr("Unknown target. Enter a 4, 6 or 8 character grid, callsign or DXCC prefix.")};
+        }
+        return {};
+    }, tr("Click to enter an angle (%1–%2°), grid, callsign or prefix. Callsigns use DXCC coordinates. Press Enter to move or Esc to cancel.")
+           .arg(m_azimuthScale.minimum()).arg(m_azimuthScale.maximum()));
 }
 
 void ControlPanel::setCommandEnabled(bool enabled)
@@ -199,9 +154,11 @@ void ControlPanel::setPosition(int azimuth, int elevation)
 {
     m_azimuthValue = qBound(0, azimuth, 450);
     m_elevationValue = qBound(0, elevation, 180);
-    m_azimuth->setAngle(m_azimuthValue);
+    m_azimuth->setAngle(m_azimuthScale.corrected(m_azimuthValue));
     m_elevation->setAngle(m_elevationValue);
-    m_compass->setAngle(m_azimuthValue);
+    // NOTE: 只在罗盘绘制时归一化，数字读数保留负角度和重叠行程，W 命令仍使用机械读数。
+    const qint64 corrected = m_azimuthScale.corrected(m_azimuthValue);
+    m_compass->setAngle(int((corrected % 360 + 360) % 360));
     const QSignalBlocker blocker(m_slider);
     m_slider->setValue(m_elevationValue);
 }

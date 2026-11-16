@@ -1,9 +1,12 @@
 #pragma once
 
+#include "AzimuthScale.h"
+
 #include <QGroupBox>
 #include <QString>
 
 class AngleReading;
+class AnglePresets;
 class Compass;
 class QSlider;
 class QTimer;
@@ -21,11 +24,13 @@ public:
     void setCommandEnabled(bool enabled);
     /** @brief 更新设备实测角度，不触发滑条定位请求。 */
     void setPosition(int azimuth, int elevation);
+    /** @brief 更新显示、数字输入和预设的方位补偿；保留设备读数，不发送命令。 */
+    void setAzimuthOffset(int degrees);
     /** @brief 切换方位罗盘的大圆图显示，不影响设备连接或角度读数。 */
     void setGreatCircleMapEnabled(bool enabled);
     /** @brief 更新大圆图与目标方位计算使用的本站网格，后续提交立即使用新值。 */
     void setStationGrid(const QString &grid);
-    /** @return 当前界面保留的方位读数。 */
+    /** @return 最近一次设备方位读数，不包含补偿；供分轴反馈及 W 命令保留机械行程。 */
     int azimuth() const;
     /** @return 当前界面保留的仰角读数。 */
     int elevation() const;
@@ -39,14 +44,18 @@ signals:
     void inputError(const QString &message);
 
 private:
+    void requestAzimuth(int mechanical);
+    void updateAzimuthInput();
+
     Compass *m_compass;
     AngleReading *m_azimuth;
     AngleReading *m_elevation;
     QSlider *m_slider;
     QTimer *m_elevationCommandTimer;
-    QWidget *m_azimuthPresets;
-    QWidget *m_elevationPresets;
+    AnglePresets *m_azimuthPresets;
+    AnglePresets *m_elevationPresets;
     QString m_stationGrid;
+    AzimuthScale m_azimuthScale;
     int m_azimuthValue = 0;
     int m_elevationValue = 0;
 };

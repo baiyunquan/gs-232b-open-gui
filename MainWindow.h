@@ -44,6 +44,7 @@ private:
     void cancelManagement();
     void startApProvisioning();
     void openStationGrid();
+    void openAzimuthOffset();
     void openWifiProvisioning();
     void openNetworkPortConfig();
     void resetNetworkConfiguration();

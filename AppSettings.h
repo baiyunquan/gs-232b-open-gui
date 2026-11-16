@@ -29,6 +29,11 @@ public:
     /** @return 立即同步大圆图模式偏好到存储是否成功。 */
     bool setGreatCircleMapEnabled(bool enabled);
 
+    /** @brief 读取方位角补偿；完整支持 int 范围的正负整数度，缺失或无效时返回 0。 */
+    int azimuthOffset() const;
+    /** @return 立即同步方位角补偿到存储是否成功。 */
+    bool setAzimuthOffset(int degrees);
+
     /** @brief 读取本站 Maidenhead 网格；返回大写，缺失或无效时返回空字符串。 */
     QString stationGrid() const;
     /**

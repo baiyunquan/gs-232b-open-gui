@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 #include "AppSettings.h"
+#include "AzimuthOffsetDialog.h"
 #include "CommandLog.h"
 #include "CommunicationProtocol.h"
 #include "ConnectionPanel.h"
@@ -296,6 +297,9 @@ void MainWindow::createMenus()
     auto *stationGridAction = settings->addAction(
         tr("My grid..."), this, &MainWindow::openStationGrid);
     stationGridAction->setObjectName(QStringLiteral("stationGridAction"));
+    auto *offsetAction = settings->addAction(
+        tr("Azimuth offset..."), this, &MainWindow::openAzimuthOffset);
+    offsetAction->setObjectName(QStringLiteral("azimuthOffsetAction"));
     auto *management = menuBar()->addMenu(tr("Management"));
     m_authenticateAction = management->addAction(
         tr("Authenticate"), this, &MainWindow::authenticateManagement);
@@ -458,6 +462,16 @@ void MainWindow::openStationGrid()
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     connect(dialog, &QDialog::accepted, this, [this] {
         m_control->setStationGrid(AppSettings().stationGrid());
+    });
+    dialog->open();
+}
+
+void MainWindow::openAzimuthOffset()
+{
+    auto *dialog = new AzimuthOffsetDialog(this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    connect(dialog, &QDialog::accepted, this, [this] {
+        m_control->setAzimuthOffset(AppSettings().azimuthOffset());
     });
     dialog->open();
 }

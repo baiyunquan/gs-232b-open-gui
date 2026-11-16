@@ -4,12 +4,12 @@
     <context>
         <name>AngleReading</name>
         <message>
-            <source>Enter an angle from 0 to %1°.</source>
-            <translation>请输入 0 到 %1° 之间的角度。</translation>
+            <source>Enter an angle from %1 to %2°.</source>
+            <translation>请输入 %1 到 %2° 之间的角度。</translation>
         </message>
         <message>
-            <source>Click to enter an angle (0–%1°). Press Enter to move or Esc to cancel.</source>
-            <translation>点击输入角度（0–%1°）。按回车开始转动，按 Esc 取消。</translation>
+            <source>Click to enter an angle (%1–%2°). Press Enter to move or Esc to cancel.</source>
+            <translation>点击输入角度（%1–%2°）。按回车开始转动，按 Esc 取消。</translation>
         </message>
     </context>
     <context>
@@ -103,16 +103,12 @@
             <translation>控制</translation>
         </message>
         <message>
-            <source>Edit azimuth preset</source>
-            <translation>编辑方位预设</translation>
-        </message>
-        <message>
             <source>Azimuth angle, grid or callsign</source>
             <translation>方位角、网格或呼号</translation>
         </message>
         <message>
-            <source>Click to enter an angle (0–450°), grid, callsign or prefix. Callsigns use DXCC coordinates. Press Enter to move or Esc to cancel.</source>
-            <translation>点击输入角度（0–450°）、网格、呼号或前缀。按回车转动，按 Esc 取消。</translation>
+            <source>Click to enter an angle (%1–%2°), grid, callsign or prefix. Callsigns use DXCC coordinates. Press Enter to move or Esc to cancel.</source>
+            <translation>点击输入角度（%1–%2°）、网格、呼号或前缀。呼号使用所属 DXCC 的代表坐标。按回车转动，按 Esc 取消。</translation>
         </message>
         <message>
             <source>Set your grid in Settings → My grid… before using a grid or callsign.</source>
@@ -127,16 +123,8 @@
             <translation>无法识别目标。请输入 4、6 或 8 位网格、呼号或 DXCC 前缀。</translation>
         </message>
         <message>
-            <source>Edit elevation preset</source>
-            <translation>编辑仰角预设</translation>
-        </message>
-        <message>
             <source>Elevation angle</source>
             <translation>仰角</translation>
-        </message>
-        <message>
-            <source>Right-click to edit this preset. Press Enter to save or Esc to cancel.</source>
-            <translation>右键可编辑此预设。按回车保存，按 Esc 取消。</translation>
         </message>
     </context>
     <context>
@@ -237,6 +225,10 @@
     </context>
     <context>
         <name>MainWindow</name>
+        <message>
+            <source>Azimuth offset...</source>
+            <translation>方位角补偿…</translation>
+        </message>
         <message>
             <source>Settings</source>
             <translation>设置</translation>
@@ -663,12 +655,12 @@
             <translation>俯仰零点校准</translation>
         </message>
         <message>
-            <source>Set the rotator azimuth and elevation to 0 degrees, then click the corresponding button to calibrate the zero point.</source>
-            <translation>先将旋转器的方位角和俯仰角转到 0°，再点击对应按钮执行零点校准。</translation>
+            <source>Move the azimuth to its counter-clockwise limit or the elevation to 0°, then click the corresponding button to calibrate controller zero.</source>
+            <translation>将方位转至逆时针限位，或将俯仰角转至 0°，再点击对应按钮校准控制器零点。</translation>
         </message>
         <message>
-            <source>Move the rotator to full scale and adjust its potentiometer until the displayed angle matches the applicable full scale: 360, 450, or 180 degrees.</source>
-            <translation>将旋转器转到满量程，调节旋转器上的电位器，直到角度正确显示为对应的满量程：360°、450°或 180°。</translation>
+            <source>At full scale, adjust the potentiometer until the displayed angle matches 360° or 450° plus azimuth offset, or 180° elevation.</source>
+            <translation>转至满量程后调节电位器，直到方位读数为 360° 或 450° 加上方位角补偿值，或俯仰读数为 180°。</translation>
         </message>
     </context>
     <context>
@@ -937,6 +929,60 @@ Turn the map off and on to retry</source>
         <message>
             <source>The map is ready, but could not be saved for offline use.</source>
             <translation>大圆图已生成，但无法保存供离线使用。</translation>
+        </message>
+    </context>
+    <context>
+        <name>AnglePresets</name>
+        <message>
+            <source>Edit azimuth preset</source>
+            <translation>编辑方位预设</translation>
+        </message>
+        <message>
+            <source>Edit elevation preset</source>
+            <translation>编辑仰角预设</translation>
+        </message>
+        <message>
+            <source>Right-click to edit this preset. Press Enter to save or Esc to cancel.</source>
+            <translation>右键可编辑此预设。按回车保存，按 Esc 取消。</translation>
+        </message>
+        <message>
+            <source>Application settings</source>
+            <translation>应用设置</translation>
+        </message>
+        <message>
+            <source>Could not save application settings.</source>
+            <translation>无法保存应用设置。</translation>
+        </message>
+    </context>
+    <context>
+        <name>AzimuthOffsetDialog</name>
+        <message>
+            <source>Azimuth offset</source>
+            <translation>方位角补偿</translation>
+        </message>
+        <message>
+            <source>Azimuth offset (°)</source>
+            <translation>方位角补偿（°）</translation>
+        </message>
+        <message>
+            <source>Corrected azimuth = controller angle + offset. For example, −30° changes 0–450° to −30–420° (330–60° on the compass).</source>
+            <translation>实际方位角 = 控制器角度 + 补偿值。例如，补偿 −30° 后，0–450° 对应 −30–420°（罗盘上为 330–60°）。</translation>
+        </message>
+        <message>
+            <source>Azimuth range: %1° to %2°</source>
+            <translation>方位角范围：%1° 至 %2°</translation>
+        </message>
+        <message>
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <source>Save</source>
+            <translation>保存</translation>
+        </message>
+        <message>
+            <source>Could not save the azimuth offset.</source>
+            <translation>无法保存方位角补偿。</translation>
         </message>
     </context>
 </TS>

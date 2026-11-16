@@ -77,6 +77,11 @@ set(GUI_SOURCES
     AppSettings.h
     AngleReading.cpp
     AngleReading.h
+    AnglePresets.cpp
+    AnglePresets.h
+    AzimuthScale.h
+    AzimuthOffsetDialog.cpp
+    AzimuthOffsetDialog.h
     CommandLog.cpp
     CommandLog.h
     CommunicationProtocol.cpp
@@ -159,6 +164,7 @@ if(BUILD_TESTING)
     qt_add_executable(target_control_tests
         tests/TargetControlTests.cpp
         AngleReading.cpp AngleReading.h
+        AnglePresets.cpp AnglePresets.h
         ControlPanel.cpp ControlPanel.h
         AppSettings.cpp AppSettings.h
         Compass.cpp Compass.h
@@ -168,6 +174,21 @@ if(BUILD_TESTING)
         gs232b_targeting Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::Test)
     add_test(NAME target_control_tests COMMAND target_control_tests)
     set_tests_properties(target_control_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+    qt_add_executable(angle_compensation_tests
+        tests/AngleCompensationTests.cpp
+        AngleReading.cpp AngleReading.h
+        AnglePresets.cpp AnglePresets.h
+        ControlPanel.cpp ControlPanel.h
+        AppSettings.cpp AppSettings.h
+        AzimuthScale.h
+        Compass.cpp Compass.h
+        GreatCircleMap.cpp GreatCircleMap.h
+    )
+    target_link_libraries(angle_compensation_tests PRIVATE
+        gs232b_targeting Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::Test)
+    add_test(NAME angle_compensation_tests COMMAND angle_compensation_tests)
+    set_tests_properties(angle_compensation_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
     qt_add_executable(terminal_tests
         tests/TerminalTests.cpp
