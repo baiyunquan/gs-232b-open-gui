@@ -45,6 +45,8 @@ if(WIN32)
 endif()
 
 set(GUI_SOURCES
+    AngleReading.cpp
+    AngleReading.h
     CommandLog.cpp
     CommandLog.h
     CommunicationProtocol.cpp

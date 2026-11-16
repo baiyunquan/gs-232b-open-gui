@@ -2,6 +2,13 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN" sourcelanguage="en_US">
     <context>
+        <name>AngleReading</name>
+        <message>
+            <source>Click to enter an angle (0–%1°). Press Enter to move or Esc to cancel.</source>
+            <translation>点击输入角度（0–%1°）。按回车开始转动，按 Esc 取消。</translation>
+        </message>
+    </context>
+    <context>
         <name>ConnectionPanel</name>
         <message>
             <location filename="../ConnectionPanel.cpp" line="12" />

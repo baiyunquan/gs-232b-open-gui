@@ -1,11 +1,11 @@
 #include "ControlPanel.h"
+#include "AngleReading.h"
 #include "Compass.h"
 
 #include <QFrame>
 #include <QCoreApplication>
 #include <QGridLayout>
 #include <QInputDialog>
-#include <QLabel>
 #include <QPushButton>
 #include <QSettings>
 #include <QSignalBlocker>
@@ -63,9 +63,13 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     connect(m_compass, &Compass::angleRequested, this, [this](int angle) {
         emit commandRequested(QStringLiteral("M%1").arg(formatAngle(angle, 450)));
     });
-    m_azimuth = new QLabel(QStringLiteral("000°"), this);
+    m_azimuth = new AngleReading(450, this);
     m_azimuth->setObjectName(QStringLiteral("azimuthReading"));
-    m_azimuth->setAlignment(Qt::AlignCenter);
+    m_azimuth->setAccessibleName(tr("Azimuth angle"));
+    connect(m_azimuth, &AngleReading::angleRequested, this, [this](int angle) {
+        m_elevationCommandTimer->stop();
+        emit commandRequested(QStringLiteral("M%1").arg(formatAngle(angle, 450)));
+    });
     azimuthColumn->addWidget(m_compass, 1);
     azimuthColumn->addWidget(m_azimuth);
     layout->addLayout(azimuthColumn, 0, 0);
@@ -108,9 +112,15 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     m_elevationCommandTimer = new QTimer(this);
     m_elevationCommandTimer->setSingleShot(true);
     m_elevationCommandTimer->setInterval(150);
-    m_elevation = new QLabel(QStringLiteral("000°"), this);
+    m_elevation = new AngleReading(180, this);
     m_elevation->setObjectName(QStringLiteral("elevationReading"));
-    m_elevation->setAlignment(Qt::AlignCenter);
+    m_elevation->setAccessibleName(tr("Elevation angle"));
+    connect(m_elevation, &AngleReading::angleRequested, this, [this](int angle) {
+        m_elevationCommandTimer->stop();
+        emit commandRequested(QStringLiteral("W%1 %2")
+                                  .arg(formatAngle(m_azimuthValue, 450))
+                                  .arg(formatAngle(angle, 180)));
+    });
     elevationColumn->addWidget(m_slider, 1, Qt::AlignHCenter);
     elevationColumn->addWidget(m_elevation);
     layout->addLayout(elevationColumn, 2, 0);
@@ -158,6 +168,8 @@ void ControlPanel::setCommandEnabled(bool enabled)
 {
     m_compass->setEnabled(enabled);
     m_slider->setEnabled(enabled);
+    m_azimuth->setEditingEnabled(enabled);
+    m_elevation->setEditingEnabled(enabled);
     // NOTE: 预设编辑属于本地偏好设置，断开或透传时仍可编辑；发送端会校验真实连接状态。
     m_azimuthPresets->setEnabled(true);
     m_elevationPresets->setEnabled(true);
@@ -167,8 +179,8 @@ void ControlPanel::setPosition(int azimuth, int elevation)
 {
     m_azimuthValue = qBound(0, azimuth, 450);
     m_elevationValue = qBound(0, elevation, 180);
-    m_azimuth->setText(QStringLiteral("%1°").arg(formatAngle(m_azimuthValue, 450)));
-    m_elevation->setText(QStringLiteral("%1°").arg(formatAngle(m_elevationValue, 180)));
+    m_azimuth->setAngle(m_azimuthValue);
+    m_elevation->setAngle(m_elevationValue);
     m_compass->setAngle(m_azimuthValue);
     const QSignalBlocker blocker(m_slider);
     m_slider->setValue(m_elevationValue);

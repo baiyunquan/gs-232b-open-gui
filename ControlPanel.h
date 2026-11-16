@@ -3,8 +3,8 @@
 #include <QGroupBox>
 #include <QString>
 
+class AngleReading;
 class Compass;
-class QLabel;
 class QSlider;
 class QTimer;
 class QWidget;
@@ -32,8 +32,8 @@ signals:
 
 private:
     Compass *m_compass;
-    QLabel *m_azimuth;
-    QLabel *m_elevation;
+    AngleReading *m_azimuth;
+    AngleReading *m_elevation;
     QSlider *m_slider;
     QTimer *m_elevationCommandTimer;
     QWidget *m_azimuthPresets;
