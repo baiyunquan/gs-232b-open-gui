@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>GS-232B Open Control</title>
+  <rect width="512" height="512" rx="112" fill="#142D45"/>
+  <path d="M256 92a164 164 0 1 0 164 164"
+        fill="none" stroke="#F3F7FA" stroke-width="32" stroke-linecap="round"/>
+  <g fill="none" stroke="#F26B5B" stroke-width="26" stroke-linecap="round">
+    <path d="m180 332 182-182"/>
+    <path d="m170 240 102 102m-26-138 68 68"/>
+  </g>
+  <path d="m398 114-22 76-54-54Z" fill="#F26B5B"/>
+</svg>
