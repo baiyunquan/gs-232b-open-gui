@@ -53,10 +53,8 @@ bool AngleReading::eventFilter(QObject *watched, QEvent *event)
             const int key = static_cast<QKeyEvent *>(event)->key();
             if (key == Qt::Key_Escape || key == Qt::Key_Return || key == Qt::Key_Enter) {
                 const bool submit = key != Qt::Key_Escape;
-                if (!submit || m_editor->hasAcceptableInput()) {
+                if (!submit || m_editor->hasAcceptableInput())
                     finishEditing(submit);
-                    setFocus(Qt::OtherFocusReason);
-                }
                 event->accept();
                 return true;
             }
@@ -101,6 +99,8 @@ void AngleReading::resizeEvent(QResizeEvent *event)
 
 void AngleReading::beginEditing()
 {
+    if (!m_editingEnabled || m_editing)
+        return;
     m_editing = true;
     // NOTE: 空白区域通常不接收焦点，因此编辑期间同时监听输入框外的点击。
     qApp->installEventFilter(this);
@@ -122,10 +122,13 @@ void AngleReading::finishEditing(bool submit)
                    angle < 0 || angle > m_maximum))
         return;
 
-    // NOTE: 先结束编辑再隐藏输入框，避免隐藏触发的失焦事件重复处理。
+    // NOTE: 先结束编辑再移交焦点和隐藏输入框，避免失焦事件重复处理。
     m_editing = false;
     qApp->removeEventFilter(this);
+    if (m_editor->hasFocus())
+        setFocus(Qt::OtherFocusReason);
     m_editor->hide();
+    emit editingFinished();
     if (submit && m_editingEnabled)
         emit angleRequested(angle);
 }

@@ -6,11 +6,11 @@
 #include <QFrame>
 #include <QCoreApplication>
 #include <QGridLayout>
-#include <QInputDialog>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSlider>
+#include <QStackedLayout>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QtGlobal>
@@ -26,23 +26,51 @@ QWidget *makePresets(AppSettings::Axis axis, QWidget *parent)
 {
     AppSettings settings;
     const bool azimuth = axis == AppSettings::Axis::Azimuth;
+    const int maximum = azimuth ? 450 : 180;
     const QString prefix = azimuth ? QStringLiteral("azimuthPreset")
                                    : QStringLiteral("elevationPreset");
     auto *presets = new QWidget(parent);
     auto *grid = new QGridLayout(presets);
     grid->setContentsMargins(0, 0, 0, 0);
     for (int index = 0; index < AppSettings::presetCount(axis); ++index) {
+        auto *cell = new QWidget(presets);
+        cell->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        auto *stack = new QStackedLayout(cell);
+        stack->setContentsMargins(0, 0, 0, 0);
         auto *button = new QPushButton(
-            formatAngle(settings.presetAngle(axis, index), azimuth ? 450 : 180),
-            presets);
+            formatAngle(settings.presetAngle(axis, index), maximum), cell);
         button->setObjectName(prefix + QString::number(index));
         // NOTE: 预设只显示三位数字，按字体保留留白，将横向空间优先分配给罗盘。
-        button->setFixedWidth(button->fontMetrics().horizontalAdvance(QStringLiteral("000")) + 24);
+        cell->setFixedWidth(button->fontMetrics().horizontalAdvance(QStringLiteral("000")) + 24);
         button->setProperty("presetIndex", index);
         button->setContextMenuPolicy(Qt::CustomContextMenu);
         button->setToolTip(QCoreApplication::translate(
-            "ControlPanel", "Right-click to edit this preset"));
-        grid->addWidget(button, index / 2, index % 2);
+            "ControlPanel", "Right-click to edit this preset. Press Enter to save or Esc to cancel."));
+        auto *reading = new AngleReading(maximum, cell);
+        reading->setEditingEnabled(true);
+        reading->setAccessibleName(QCoreApplication::translate(
+            "ControlPanel", azimuth ? "Edit azimuth preset" : "Edit elevation preset"));
+        reading->setToolTip(button->toolTip());
+        stack->addWidget(button);
+        stack->addWidget(reading);
+        QObject::connect(button, &QPushButton::customContextMenuRequested, reading,
+                         [button, reading, stack] {
+            reading->setAngle(button->text().toInt());
+            stack->setCurrentWidget(reading);
+            reading->beginEditing();
+        });
+        QObject::connect(reading, &AngleReading::editingFinished, stack, [button, stack] {
+            stack->setCurrentWidget(button);
+        });
+        QObject::connect(reading, &AngleReading::angleRequested, button,
+                         [axis, index, maximum, button, parent](int angle) {
+            button->setText(formatAngle(angle, maximum));
+            if (!AppSettings().setPresetAngle(axis, index, angle))
+                QMessageBox::warning(parent,
+                    QCoreApplication::translate("ControlPanel", "Application settings"),
+                    QCoreApplication::translate("ControlPanel", "Could not save application settings."));
+        });
+        grid->addWidget(cell, index / 2, index % 2);
     }
     return presets;
 }
@@ -78,20 +106,6 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
 
     const auto azimuthPresets = m_azimuthPresets->findChildren<QPushButton *>();
     for (auto *button : azimuthPresets) {
-        connect(button, &QPushButton::customContextMenuRequested, this, [this, button] {
-            bool ok = false;
-            const int current = button->text().toInt();
-            const int angle = QInputDialog::getInt(
-                this, tr("Edit azimuth preset"), tr("Azimuth angle"),
-                current, 0, 450, 1, &ok);
-            if (!ok)
-                return;
-            button->setText(formatAngle(angle, 450));
-            const int index = button->property("presetIndex").toInt();
-            if (!AppSettings().setPresetAngle(AppSettings::Axis::Azimuth, index, angle))
-                QMessageBox::warning(this, tr("Application settings"),
-                                     tr("Could not save application settings."));
-        });
         connect(button, &QPushButton::clicked, this, [this, button] {
             bool ok = false;
             const int angle = button->text().trimmed().toInt(&ok);
@@ -130,20 +144,6 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
 
     const auto elevationPresets = m_elevationPresets->findChildren<QPushButton *>();
     for (auto *button : elevationPresets) {
-        connect(button, &QPushButton::customContextMenuRequested, this, [this, button] {
-            bool ok = false;
-            const int current = button->text().toInt();
-            const int angle = QInputDialog::getInt(
-                this, tr("Edit elevation preset"), tr("Elevation angle"),
-                current, 0, 180, 1, &ok);
-            if (!ok)
-                return;
-            button->setText(formatAngle(angle, 180));
-            const int index = button->property("presetIndex").toInt();
-            if (!AppSettings().setPresetAngle(AppSettings::Axis::Elevation, index, angle))
-                QMessageBox::warning(this, tr("Application settings"),
-                                     tr("Could not save application settings."));
-        });
         connect(button, &QPushButton::clicked, this, [this, button] {
             bool ok = false;
             const int angle = button->text().trimmed().toInt(&ok);

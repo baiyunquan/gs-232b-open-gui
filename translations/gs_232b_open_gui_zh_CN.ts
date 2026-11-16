@@ -115,8 +115,8 @@
             <translation>仰角</translation>
         </message>
         <message>
-            <source>Right-click to edit this preset</source>
-            <translation>右键可编辑此预设</translation>
+            <source>Right-click to edit this preset. Press Enter to save or Esc to cancel.</source>
+            <translation>右键可编辑此预设。按回车保存，按 Esc 取消。</translation>
         </message>
     </context>
     <context>
