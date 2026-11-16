@@ -12,6 +12,7 @@
 #include "NetworkPortConfigDialog.h"
 #include "PasswordChangeDialog.h"
 #include "RotorSettingsPanel.h"
+#include "StationGridDialog.h"
 #include "WifiProvisioningDialog.h"
 #include "virtual_serial/VirtualSerialBridge.h"
 
@@ -270,6 +271,10 @@ void MainWindow::createMenus()
             QMessageBox::warning(this, tr("Application settings"),
                                  tr("Could not save application settings."));
     });
+    auto *settings = menuBar()->addMenu(tr("Settings"));
+    auto *stationGridAction = settings->addAction(
+        tr("My grid..."), this, &MainWindow::openStationGrid);
+    stationGridAction->setObjectName(QStringLiteral("stationGridAction"));
     auto *management = menuBar()->addMenu(tr("Management"));
     m_authenticateAction = management->addAction(
         tr("Authenticate"), this, &MainWindow::authenticateManagement);
@@ -424,6 +429,13 @@ void MainWindow::startApProvisioning()
                 }
             });
     });
+}
+
+void MainWindow::openStationGrid()
+{
+    auto *dialog = new StationGridDialog(this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->open();
 }
 
 void MainWindow::openWifiProvisioning()

@@ -1,10 +1,13 @@
 #include "AppSettings.h"
 
+#include <QRegularExpression>
+
 #include <array>
 
 namespace {
 
 const QString ConsoleVisibleKey = QStringLiteral("view/consoleVisible");
+const QString StationGridKey = QStringLiteral("station/grid");
 
 QString presetKey(AppSettings::Axis axis, int index)
 {
@@ -51,6 +54,29 @@ bool AppSettings::consoleVisible() const
 bool AppSettings::setConsoleVisible(bool visible)
 {
     return storeValue(ConsoleVisibleKey, visible);
+}
+
+QString AppSettings::stationGrid() const
+{
+    const QString grid = m_settings.value(StationGridKey).toString().trimmed();
+    return isValidStationGrid(grid) ? grid.toUpper() : QString();
+}
+
+bool AppSettings::setStationGrid(const QString &grid)
+{
+    const QString trimmed = grid.trimmed();
+    if (!trimmed.isEmpty() && !isValidStationGrid(trimmed))
+        return false;
+
+    return storeValue(StationGridKey, trimmed.toUpper());
+}
+
+bool AppSettings::isValidStationGrid(const QString &grid)
+{
+    // NOTE: Maidenhead 前两位限 A–R，子网格限 A–X，后续数字对决定更高精度。
+    static const QRegularExpression pattern(
+        QStringLiteral("\\A[A-Ra-r]{2}[0-9]{2}(?:[A-Xa-x]{2}(?:[0-9]{2})?)?\\z"));
+    return pattern.match(grid.trimmed()).hasMatch();
 }
 
 int AppSettings::presetAngle(Axis axis, int index) const

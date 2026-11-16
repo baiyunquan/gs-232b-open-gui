@@ -43,6 +43,7 @@ private:
     void changeManagementPassword();
     void cancelManagement();
     void startApProvisioning();
+    void openStationGrid();
     void openWifiProvisioning();
     void openNetworkPortConfig();
     void resetNetworkConfiguration();

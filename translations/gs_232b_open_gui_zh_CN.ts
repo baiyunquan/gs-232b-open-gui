@@ -218,6 +218,14 @@
     <context>
         <name>MainWindow</name>
         <message>
+            <source>Settings</source>
+            <translation>设置</translation>
+        </message>
+        <message>
+            <source>My grid...</source>
+            <translation>我的网格...</translation>
+        </message>
+        <message>
             <source>Application settings</source>
             <translation>应用设置</translation>
         </message>
@@ -828,6 +836,37 @@
         <message>
             <source>Select all</source>
             <translation>全选</translation>
+        </message>
+    </context>
+    <context>
+        <name>StationGridDialog</name>
+        <message>
+            <source>My grid</source>
+            <translation>我的网格</translation>
+        </message>
+        <message>
+            <source>e.g. PM95AA</source>
+            <translation>例如 PM95AA</translation>
+        </message>
+        <message>
+            <source>Maidenhead grid locator</source>
+            <translation>Maidenhead 网格定位符</translation>
+        </message>
+        <message>
+            <source>Enter a 4, 6 or 8 character grid locator. Leave blank to clear.</source>
+            <translation>请输入 4、6 或 8 位网格定位符。留空保存可清除。</translation>
+        </message>
+        <message>
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <source>Save</source>
+            <translation>保存</translation>
+        </message>
+        <message>
+            <source>Could not save your grid.</source>
+            <translation>无法保存你的网格。</translation>
         </message>
     </context>
 </TS>

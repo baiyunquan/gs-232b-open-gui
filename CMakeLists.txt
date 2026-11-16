@@ -74,6 +74,8 @@ set(GUI_SOURCES
     ConsolePanel.h
     RotorSettingsPanel.cpp
     RotorSettingsPanel.h
+    StationGridDialog.cpp
+    StationGridDialog.h
     FaultStatusMonitor.cpp
     FaultStatusMonitor.h
     FaultStatusPanel.cpp

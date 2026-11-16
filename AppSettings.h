@@ -21,6 +21,16 @@ public:
     /** @return 立即同步控制台显示偏好到存储是否成功。 */
     bool setConsoleVisible(bool visible);
 
+    /** @brief 读取本站 Maidenhead 网格；返回大写，缺失或无效时返回空字符串。 */
+    QString stationGrid() const;
+    /**
+     * @brief 保存本站网格，自动去除首尾空白并转为大写；空字符串表示清除。
+     * @return 网格合法且立即同步到存储成功时返回 true；非法参数不写入。
+     */
+    bool setStationGrid(const QString &grid);
+    /** @brief 校验 4、6、8 位 Maidenhead 网格，忽略大小写和首尾空白；空值无效。 */
+    static bool isValidStationGrid(const QString &grid);
+
     /**
      * @brief 读取角度预设；缺失或无效时返回该位置的默认角度。
      * @param index 从 0 开始的预设位置；越界时返回 0。
