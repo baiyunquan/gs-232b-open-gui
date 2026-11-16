@@ -97,8 +97,11 @@ set(GUI_SOURCES
     CommunicationProtocol.cpp
     CommunicationProtocol.h
     MainWindow.cpp
+    MainWindowNetworkAddresses.cpp
     MainWindowN1mm.cpp
     MainWindow.h
+    NetworkAddresses.cpp
+    NetworkAddresses.h
     n1mm/N1mmNameDialog.cpp
     n1mm/N1mmNameDialog.h
     ConnectionPanel.cpp
@@ -150,6 +153,16 @@ target_link_libraries(gs_232b_open_gui
 
 if(BUILD_TESTING)
     find_package(Qt6 6.5 REQUIRED COMPONENTS Test)
+    qt_add_executable(network_addresses_tests
+        tests/NetworkAddressesTests.cpp
+        NetworkAddresses.cpp
+        NetworkAddresses.h
+    )
+    target_compile_features(network_addresses_tests PRIVATE cxx_std_17)
+    target_include_directories(network_addresses_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(network_addresses_tests PRIVATE Qt6::Network Qt6::Test)
+    add_test(NAME network_addresses_tests COMMAND network_addresses_tests)
+
     qt_add_executable(app_settings_tests
         tests/AppSettingsTests.cpp
         AppSettings.cpp

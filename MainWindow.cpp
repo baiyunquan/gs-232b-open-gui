@@ -324,6 +324,9 @@ void MainWindow::createMenus()
     m_cancelManagementAction = management->addAction(
         tr("Cancel management"), this, &MainWindow::cancelManagement);
     m_cancelManagementAction->setObjectName(QStringLiteral("cancelManagementAction"));
+    m_getIpAddressesAction = management->addAction(
+        tr("Get IP"), this, &MainWindow::getIpAddresses);
+    m_getIpAddressesAction->setObjectName(QStringLiteral("getIpAddressesAction"));
     auto *wifiMenu = management->addMenu(tr("Wi-Fi provisioning"));
     m_startApProvisioningAction = wifiMenu->addAction(
         tr("Start AP provisioning"), this, &MainWindow::startApProvisioning);
@@ -361,6 +364,7 @@ void MainWindow::updateConnectionState()
     m_authenticateAction->setEnabled(managementEnabled);
     m_changePasswordAction->setEnabled(managementEnabled);
     m_cancelManagementAction->setEnabled(managementEnabled);
+    m_getIpAddressesAction->setEnabled(managementEnabled);
     m_startApProvisioningAction->setEnabled(managementEnabled);
     m_manualWifiAction->setEnabled(managementEnabled);
     m_networkPortAction->setEnabled(managementEnabled);
@@ -918,7 +922,10 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
         }
         if (continuation)
             continuation(response.value(QStringLiteral("data")).toObject());
-        return;
+        // NOTE: 获取 IP 与配网试运行共用 NET GET；查询回调不能吞掉试运行就绪状态。
+        if (command != QStringLiteral("NET GET") ||
+            m_networkConfigurationStage != NetworkConfigurationStage::AwaitRuntime)
+            return;
     }
 
     if (m_networkConfigurationStage == NetworkConfigurationStage::Idle)

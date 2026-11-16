@@ -47,6 +47,7 @@ private:
     void authenticateManagement();
     void changeManagementPassword();
     void cancelManagement();
+    void getIpAddresses();
     void startApProvisioning();
     void openStationGrid();
     void openAzimuthOffset();
@@ -88,6 +89,7 @@ private:
     QAction *m_authenticateAction;
     QAction *m_changePasswordAction;
     QAction *m_cancelManagementAction;
+    QAction *m_getIpAddressesAction;
     QAction *m_startApProvisioningAction;
     QAction *m_manualWifiAction;
     QAction *m_networkPortAction;

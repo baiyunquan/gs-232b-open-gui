@@ -9,9 +9,11 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPointer>
 #include <QRadioButton>
 #include <QSignalSpy>
+#include <QTimer>
 #include <QWebSocket>
 #include <QWebSocketServer>
 #include <QtTest>
@@ -33,6 +35,8 @@ private slots:
     void cleanup();
     void networkStartUsesBareCommand();
     void wifiPollingReportsEveryRequest();
+    void ipQueryDoesNotRequireAuthentication();
+    void ipQueryPreservesWifiTrial();
     void failedAuthenticationDoesNotStartProvisioning();
     void cancelledAuthenticationDoesNotStartProvisioning();
 #ifdef Q_OS_UNIX
@@ -185,6 +189,80 @@ void ApProvisioningConnectionTests::wifiPollingReportsEveryRequest()
     QCOMPARE(patches.size(), 1);
     QVERIFY(patches.first().contains(QStringLiteral("wifi-secret")));
     m_connection->disconnectRequested();
+}
+
+void ApProvisioningConnectionTests::ipQueryDoesNotRequireAuthentication()
+{
+    QVERIFY(connectDevice());
+    auto *query = m_window->findChild<QAction *>(QStringLiteral("getIpAddressesAction"));
+    QVERIFY(query);
+    query->trigger();
+    QTRY_COMPARE(m_commands.filter(QStringLiteral("!NET GET")),
+                 QStringList{QStringLiteral("!NET GET\r")});
+    QVERIFY(m_commands.filter(QStringLiteral("!SESSION AUTH")).isEmpty());
+    QVERIFY(!m_window->findChild<ManagementKeyDialog *>());
+    QVERIFY(m_commands.filter(QStringLiteral("!PROV STATUS")).isEmpty());
+
+    m_peer->sendTextMessage(QStringLiteral(
+        "!{\"cmd\":\"NET GET\",\"ok\":true,\"data\":{\"runtime\":null}}\r\n"));
+    QTRY_COMPARE(m_commands.filter(QStringLiteral("!PROV STATUS")),
+                 QStringList{QStringLiteral("!PROV STATUS\r")});
+    QVERIFY(m_commands.filter(QStringLiteral("!SESSION AUTH")).isEmpty());
+}
+
+void ApProvisioningConnectionTests::ipQueryPreservesWifiTrial()
+{
+    QVERIFY(connectDevice());
+    connect(m_peer, &QWebSocket::textMessageReceived, this, [this](const QString &message) {
+        QString command;
+        QJsonObject data;
+        if (message.startsWith(QStringLiteral("!SESSION AUTH "))) {
+            command = QStringLiteral("SESSION AUTH");
+        } else if (message == QStringLiteral("!CFG BEGIN\r")) {
+            command = QStringLiteral("CFG BEGIN");
+            data = {{"candidate_id", 7}, {"base_revision", 2}};
+        } else if (message.startsWith(QStringLiteral("!NET SET "))) {
+            command = QStringLiteral("NET SET");
+        } else if (message == QStringLiteral("!CFG CHECK\r")) {
+            command = QStringLiteral("CFG CHECK");
+        } else if (message.startsWith(QStringLiteral("!CFG APPLY "))) {
+            command = QStringLiteral("CFG APPLY");
+            data = {{"trial_id", 11}};
+        } else {
+            return;
+        }
+        const QJsonObject response{{"cmd", command}, {"ok", true}, {"data", data}};
+        m_peer->sendTextMessage(QLatin1Char('!') +
+                               QString::fromUtf8(QJsonDocument(response).toJson(QJsonDocument::Compact)) +
+                               QStringLiteral("\r\n"));
+    });
+
+    m_window->findChild<QAction *>(QStringLiteral("wifiAction"))->trigger();
+    submitPassword();
+    QTRY_VERIFY(m_window->findChild<WifiProvisioningDialog *>());
+    m_window->findChild<WifiProvisioningDialog *>()->configurationRequested(
+        QStringLiteral("test-wifi"), QStringLiteral("wifi-secret"));
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("!NET GET\r")));
+
+    m_window->findChild<QAction *>(QStringLiteral("getIpAddressesAction"))->trigger();
+    QTRY_VERIFY(m_commands.count(QStringLiteral("!NET GET\r")) >= 2);
+    QTimer confirmation;
+    connect(&confirmation, &QTimer::timeout, this, [this] {
+        for (auto *dialog : m_window->findChildren<QMessageBox *>()) {
+            if (dialog->standardButtons().testFlag(QMessageBox::No))
+                dialog->done(QMessageBox::No);
+        }
+    });
+    confirmation.start(10);
+    const QJsonObject data{{"runtime", QJsonObject{{"wifi", QJsonObject{
+        {"connected", true}, {"ipv4_valid", true}, {"ssid", "test-wifi"},
+        {"address", "192.0.2.20"}}}}}};
+    const QJsonObject response{{"cmd", "NET GET"}, {"ok", true}, {"data", data}};
+    m_peer->sendTextMessage(QLatin1Char('!') +
+                           QString::fromUtf8(QJsonDocument(response).toJson(QJsonDocument::Compact)) +
+                           QStringLiteral("\r\n"));
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("!PROV STATUS\r")));
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("!CFG ABORT {\"trial_id\":11}\r")));
 }
 
 void ApProvisioningConnectionTests::failedAuthenticationDoesNotStartProvisioning()

@@ -460,6 +460,24 @@
             <translation>取消管理</translation>
         </message>
         <message>
+            <source>Get IP</source>
+            <translation>获取IP</translation>
+        </message>
+        <message>
+            <source>Wired IP: %1
+Wireless IP: %2</source>
+            <translation>有线IP: %1
+无线IP: %2</translation>
+        </message>
+        <message>
+            <source>Not connected</source>
+            <translation>未连接</translation>
+        </message>
+        <message>
+            <source>%1 (AP provisioning)</source>
+            <translation>%1（AP配网）</translation>
+        </message>
+        <message>
             <source>Wi-Fi provisioning</source>
             <translation>WiFi配网</translation>
         </message>
