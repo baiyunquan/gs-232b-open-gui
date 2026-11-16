@@ -26,6 +26,8 @@ public:
     void setPosition(int azimuth, int elevation);
     /** @brief 更新显示、数字输入和预设的方位补偿；保留设备读数，不发送命令。 */
     void setAzimuthOffset(int degrees);
+    /** @brief 切换方位取模显示与最近可达位置选解；取消待提交输入，不发送旋转命令。 */
+    void setShortestPathEnabled(bool enabled);
     /** @brief 切换方位罗盘的大圆图显示，不影响设备连接或角度读数。 */
     void setGreatCircleMapEnabled(bool enabled);
     /** @brief 更新大圆图与目标方位计算使用的本站网格，后续提交立即使用新值。 */
@@ -58,4 +60,5 @@ private:
     AzimuthScale m_azimuthScale;
     int m_azimuthValue = 0;
     int m_elevationValue = 0;
+    bool m_shortestPathEnabled = true;
 };

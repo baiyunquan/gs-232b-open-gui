@@ -4,6 +4,14 @@
     <context>
         <name>AngleReading</name>
         <message>
+            <source>Click to enter an integer angle. Angles wrap at 360°. Press Enter to move or Esc to cancel.</source>
+            <translation>点击输入整数角度，角度按 360° 取余。按回车转动，按 Esc 取消。</translation>
+        </message>
+        <message>
+            <source>Enter an integer angle.</source>
+            <translation>请输入整数角度。</translation>
+        </message>
+        <message>
             <source>Enter an angle from %1 to %2°.</source>
             <translation>请输入 %1 到 %2° 之间的角度。</translation>
         </message>
@@ -89,6 +97,10 @@
     </context>
     <context>
         <name>ControlPanel</name>
+        <message>
+            <source>Click to enter an integer angle, grid, callsign or prefix. Angles wrap at 360° and use the shortest reachable rotation. Callsigns use DXCC coordinates. Press Enter to move or Esc to cancel.</source>
+            <translation>点击输入整数角度、网格、呼号或前缀。角度按 360° 取余，并选择行程内最短的旋转路径。呼号使用所属 DXCC 的代表坐标。按回车转动，按 Esc 取消。</translation>
+        </message>
         <message>
             <source>Application settings</source>
             <translation>应用设置</translation>
@@ -225,6 +237,10 @@
     </context>
     <context>
         <name>MainWindow</name>
+        <message>
+            <source>Shortest rotation path</source>
+            <translation>最短路径旋转</translation>
+        </message>
         <message>
             <source>Azimuth offset...</source>
             <translation>方位角补偿…</translation>
@@ -659,8 +675,8 @@
             <translation>将方位转至逆时针限位，或将俯仰角转至 0°，再点击对应按钮校准控制器零点。</translation>
         </message>
         <message>
-            <source>At full scale, adjust the potentiometer until the displayed angle matches 360° or 450° plus azimuth offset, or 180° elevation.</source>
-            <translation>转至满量程后调节电位器，直到方位读数为 360° 或 450° 加上方位角补偿值，或俯仰读数为 180°。</translation>
+            <source>For full-scale calibration, turn off Settings → Shortest rotation path. Adjust the potentiometer until the reading matches 360° or 450° plus azimuth offset, or 180° elevation.</source>
+            <translation>满量程校准前，关闭“设置 → 最短路径旋转”。调节电位器，直到方位读数为 360° 或 450° 加上方位角补偿值，或俯仰读数为 180°。</translation>
         </message>
     </context>
     <context>

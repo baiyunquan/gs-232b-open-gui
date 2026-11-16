@@ -34,6 +34,11 @@ public:
     /** @return 立即同步方位角补偿到存储是否成功。 */
     bool setAzimuthOffset(int degrees);
 
+    /** @brief 读取方位最短路径模式；缺失或无效时默认开启。 */
+    bool shortestPathEnabled() const;
+    /** @return 立即同步最短路径模式到存储是否成功。 */
+    bool setShortestPathEnabled(bool enabled);
+
     /** @brief 读取本站 Maidenhead 网格；返回大写，缺失或无效时返回空字符串。 */
     QString stationGrid() const;
     /**

@@ -190,6 +190,20 @@ if(BUILD_TESTING)
     add_test(NAME angle_compensation_tests COMMAND angle_compensation_tests)
     set_tests_properties(angle_compensation_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+    qt_add_executable(shortest_path_tests
+        tests/ShortestPathTests.cpp
+        AngleReading.cpp AngleReading.h
+        AnglePresets.cpp AnglePresets.h
+        ControlPanel.cpp ControlPanel.h
+        AppSettings.cpp AppSettings.h
+        Compass.cpp Compass.h
+        GreatCircleMap.cpp GreatCircleMap.h
+    )
+    target_link_libraries(shortest_path_tests PRIVATE
+        gs232b_targeting Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::Test)
+    add_test(NAME shortest_path_tests COMMAND shortest_path_tests)
+    set_tests_properties(shortest_path_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
     qt_add_executable(terminal_tests
         tests/TerminalTests.cpp
         ConsolePanel.cpp

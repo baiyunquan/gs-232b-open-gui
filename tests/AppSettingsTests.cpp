@@ -23,6 +23,8 @@ private slots:
     void persistsAzimuthOffset();
     void invalidStoredAzimuthOffset_data();
     void invalidStoredAzimuthOffset();
+    void readsShortestPathPreference_data();
+    void readsShortestPathPreference();
     void validatesAndPersistsStationGrid_data();
     void validatesAndPersistsStationGrid();
     void clearsStationGrid();
@@ -40,6 +42,7 @@ void AppSettingsTests::defaultsDoNotWrite()
     QVERIFY(!settings.greatCircleMapEnabled());
     QVERIFY(settings.stationGrid().isEmpty());
     QCOMPARE(settings.azimuthOffset(), 0);
+    QVERIFY(settings.shortestPathEnabled());
     const std::array<int, 10> azimuth{0, 45, 90, 135, 180, 225, 270, 315, 360, 405};
     const std::array<int, 6> elevation{0, 25, 50, 75, 100, 125};
     QCOMPARE(AppSettings::presetCount(AppSettings::Axis::Azimuth), int(azimuth.size()));
@@ -66,6 +69,7 @@ void AppSettingsTests::savesImmediatelyAndPreservesOtherKeys()
     for (bool visible : {true, false}) {
         QVERIFY(settings.setConsoleVisible(visible));
         QVERIFY(settings.setGreatCircleMapEnabled(visible));
+        QVERIFY(settings.setShortestPathEnabled(visible));
         QFile file(fileName);
         QVERIFY(file.open(QIODevice::ReadOnly));
         const QByteArray content = file.readAll();
@@ -73,6 +77,7 @@ void AppSettingsTests::savesImmediatelyAndPreservesOtherKeys()
         AppSettings reopened(fileName);
         QCOMPARE(reopened.consoleVisible(), visible);
         QCOMPARE(reopened.greatCircleMapEnabled(), visible);
+        QCOMPARE(reopened.shortestPathEnabled(), visible);
         QCOMPARE(reopened.presetAngle(AppSettings::Axis::Azimuth, 3), 123);
         QSettings raw(fileName, QSettings::IniFormat);
         QCOMPARE(raw.value(QStringLiteral("other/value")).toString(), QStringLiteral("keep"));
@@ -319,6 +324,39 @@ void AppSettingsTests::invalidStoredGridDoesNotWrite()
     QCOMPARE(file.readAll(), content);
 }
 
+void AppSettingsTests::readsShortestPathPreference_data()
+{
+    QTest::addColumn<QByteArray>("stored");
+    QTest::addColumn<bool>("enabled");
+    QTest::newRow("empty") << QByteArray() << true;
+    QTest::newRow("invalid") << QByteArray("broken") << true;
+    QTest::newRow("invalid-number") << QByteArray("2") << true;
+    QTest::newRow("true") << QByteArray("true") << true;
+    QTest::newRow("false") << QByteArray("false") << false;
+    QTest::newRow("one") << QByteArray("1") << true;
+    QTest::newRow("zero") << QByteArray("0") << false;
+    QTest::newRow("mixed-case") << QByteArray("FaLsE") << false;
+}
+
+void AppSettingsTests::readsShortestPathPreference()
+{
+    QFETCH(QByteArray, stored);
+    QFETCH(bool, enabled);
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString fileName = directory.filePath(QStringLiteral("settings.ini"));
+    const QByteArray content = "[rotor]\nshortestPathEnabled=" + stored + '\n';
+    {
+        QFile file(fileName);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write(content), content.size());
+    }
+    QCOMPARE(AppSettings(fileName).shortestPathEnabled(), enabled);
+    QFile file(fileName);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QCOMPARE(file.readAll(), content);
+}
+
 void AppSettingsTests::reportsStorageFailure()
 {
     QTemporaryDir directory;
@@ -329,6 +367,7 @@ void AppSettingsTests::reportsStorageFailure()
     QVERIFY(!settings.setConsoleVisible(true));
     QVERIFY(!settings.setGreatCircleMapEnabled(true));
     QVERIFY(!settings.setAzimuthOffset(-30));
+    QVERIFY(!settings.setShortestPathEnabled(false));
     QVERIFY(!settings.setStationGrid(QStringLiteral("PM95AA")));
     QVERIFY(!settings.setPresetAngle(AppSettings::Axis::Azimuth, 0, 90));
 }

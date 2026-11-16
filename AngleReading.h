@@ -23,8 +23,11 @@ public:
 
     /** @brief 创建范围为 0 至 maximum 度的读数，默认禁止输入。 */
     explicit AngleReading(int maximum, QWidget *parent = nullptr);
-    /** @brief 设置连续角度的闭区间；要求 minimum <= maximum，取消尚未提交的编辑。 */
-    void setRange(qint64 minimum, qint64 maximum);
+    /**
+     * @brief 设置角度闭区间并取消尚未提交的编辑；要求 minimum <= maximum。
+     * @param circular 为 true 时须使用 0–359°，读数和整数输入按 360 取模。
+     */
+    void setRange(qint64 minimum, qint64 maximum, bool circular = false);
     /** @brief 更新显示读数；保留正在编辑的角度。 */
     void setAngle(qint64 angle);
     /** @brief 切换输入权限；禁止输入时取消尚未提交的编辑。 */
@@ -63,4 +66,5 @@ private:
     qint64 m_angle = 0;
     bool m_editingEnabled = false;
     bool m_editing = false;
+    bool m_circular = false;
 };

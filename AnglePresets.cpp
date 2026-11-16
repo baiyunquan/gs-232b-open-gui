@@ -46,8 +46,10 @@ AnglePresets::AnglePresets(AppSettings::Axis axis, QWidget *parent)
             stack->setCurrentWidget(button);
         });
         connect(reading, &AngleReading::angleRequested, this, [this, index](qint64 angle) {
-            // NOTE: 输入已按补偿后的闭区间校验；持久化继续使用既有机械角度格式。
-            const int mechanical = int(angle - m_offset);
+            // NOTE: 取模编辑以原预设选等价机械位置，原值提交不改变重叠行程；存储格式不变。
+            const int mechanical = m_shortestPathEnabled
+                                       ? AzimuthScale(m_offset).mechanicalBearing(angle, m_presets[index].angle)
+                                       : int(angle - m_offset);
             m_presets[index].angle = mechanical;
             updateAngles();
             if (!AppSettings().setPresetAngle(m_axis, index, mechanical))
@@ -67,18 +69,30 @@ void AnglePresets::setAzimuthOffset(int degrees)
     updateAngles();
 }
 
+void AnglePresets::setShortestPathEnabled(bool enabled)
+{
+    if (m_axis != AppSettings::Axis::Azimuth)
+        return;
+    m_shortestPathEnabled = enabled;
+    updateAngles();
+}
+
 void AnglePresets::updateAngles()
 {
-    const qint64 minimum = m_offset;
-    const qint64 maximum = minimum + (m_axis == AppSettings::Axis::Azimuth ? AzimuthScale::Maximum : 180);
+    const qint64 minimum = m_shortestPathEnabled ? 0 : m_offset;
+    const qint64 maximum = m_shortestPathEnabled
+                               ? 359 : minimum + (m_axis == AppSettings::Axis::Azimuth ? AzimuthScale::Maximum : 180);
     for (const Preset &preset : m_presets) {
-        preset.button->setText(QStringLiteral("%1").arg(qint64(preset.angle) + m_offset, 3, 10, QLatin1Char('0')));
+        const qint64 corrected = qint64(preset.angle) + m_offset;
+        preset.button->setText(QStringLiteral("%1").arg(
+            m_shortestPathEnabled ? qint64(AzimuthScale::normalized(corrected)) : corrected,
+            3, 10, QLatin1Char('0')));
         // NOTE: 为负号及更大的补偿值保留宽度，避免三位数字宽度裁切补偿后的预设。
         const auto metrics = preset.button->fontMetrics();
         const int width = qMax(metrics.horizontalAdvance(QString::number(minimum)),
                                metrics.horizontalAdvance(QString::number(maximum)));
         preset.cell->setFixedWidth(qMax(width, metrics.horizontalAdvance(QStringLiteral("000"))) + 24);
-        preset.reading->setRange(minimum, maximum);
-        preset.reading->setAngle(qint64(preset.angle) + m_offset);
+        preset.reading->setRange(minimum, maximum, m_shortestPathEnabled);
+        preset.reading->setAngle(corrected);
     }
 }

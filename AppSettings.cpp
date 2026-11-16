@@ -9,13 +9,17 @@ const QString ConsoleVisibleKey = QStringLiteral("view/consoleVisible");
 const QString GreatCircleMapEnabledKey = QStringLiteral("view/greatCircleMapEnabled");
 const QString StationGridKey = QStringLiteral("station/grid");
 const QString AzimuthOffsetKey = QStringLiteral("rotor/azimuthOffset");
+const QString ShortestPathEnabledKey = QStringLiteral("rotor/shortestPathEnabled");
 
-bool readBoolean(const QVariant &stored)
+bool readBoolean(const QVariant &stored, bool fallback = false)
 {
-    // NOTE: INI 重启后布尔值可能作为字符串读取，拒绝将任意非空损坏值解释为 true。
+    // NOTE: INI 重启后布尔值可能作为字符串读取，仅识别明确布尔值，其余使用该偏好的默认值。
     const QString value = stored.toString();
-    return value.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0 ||
-           value == QStringLiteral("1");
+    if (value.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0 || value == QStringLiteral("1"))
+        return true;
+    if (value.compare(QStringLiteral("false"), Qt::CaseInsensitive) == 0 || value == QStringLiteral("0"))
+        return false;
+    return fallback;
 }
 
 QString presetKey(AppSettings::Axis axis, int index)
@@ -83,6 +87,16 @@ int AppSettings::azimuthOffset() const
 bool AppSettings::setAzimuthOffset(int degrees)
 {
     return storeValue(AzimuthOffsetKey, degrees);
+}
+
+bool AppSettings::shortestPathEnabled() const
+{
+    return readBoolean(m_settings.value(ShortestPathEnabledKey), true);
+}
+
+bool AppSettings::setShortestPathEnabled(bool enabled)
+{
+    return storeValue(ShortestPathEnabledKey, enabled);
 }
 
 QString AppSettings::stationGrid() const

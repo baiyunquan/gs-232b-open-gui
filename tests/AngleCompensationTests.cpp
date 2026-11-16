@@ -58,6 +58,7 @@ void AngleCompensationTests::init()
     QVERIFY(m_directory.isValid());
     QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope,
                        m_directory.filePath(QString::number(++m_case)));
+    QVERIFY(AppSettings().setShortestPathEnabled(false));
 }
 
 void AngleCompensationTests::scaleRoundTrips_data()

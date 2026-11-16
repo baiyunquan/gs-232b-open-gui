@@ -300,6 +300,16 @@ void MainWindow::createMenus()
     auto *offsetAction = settings->addAction(
         tr("Azimuth offset..."), this, &MainWindow::openAzimuthOffset);
     offsetAction->setObjectName(QStringLiteral("azimuthOffsetAction"));
+    auto *shortestPathAction = settings->addAction(tr("Shortest rotation path"));
+    shortestPathAction->setObjectName(QStringLiteral("shortestPathAction"));
+    shortestPathAction->setCheckable(true);
+    shortestPathAction->setChecked(preferences.shortestPathEnabled());
+    connect(shortestPathAction, &QAction::toggled, this, [this](bool enabled) {
+        m_control->setShortestPathEnabled(enabled);
+        if (!AppSettings().setShortestPathEnabled(enabled))
+            QMessageBox::warning(this, tr("Application settings"),
+                                 tr("Could not save application settings."));
+    });
     auto *management = menuBar()->addMenu(tr("Management"));
     m_authenticateAction = management->addAction(
         tr("Authenticate"), this, &MainWindow::authenticateManagement);

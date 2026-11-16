@@ -55,8 +55,8 @@ void TargetControlTests::submitsTargets_data()
     QTest::newRow("callsign") << QStringLiteral("ja1abc") << QStringLiteral("M011");
     QTest::newRow("prefix") << QStringLiteral("JA") << QStringLiteral("M011");
     QTest::newRow("long-call") << QStringLiteral("EA8/K1ABC/P") << QStringLiteral("M335");
-    QTest::newRow("numeric") << QStringLiteral("405") << QStringLiteral("M405");
-    QTest::newRow("upper-limit") << QStringLiteral("450") << QStringLiteral("M450");
+    QTest::newRow("numeric") << QStringLiteral("405") << QStringLiteral("M045");
+    QTest::newRow("upper-limit") << QStringLiteral("450") << QStringLiteral("M090");
     QTest::newRow("north") << QStringLiteral("0") << QStringLiteral("M000");
 }
 
@@ -85,7 +85,7 @@ void TargetControlTests::rejectedInputCanBeCorrected()
     QSignalSpy commands(&panel, &ControlPanel::commandRequested);
     QSignalSpy errors(&panel, &ControlPanel::inputError);
     auto *reading = panel.findChild<AngleReading *>(QStringLiteral("azimuthReading"));
-    for (const QString input : {QString(), QStringLiteral("Q1ABC"), QStringLiteral("451"),
+    for (const QString input : {QString(), QStringLiteral("Q1ABC"), QStringLiteral("9223372036854775808"),
                                QStringLiteral("PM95AA"), QStringLiteral("JA1ABC/MM")}) {
         auto *editor = edit(reading, input);
         QTest::keyClick(editor, Qt::Key_Return);
@@ -123,7 +123,7 @@ void TargetControlTests::stationGridChangesTakeEffect()
     QVERIFY(commands.isEmpty());
     editor->setText(QStringLiteral("360"));
     QTest::keyClick(editor, Qt::Key_Return);
-    QCOMPARE(commands.takeFirst().first().toString(), QStringLiteral("M360"));
+    QCOMPARE(commands.takeFirst().first().toString(), QStringLiteral("M000"));
 }
 
 void TargetControlTests::cancellationDoesNotMove()

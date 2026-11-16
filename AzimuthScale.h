@@ -20,6 +20,9 @@ public:
     /** @return 补偿后的顺时针端点。 */
     qint64 maximum() const { return corrected(Maximum); }
 
+    /** @return 任意带符号整数度对应的 0–359° 方位，支持完整 qint64 范围。 */
+    static int normalized(qint64 angle) { return int((angle % 360 + 360) % 360); }
+
     /** @return 连续方位对应的设备目标；越过任一端点时返回空值，不钳位或绕回。 */
     std::optional<int> mechanical(qint64 corrected) const
     {
@@ -29,10 +32,10 @@ public:
     }
 
     /** @brief 把圆周方位转换为可达行程；重叠区域取距当前位置最近的解，等距取较小值。 */
-    int mechanicalBearing(int bearing, int current) const
+    int mechanicalBearing(qint64 bearing, int current) const
     {
-        // NOTE: 先在 64 位中减补偿，再修正 C++ 负余数；450° 行程保证至少有一个解。
-        const int first = int(((qint64(bearing) - m_offset) % 360 + 360) % 360);
+        // NOTE: 先取模再减补偿，避免极端 qint64 输入溢出；450° 行程保证至少有一个解。
+        const int first = normalized(qint64(normalized(bearing)) - m_offset);
         const int second = first + 360;
         if (second <= Maximum && qAbs(qint64(second) - current) < qAbs(qint64(first) - current))
             return second;

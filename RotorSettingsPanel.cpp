@@ -73,7 +73,7 @@ RotorSettingsPanel::RotorSettingsPanel(QWidget *parent) : QWidget(parent)
     zeroNote->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     calibrationLayout->addWidget(zeroNote);
     auto *fullScaleNote = new QLabel(
-        tr("At full scale, adjust the potentiometer until the displayed angle matches 360° or 450° plus azimuth offset, or 180° elevation."),
+        tr("For full-scale calibration, turn off Settings → Shortest rotation path. Adjust the potentiometer until the reading matches 360° or 450° plus azimuth offset, or 180° elevation."),
         calibrationGroup);
     fullScaleNote->setWordWrap(true);
     fullScaleNote->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
