@@ -4,12 +4,14 @@ GUI 接收同一电脑上 GridTracker / GridTracker 2 的旋转器定位请求�
 
 ## 配置和使用
 
-1. 在 GUI 连接 GS-232B，勾选“桥接 → GridTracker… → 启用”。开关立即保存，重启恢复监听；默认关闭。端口被其他程序占用时提示原因并保持关闭，不覆盖已保存偏好。
+1. 在 GUI 连接 GS-232B，勾选“桥接 → GridTracker… → 启用”，将主页面模式切到“跟踪”以允许定位。接入开关立即保存，重启恢复监听；默认关闭，控制模式每次启动默认为“手动”。端口被其他程序占用时提示原因并保持关闭，不覆盖已保存偏好。
 2. GridTracker 2 打开 **Settings → Features → Service → Rotor Control**，启用 **Rotor Control**，取消 **Connect** 后选择 **CatRotator / PstRotator**，Host 填 `127.0.0.1`，UDP Port 填 `12000`，再勾选 **Connect**。旧版 GridTracker 在 **CatRotator / PstRotator** 行启用服务，IP 和 UDP Port 使用相同值。
 3. 在 Call Roster 中右键呼号选择 **Aim Rotator**，或按住 **Ctrl** 点击地图目标。GridTracker 自行根据它的 QTH 计算方位，无需在 GUI 再设置本站网格。
 4. GridTracker 2 自动查询位置，位置回复端口为 `12001`。它的 **Follow Satellite** 可发送方位和仰角；不需要跟踪时在 GridTracker 取消该选项。
 
 GUI 的控制仍可使用，N1MM 桥接使用不同端口，也可同时启用。虚拟串口透传、断线、校准确认弹窗和校准执行期间不执行请求或回复位置。恢复后必须先收到新的实测读数，期间命令不排队重放。关闭接入会释放 `12000`。
+
+“手动”模式继续应答实测方位和仰角查询，但忽略所有定位请求；切回“跟踪”不重放期间收到的请求。主页面勾选“长径”后，将后续 GridTracker 方位目标反转 180°，再应用本地方位补偿和最短路径设置。例如无补偿时，目标 10° 按 190° 定位；仅仰角定位和位置查询保持原义。切换“长径”本身不发起定位。
 
 ## 通信约定
 

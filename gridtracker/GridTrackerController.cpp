@@ -61,6 +61,16 @@ void GridTrackerController::setAzimuthPosition(int mechanicalAzimuth)
     m_azimuthAge.start();
 }
 
+void GridTrackerController::setTrackingEnabled(bool enabled)
+{
+    if (enabled == m_trackingEnabled)
+        return;
+    // NOTE: 按手动权限消费排队报文，只回复查询；旧控制不能在切回跟踪后重放。
+    m_trackingEnabled = false;
+    readDatagrams();
+    m_trackingEnabled = enabled;
+}
+
 void GridTrackerController::setElevationPosition(int elevation)
 {
     if (!m_controlAvailable || elevation < 0 || elevation > 180) {
@@ -79,6 +89,11 @@ void GridTrackerController::setAzimuthOffset(int degrees)
 void GridTrackerController::setShortestPathEnabled(bool enabled)
 {
     m_shortestPath = enabled;
+}
+
+void GridTrackerController::setLongPathEnabled(bool enabled)
+{
+    m_longPath = enabled;
 }
 
 bool GridTrackerController::hasFreshPosition(const QElapsedTimer &age) const
@@ -102,6 +117,8 @@ void GridTrackerController::readDatagrams()
                 reportPosition(request.kind == GridTracker::Request::Kind::QueryAzimuth);
                 continue;
             }
+            if (!m_trackingEnabled)
+                continue;
             if (!hasFreshPosition(m_azimuthAge)) {
                 emit errorOccurred(tr("GridTracker turn command ignored: no recent rotator position is available."));
                 continue;
@@ -109,9 +126,11 @@ void GridTrackerController::readDatagrams()
             int target = m_azimuth;
             if (request.azimuth) {
                 const AzimuthScale scale(m_offset);
-                const auto direct = scale.mechanical(*request.azimuth);
+                const int bearing = m_longPath ? AzimuthScale::normalized(*request.azimuth + 180)
+                                              : *request.azimuth;
+                const auto direct = scale.mechanical(bearing);
                 target = !m_shortestPath && direct ? *direct
-                    : scale.mechanicalBearing(*request.azimuth, m_shortestPath ? m_azimuth : 0);
+                    : scale.mechanicalBearing(bearing, m_shortestPath ? m_azimuth : 0);
             }
             // NOTE: 仅方位请求使用 M，保留仰角；仅仰角请求在 W 中保持实测机械方位。
             const QString command = request.elevation

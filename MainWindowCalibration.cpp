@@ -45,6 +45,7 @@ void MainWindow::updateCalibrationState()
 {
     const bool enabled = m_transport->isOpen() && m_connection->isConnected() &&
                          !m_connection->isVirtualComEnabled();
+    m_control->setCommandEnabled(enabled && m_pendingCalibrationCommand.isEmpty());
     m_calibrationAction->setEnabled(enabled);
     if (m_calibrationDialog)
         m_calibrationDialog->setCommandEnabled(enabled && m_pendingCalibrationCommand.isEmpty());

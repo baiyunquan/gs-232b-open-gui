@@ -126,6 +126,18 @@
             <translation>长径</translation>
         </message>
         <message>
+            <source>Ignore control commands from bridge apps and continue reporting measured positions.</source>
+            <translation>忽略桥接应用的控制指令，继续回报实测角度。</translation>
+        </message>
+        <message>
+            <source>Allow bridge apps to control the rotator.</source>
+            <translation>允许桥接应用控制旋转器。</translation>
+        </message>
+        <message>
+            <source>Use the opposite azimuth for local and GridTracker targets. N1MM selects its own long or short path.</source>
+            <translation>本地与 GridTracker 的目标方位反转 180°。N1MM 自行选择长径或短径。</translation>
+        </message>
+        <message>
             <source>Azimuth</source>
             <translation>方位角</translation>
         </message>

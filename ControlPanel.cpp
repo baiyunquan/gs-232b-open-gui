@@ -18,15 +18,6 @@
 #include <QVBoxLayout>
 #include <QtGlobal>
 
-namespace {
-
-QString formatAngle(int angle, int maximum)
-{
-    return QStringLiteral("%1").arg(qBound(0, angle, maximum), 3, 10, QLatin1Char('0'));
-}
-
-} // namespace
-
 ControlPanel::ControlPanel(QWidget *parent) : QWidget(parent)
 {
     setObjectName(QStringLiteral("controlPanel"));
@@ -50,15 +41,27 @@ ControlPanel::ControlPanel(QWidget *parent) : QWidget(parent)
     auto *modeLayout = new QVBoxLayout(mode);
     auto *manual = new QRadioButton(tr("Manual"), mode);
     manual->setObjectName(QStringLiteral("manualMode"));
+    manual->setToolTip(tr("Ignore control commands from bridge apps and continue reporting measured positions."));
     manual->setChecked(true);
     auto *tracking = new QRadioButton(tr("Tracking"), mode);
     tracking->setObjectName(QStringLiteral("trackingMode"));
+    tracking->setToolTip(tr("Allow bridge apps to control the rotator."));
     auto *longPath = new QCheckBox(tr("LP"), mode);
     longPath->setObjectName(QStringLiteral("longPath"));
+    longPath->setToolTip(tr("Use the opposite azimuth for local and GridTracker targets. N1MM selects its own long or short path."));
     modeLayout->addWidget(manual);
     modeLayout->addWidget(tracking);
     modeLayout->addWidget(longPath);
-    // TODO: 接入 Manual / Tracking 控制模式及 LP 长径选路；当前仅保留互斥选择和勾选外观。
+    connect(tracking, &QRadioButton::toggled, this, [this](bool enabled) {
+        cancelPendingMotion();
+        m_trackingEnabled = enabled;
+        emit trackingEnabledChanged(enabled);
+    });
+    connect(longPath, &QCheckBox::toggled, this, [this](bool enabled) {
+        cancelPendingMotion();
+        m_longPathEnabled = enabled;
+        emit longPathEnabledChanged(enabled);
+    });
     azimuthColumn->addWidget(mode);
     azimuthColumn->addStretch(1);
     auto *azimuthLabel = new QLabel(tr("Azimuth"), azimuthControls);
@@ -120,12 +123,7 @@ ControlPanel::ControlPanel(QWidget *parent) : QWidget(parent)
     connect(m_elevation, &AngleReading::inputRejected, this, &ControlPanel::inputError);
     m_elevation->setAccessibleName(tr("Elevation angle"));
     connect(m_elevation, &AngleReading::angleRequested, this, [this](qint64 angle) {
-        if (!m_elevationSupported)
-            return;
-        m_elevationCommandTimer->stop();
-        emit commandRequested(QStringLiteral("W%1 %2")
-                                  .arg(formatAngle(m_azimuthValue, 450))
-                                  .arg(formatAngle(int(angle), 180)));
+        requestElevation(int(angle));
     });
     elevationColumn->addWidget(m_slider, 1, Qt::AlignHCenter);
     elevationColumn->addWidget(m_elevation);
@@ -140,25 +138,17 @@ ControlPanel::ControlPanel(QWidget *parent) : QWidget(parent)
     elevationLayout->addWidget(elevationPresetGroup);
     m_layout->addWidget(m_elevationControls);
 
-    connect(m_elevationPresets, &AnglePresets::angleRequested, this, [this](int angle) {
-        if (!m_elevationSupported)
-            return;
-        m_elevationCommandTimer->stop();
-        emit commandRequested(QStringLiteral("W%1 %2")
-                                  .arg(formatAngle(m_azimuthValue, 450))
-                                  .arg(formatAngle(angle, 180)));
-    });
+    connect(m_elevationPresets, &AnglePresets::angleRequested, this, &ControlPanel::requestElevation);
 
     connect(m_slider, &QSlider::valueChanged, this, [this] {
-        if (m_elevationSupported)
+        if (m_commandEnabled && m_elevationSupported)
             m_elevationCommandTimer->start();
     });
     connect(m_elevationCommandTimer, &QTimer::timeout, this, [this] {
-        emit commandRequested(QStringLiteral("W%1 %2")
-                                  .arg(formatAngle(m_azimuthValue, 450))
-                                  .arg(formatAngle(m_slider->value(), 180)));
+        requestElevation(m_slider->value());
     });
 
+    setupMotionButtons();
     const AppSettings preferences;
     m_shortestPathEnabled = preferences.shortestPathEnabled();
     m_azimuthPresets->setShortestPathEnabled(m_shortestPathEnabled);
@@ -177,20 +167,16 @@ void ControlPanel::setElevationSupported(bool supported)
         return;
     m_elevationSupported = supported;
     m_elevationCommandTimer->stop();
+    if (!supported)
+        m_elevationMotion->cancelMotion();
     m_elevationControls->setVisible(supported);
     setCommandEnabled(m_commandEnabled);
-}
-
-void ControlPanel::requestAzimuth(int mechanical)
-{
-    m_elevationCommandTimer->stop();
-    emit commandRequested(QStringLiteral("M%1").arg(formatAngle(mechanical, AzimuthScale::Maximum)));
 }
 
 void ControlPanel::setShortestPathEnabled(bool enabled)
 {
     m_shortestPathEnabled = enabled;
-    m_elevationCommandTimer->stop();
+    cancelPendingMotion();
     updateAzimuthInput();
     m_azimuthPresets->setShortestPathEnabled(enabled);
     setPosition(m_azimuthValue, m_elevationValue);
@@ -199,7 +185,7 @@ void ControlPanel::setShortestPathEnabled(bool enabled)
 void ControlPanel::setAzimuthOffset(int degrees)
 {
     m_azimuthScale = AzimuthScale(degrees);
-    m_elevationCommandTimer->stop();
+    cancelPendingMotion();
     updateAzimuthInput();
     m_azimuthPresets->setAzimuthOffset(degrees);
     setPosition(m_azimuthValue, m_elevationValue);
@@ -249,11 +235,6 @@ void ControlPanel::setCommandEnabled(bool enabled)
     // NOTE: 预设编辑属于本地偏好设置，断开或透传时仍可编辑；发送端会校验真实连接状态。
     m_azimuthPresets->setEnabled(true);
     m_elevationPresets->setEnabled(true);
-}
-
-void ControlPanel::cancelPendingMotion()
-{
-    m_elevationCommandTimer->stop();
 }
 
 void ControlPanel::setPosition(int azimuth, int elevation)

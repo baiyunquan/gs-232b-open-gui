@@ -76,6 +76,16 @@ void N1mmController::setPosition(int mechanicalAzimuth)
     reportPosition();
 }
 
+void N1mmController::setTrackingEnabled(bool enabled)
+{
+    if (enabled == m_trackingEnabled)
+        return;
+    // NOTE: 手动期间的控制报文不得在切回跟踪后重放；模式切换不作废实测读数。
+    while (isEnabled() && m_socket.hasPendingDatagrams())
+        m_socket.receiveDatagram(0);
+    m_trackingEnabled = enabled;
+}
+
 void N1mmController::setAzimuthOffset(int degrees)
 {
     m_offset = degrees;
@@ -99,7 +109,8 @@ void N1mmController::readDatagrams()
         if (!datagram.senderAddress().isLoopback())
             continue;
         const auto command = N1mm::parseCommand(datagram.data());
-        if (!command || !command->rotors.contains(m_rotorName) || !m_controlAvailable)
+        if (!command || !command->rotors.contains(m_rotorName) || !m_controlAvailable ||
+            !m_trackingEnabled)
             continue;
         if (command->kind == N1mm::Command::Kind::Stop) {
             // NOTE: N1MM 只控制方位；A 停止方位轴，不干扰 GUI 独立控制的仰角轴。

@@ -1,7 +1,11 @@
 #include "MotionButtons.h"
 
+#include <QApplication>
 #include <QBoxLayout>
+#include <QEvent>
 #include <QIcon>
+#include <QKeyEvent>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QToolButton>
@@ -81,19 +85,86 @@ MotionButtons::MotionButtons(Qt::Orientation orientation, QWidget *parent) : QWi
         button->setAccessibleName(hint);
         button->setToolTip(hint);
         button->setAutoRepeat(false);
+        button->setFocusPolicy(Qt::StrongFocus);
         layout->addWidget(button);
+        return button;
     };
-    addButton(vertical ? Symbol::Up : Symbol::Counterclockwise,
-              vertical ? QStringLiteral("elevationUp") : QStringLiteral("azimuthCounterclockwise"),
-              vertical ? tr("Hold to move up; release to stop")
-                       : tr("Hold to rotate counterclockwise; release to stop"));
-    addButton(vertical ? Symbol::Down : Symbol::Clockwise,
-              vertical ? QStringLiteral("elevationDown") : QStringLiteral("azimuthClockwise"),
-              vertical ? tr("Hold to move down; release to stop")
-                       : tr("Hold to rotate clockwise; release to stop"));
-    addButton(Symbol::Stop, vertical ? QStringLiteral("elevationStopAll")
-                                     : QStringLiteral("azimuthStopAll"),
-              tr("Stop all motion"));
-    // TODO: 实现点动：按下开始对应轴运动，松开、失焦或断连时停止；用设备回读验证。
-    // TODO: 将两个六边形停止按钮的单击接入全轴停止，并取消待提交的定位命令。
+    auto *first = addButton(vertical ? Symbol::Up : Symbol::Counterclockwise,
+                            vertical ? QStringLiteral("elevationUp") : QStringLiteral("azimuthCounterclockwise"),
+                            vertical ? tr("Hold to move up; release to stop")
+                                     : tr("Hold to rotate counterclockwise; release to stop"));
+    auto *second = addButton(vertical ? Symbol::Down : Symbol::Clockwise,
+                             vertical ? QStringLiteral("elevationDown") : QStringLiteral("azimuthClockwise"),
+                             vertical ? tr("Hold to move down; release to stop")
+                                      : tr("Hold to rotate clockwise; release to stop"));
+    auto *stop = addButton(Symbol::Stop, vertical ? QStringLiteral("elevationStopAll")
+                                                 : QStringLiteral("azimuthStopAll"),
+                           tr("Stop all motion"));
+    const auto wireDirection = [this](QToolButton *button, bool positive) {
+        button->installEventFilter(this);
+        connect(button, &QToolButton::pressed, this, [this, button, positive] {
+            if (!button->isEnabled() || m_activeButton == button)
+                return;
+            if (m_cancelledButton == button) {
+                button->setDown(false);
+                return;
+            }
+            cancelMotion();
+            m_activeButton = button;
+            qApp->installEventFilter(this);
+            emit motionStarted(positive);
+        });
+        connect(button, &QToolButton::released, this, [this, button] {
+            if (m_activeButton == button)
+                cancelMotion();
+        });
+    };
+    wireDirection(first, vertical);
+    wireDirection(second, !vertical);
+    connect(stop, &QToolButton::clicked, this, &MotionButtons::stopAllRequested);
+}
+
+void MotionButtons::cancelMotion()
+{
+    if (!m_activeButton)
+        return;
+    // NOTE: 先清理按住状态，避免停止后迟到的 released 中断后续定位。
+    m_cancelledButton = m_activeButton;
+    m_activeButton->setDown(false);
+    m_activeButton = nullptr;
+    qApp->removeEventFilter(this);
+    emit motionStopped();
+}
+
+bool MotionButtons::eventFilter(QObject *watched, QEvent *event)
+{
+    const bool keyEvent = event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease;
+    const auto *key = keyEvent ? static_cast<QKeyEvent *>(event) : nullptr;
+    const auto *button = qobject_cast<QToolButton *>(watched);
+    if (button && button->parentWidget() == this && key && key->key() == Qt::Key_Space && key->isAutoRepeat())
+        return true;
+    if (watched == m_cancelledButton) {
+        const bool mouseInput = event->type() == QEvent::MouseButtonPress ||
+                                event->type() == QEvent::MouseButtonDblClick ||
+                                event->type() == QEvent::MouseButtonRelease;
+        if ((mouseInput && static_cast<QMouseEvent *>(event)->button() == Qt::LeftButton) ||
+            (key && key->key() == Qt::Key_Space))
+            m_cancelledButton = nullptr;
+        // NOTE: QAbstractButton 会在按住后重新移入时再次发 pressed；取消后必须重新按下。
+        else if (event->type() == QEvent::MouseMove)
+            return true;
+    }
+    if (m_activeButton) {
+        const auto *widget = qobject_cast<QWidget *>(watched);
+        const bool ancestor = widget && (widget == this || widget->isAncestorOf(this));
+        const bool released = event->type() == QEvent::MouseButtonRelease &&
+                              static_cast<QMouseEvent *>(event)->button() == Qt::LeftButton;
+        if (released || event->type() == QEvent::ApplicationDeactivate ||
+            (event->type() == QEvent::WindowDeactivate && watched == window()) ||
+            (event->type() == QEvent::FocusOut && watched == m_activeButton) ||
+            (event->type() == QEvent::Hide && (ancestor || watched == m_activeButton)) ||
+            (event->type() == QEvent::EnabledChange && !m_activeButton->isEnabled()))
+            cancelMotion();
+    }
+    return QWidget::eventFilter(watched, event);
 }

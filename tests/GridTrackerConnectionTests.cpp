@@ -48,6 +48,8 @@ private slots:
     void ignoresVirtualSerialMode();
     void restoresPreferenceAndCoexistsWithN1mm();
     void keepsDisabledOnPortConflict();
+    void manualModeAnswersQueriesAndDropsControl();
+    void longPathOnlyChangesRequestedAzimuth();
 
 private:
     bool connectDevice();
@@ -116,6 +118,7 @@ bool GridTrackerConnectionTests::connectDevice()
 
 void GridTrackerConnectionTests::enable()
 {
+    m_window->findChild<QRadioButton *>(QStringLiteral("trackingMode"))->setChecked(true);
     m_window->findChild<QAction *>(QStringLiteral("gridTrackerEnableAction"))->setChecked(true);
     QVERIFY(m_controller->isEnabled());
 }
@@ -318,6 +321,72 @@ void GridTrackerConnectionTests::keepsDisabledOnPortConflict()
     QVERIFY(!AppSettings().gridTrackerEnabled());
     blocker.close();
     enable();
+}
+
+void GridTrackerConnectionTests::manualModeAnswersQueriesAndDropsControl()
+{
+    auto *manual = m_window->findChild<QRadioButton *>(QStringLiteral("manualMode"));
+    auto *tracking = m_window->findChild<QRadioButton *>(QStringLiteral("trackingMode"));
+    QVERIFY(manual->isChecked());
+    m_window->findChild<QAction *>(QStringLiteral("gridTrackerEnableAction"))->setChecked(true);
+    QVERIFY(connectDevice());
+    QSignalSpy commands(m_controller, &GridTrackerController::commandRequested);
+    QSignalSpy errors(m_controller, &GridTrackerController::errorOccurred);
+    send(Turn);
+    send(Poll);
+    QTest::qWait(30);
+    QVERIFY(commands.isEmpty());
+    QVERIFY(errors.isEmpty());
+    QVERIFY(!m_receiver.hasPendingDatagrams());
+    feed(QStringLiteral("AZ=350 EL=020\r\n"));
+    send(Turn);
+    send("<PST><ELEVATION>45</ELEVATION></PST>");
+    send(Poll);
+    QCOMPARE(receive(), QByteArray("AZ:350"));
+    QCOMPARE(receive(), QByteArray("EL:20"));
+    QVERIFY(commands.isEmpty());
+    send(Turn);
+    send(Poll);
+    tracking->setChecked(true);
+    QCOMPARE(receive(), QByteArray("AZ:350"));
+    QCOMPARE(receive(), QByteArray("EL:20"));
+    QVERIFY(commands.isEmpty());
+    send(Turn);
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("M370\r")));
+    manual->setChecked(true);
+    send(Turn);
+    send(Poll);
+    QCOMPARE(receive(), QByteArray("AZ:350"));
+    QCOMPARE(receive(), QByteArray("EL:20"));
+    QCOMPARE(commands.size(), 1);
+    QVERIFY(errors.isEmpty());
+}
+
+void GridTrackerConnectionTests::longPathOnlyChangesRequestedAzimuth()
+{
+    enable();
+    QVERIFY(connectDevice());
+    feed(QStringLiteral("AZ=350 EL=020\r\n"));
+    auto *longPath = m_window->findChild<QCheckBox *>(QStringLiteral("longPath"));
+    longPath->setChecked(true);
+    send(Turn);
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("M190\r")));
+    send("<PST><AZIMUTH>190</AZIMUTH><ELEVATION>45</ELEVATION></PST>");
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("W370 045\r")));
+    m_window->findChild<QAction *>(QStringLiteral("shortestPathAction"))->setChecked(false);
+    send("<PST><AZIMUTH>190</AZIMUTH></PST>");
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("M010\r")));
+    m_controller->setAzimuthOffset(30);
+    send(Turn);
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("M160\r")));
+    send("<PST><ELEVATION>0</ELEVATION></PST>");
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("W350 000\r")));
+    send(Poll);
+    QCOMPARE(receive(), QByteArray("AZ:20"));
+    QCOMPARE(receive(), QByteArray("EL:20"));
+    longPath->setChecked(false);
+    send(Turn);
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("M340\r")));
 }
 
 QTEST_MAIN(GridTrackerConnectionTests)

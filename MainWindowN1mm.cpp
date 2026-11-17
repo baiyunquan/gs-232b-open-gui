@@ -23,8 +23,9 @@ void MainWindow::createN1mmMenu(QMenu *bridge)
     m_n1mm->setShortestPathEnabled(preferences.shortestPathEnabled());
     connect(m_n1mm, &N1mmController::commandRequested, this, [this](const QString &command) {
         updateBridgeState();
-        if (!m_transport->isOpen() || m_connection->isVirtualComEnabled() ||
-            !m_pendingCalibrationCommand.isEmpty())
+        if (!m_transport->isOpen() || !m_connection->isConnected() ||
+            m_connection->isVirtualComEnabled() || !m_pendingCalibrationCommand.isEmpty() ||
+            !m_control->trackingEnabled())
             return;
         m_control->cancelPendingMotion();
         sendControlCommand(command);

@@ -122,6 +122,7 @@ set(GUI_SOURCES
     ConnectionPanel.cpp
     ConnectionPanel.h
     ControlPanel.cpp
+    ControlPanelMotion.cpp
     ControlPanel.h
     MotionButtons.cpp
     MotionButtons.h
@@ -249,6 +250,7 @@ if(BUILD_TESTING)
         AngleReading.cpp AngleReading.h
         AnglePresets.cpp AnglePresets.h
         ControlPanel.cpp ControlPanel.h
+        ControlPanelMotion.cpp
         MotionButtons.cpp MotionButtons.h
         AppSettings.cpp AppSettings.h
         Compass.cpp Compass.h
@@ -264,6 +266,7 @@ if(BUILD_TESTING)
         AngleReading.cpp AngleReading.h
         AnglePresets.cpp AnglePresets.h
         ControlPanel.cpp ControlPanel.h
+        ControlPanelMotion.cpp
         MotionButtons.cpp MotionButtons.h
         AppSettings.cpp AppSettings.h
         AzimuthScale.h
@@ -280,6 +283,7 @@ if(BUILD_TESTING)
         AngleReading.cpp AngleReading.h
         AnglePresets.cpp AnglePresets.h
         ControlPanel.cpp ControlPanel.h
+        ControlPanelMotion.cpp
         MotionButtons.cpp MotionButtons.h
         AppSettings.cpp AppSettings.h
         Compass.cpp Compass.h
@@ -289,6 +293,28 @@ if(BUILD_TESTING)
         gs232b_targeting gs232b_n1mm Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::Test)
     add_test(NAME shortest_path_tests COMMAND shortest_path_tests)
     set_tests_properties(shortest_path_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+    qt_add_executable(motion_control_tests
+        tests/MotionControlTests.cpp
+        AngleReading.cpp AngleReading.h
+        AnglePresets.cpp AnglePresets.h
+        ControlPanel.cpp ControlPanel.h ControlPanelMotion.cpp
+        MotionButtons.cpp MotionButtons.h
+        AppSettings.cpp AppSettings.h
+        Compass.cpp Compass.h
+        GreatCircleMap.cpp GreatCircleMap.h
+    )
+    target_link_libraries(motion_control_tests PRIVATE
+        gs232b_targeting gs232b_n1mm Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::Test)
+    add_test(NAME motion_control_tests COMMAND motion_control_tests)
+    set_tests_properties(motion_control_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+    qt_add_executable(motion_connection_tests tests/MotionConnectionTests.cpp ${GUI_SOURCES})
+    target_link_libraries(motion_connection_tests PRIVATE
+        Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test
+        gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm gs232b_gridtracker)
+    add_test(NAME motion_connection_tests COMMAND motion_connection_tests)
+    set_tests_properties(motion_connection_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
     qt_add_executable(terminal_tests
         tests/TerminalTests.cpp

@@ -20,10 +20,14 @@ void MainWindow::createGridTrackerMenu(QMenu *bridge)
     const AppSettings preferences;
     m_gridTracker->setAzimuthOffset(preferences.azimuthOffset());
     m_gridTracker->setShortestPathEnabled(preferences.shortestPathEnabled());
+    m_gridTracker->setLongPathEnabled(m_control->longPathEnabled());
+    connect(m_control, &ControlPanel::longPathEnabledChanged,
+            m_gridTracker, &GridTrackerController::setLongPathEnabled);
     connect(m_gridTracker, &GridTrackerController::commandRequested, this, [this](const QString &command) {
         updateBridgeState();
         if (!m_transport->isOpen() || !m_connection->isConnected() ||
-            m_connection->isVirtualComEnabled() || !m_pendingCalibrationCommand.isEmpty())
+            m_connection->isVirtualComEnabled() || !m_pendingCalibrationCommand.isEmpty() ||
+            !m_control->trackingEnabled())
             return;
         m_control->cancelPendingMotion();
         sendControlCommand(command);
@@ -71,4 +75,6 @@ void MainWindow::updateBridgeState()
                            m_pendingCalibrationCommand.isEmpty();
     m_n1mm->setControlAvailable(available);
     m_gridTracker->setControlAvailable(available);
+    m_n1mm->setTrackingEnabled(m_control->trackingEnabled());
+    m_gridTracker->setTrackingEnabled(m_control->trackingEnabled());
 }

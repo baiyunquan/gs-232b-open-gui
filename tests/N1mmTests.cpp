@@ -191,6 +191,7 @@ void N1mmTests::resolvesExtremeLocalOffsets()
 void N1mmTests::routesNamedCommandsAndStops()
 {
     N1mmController controller;
+    controller.setTrackingEnabled(true);
     QVERIFY(controller.setEnabled(true));
     controller.setControlAvailable(true);
     controller.setPosition(350);
@@ -232,6 +233,7 @@ void N1mmTests::reportsMeasuredPositionAndNameChanges()
 void N1mmTests::dropsUnavailableAndStaleCommands()
 {
     N1mmController controller;
+    controller.setTrackingEnabled(true);
     QVERIFY(controller.setEnabled(true));
     QSignalSpy commands(&controller, &N1mmController::commandRequested);
     QSignalSpy errors(&controller, &N1mmController::errorOccurred);
@@ -259,6 +261,7 @@ void N1mmTests::dropsUnavailableAndStaleCommands()
 void N1mmTests::disablingDropsQueuedCommands()
 {
     N1mmController controller;
+    controller.setTrackingEnabled(true);
     QVERIFY(controller.setEnabled(true));
     controller.setControlAvailable(true);
     controller.setPosition(350);

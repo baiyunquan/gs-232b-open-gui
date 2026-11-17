@@ -92,6 +92,7 @@ void GridTrackerTests::rejectsMalformedDatagrams()
 void GridTrackerTests::convertsHeadingsAndPreservesOtherAxis()
 {
     GridTrackerController controller;
+    controller.setTrackingEnabled(true);
     controller.setControlAvailable(true);
     controller.setAzimuthPosition(350);
     QVERIFY(controller.setEnabled(true));
@@ -128,6 +129,7 @@ void GridTrackerTests::reportsOnlyFreshMeasuredAxes()
     QUdpSocket receiver;
     QVERIFY(receiver.bind(QHostAddress::LocalHost, GridTracker::ReportingPort, QUdpSocket::DontShareAddress));
     GridTrackerController controller;
+    controller.setTrackingEnabled(true);
     QVERIFY(controller.setEnabled(true));
     controller.setControlAvailable(true);
     QSignalSpy errors(&controller, &GridTrackerController::errorOccurred);
@@ -173,6 +175,7 @@ void GridTrackerTests::reportsOnlyFreshMeasuredAxes()
 void GridTrackerTests::dropsUnavailableAndQueuedCommands()
 {
     GridTrackerController controller;
+    controller.setTrackingEnabled(true);
     QVERIFY(controller.setEnabled(true));
     QUdpSocket sender;
     QSignalSpy commands(&controller, &GridTrackerController::commandRequested);

@@ -26,10 +26,14 @@ public:
     void setStatusPanel(QWidget *panel);
     /** @brief 按设备确认的型号显示仰角区；隐藏时取消待提交的仰角操作。 */
     void setElevationSupported(bool supported);
-    /** @brief 按实际连接和透传状态统一切换命令控件。 */
+    /** @brief 按实际连接、透传及校准状态统一切换命令控件。 */
     void setCommandEnabled(bool enabled);
-    /** @brief 外部定位或停止前取消尚未发送的滑条命令，避免随后覆盖外部指令。 */
+    /** @brief 取消待发滑条命令并停止正在点动的轴；定位、停止或断开前调用。 */
     void cancelPendingMotion();
+    /** @return 是否允许桥接应用控制设备；手动模式仍保留位置反馈。 */
+    bool trackingEnabled() const { return m_trackingEnabled; }
+    /** @return 本地及 GridTracker 的方位目标是否使用长径；不改变实测角度。 */
+    bool longPathEnabled() const { return m_longPathEnabled; }
     /** @brief 更新设备实测角度，不触发滑条定位请求。 */
     void setPosition(int azimuth, int elevation);
     /** @brief 更新显示、数字输入和预设的方位补偿；保留设备读数，不发送命令。 */
@@ -52,9 +56,15 @@ signals:
     void mapError(const QString &message);
     /** @brief 角度或目标输入无效，未发送旋转命令，供主窗口展示错误。 */
     void inputError(const QString &message);
+    /** @brief 用户切换桥接控制权限；宿主应立即同步到所有桥接应用。 */
+    void trackingEnabledChanged(bool enabled);
+    /** @brief 用户切换后续方位目标的长径选路；N1MM 不使用该设置。 */
+    void longPathEnabledChanged(bool enabled);
 
 private:
+    void setupMotionButtons();
     void requestAzimuth(int mechanical);
+    void requestElevation(int angle);
     void updateAzimuthInput();
 
     Compass *m_compass;
@@ -75,4 +85,6 @@ private:
     bool m_shortestPathEnabled = true;
     bool m_commandEnabled = false;
     bool m_elevationSupported = true;
+    bool m_trackingEnabled = false;
+    bool m_longPathEnabled = false;
 };

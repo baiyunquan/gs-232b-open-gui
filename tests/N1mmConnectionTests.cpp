@@ -20,6 +20,7 @@
 #include <QSlider>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <QToolButton>
 #include <QUdpSocket>
 #include <QWebSocket>
 #include <QWebSocketServer>
@@ -58,6 +59,8 @@ private slots:
     void stopsWithoutSendingPendingSliderCommand();
     void ignoresVirtualComMode();
     void restoresEnabledPreference();
+    void manualModeReportsPositionAndDropsControl();
+    void longPathDoesNotChangeN1mmTargets();
 
 private:
     bool connectDevice();
@@ -157,6 +160,7 @@ QByteArray N1mmConnectionTests::receivePosition()
 
 void N1mmConnectionTests::enable()
 {
+    m_window->findChild<QRadioButton *>(QStringLiteral("trackingMode"))->setChecked(true);
     m_window->findChild<QAction *>(QStringLiteral("n1mmEnableAction"))->setChecked(true);
     QVERIFY(m_controller->isEnabled());
 }
@@ -266,6 +270,7 @@ void N1mmConnectionTests::pausesDuringCalibration()
     button->click();
     QTRY_VERIFY(m_commands.contains(command));
     QVERIFY(!button->isEnabled());
+    QVERIFY(!m_window->findChild<QToolButton *>(QStringLiteral("azimuthClockwise"))->isEnabled());
     send(turn());
     send(stop());
     QTest::qWait(30);
@@ -276,6 +281,7 @@ void N1mmConnectionTests::pausesDuringCalibration()
     QSignalSpy received(transport, &Communication::Transport::bytesReceived);
     QTRY_COMPARE(received.size(), 1);
     QVERIFY(button->isEnabled());
+    QVERIFY(m_window->findChild<QToolButton *>(QStringLiteral("azimuthClockwise"))->isEnabled());
     QSignalSpy errors(m_controller, &N1mmController::errorOccurred);
     send(turn());
     QTRY_COMPARE(errors.size(), 1);
@@ -324,6 +330,59 @@ void N1mmConnectionTests::restoresEnabledPreference()
     m_window->findChild<QAction *>(QStringLiteral("n1mmEnableAction"))->setChecked(false);
     QVERIFY(!m_controller->isEnabled());
     QVERIFY(!AppSettings().n1mmEnabled());
+}
+
+void N1mmConnectionTests::manualModeReportsPositionAndDropsControl()
+{
+    auto *manual = m_window->findChild<QRadioButton *>(QStringLiteral("manualMode"));
+    auto *tracking = m_window->findChild<QRadioButton *>(QStringLiteral("trackingMode"));
+    QVERIFY(manual->isChecked());
+    m_window->findChild<QAction *>(QStringLiteral("n1mmEnableAction"))->setChecked(true);
+    QVERIFY(connectDevice());
+    QSignalSpy commands(m_controller, &N1mmController::commandRequested);
+    QSignalSpy errors(m_controller, &N1mmController::errorOccurred);
+    send(turn());
+    send(stop());
+    QTest::qWait(30);
+    QVERIFY(commands.isEmpty());
+    QVERIFY(errors.isEmpty());
+    m_peer->sendTextMessage(QStringLiteral("AZ=350 EL=020\r\n"));
+    QCOMPARE(receivePosition(), QByteArray("GS232B@350"));
+    send(turn());
+    send(stop());
+    tracking->setChecked(true);
+    QTest::qWait(30);
+    QVERIFY(commands.isEmpty());
+    send(turn());
+    send(stop());
+    QTRY_COMPARE(commands.size(), 2);
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("M370\r")));
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("A\r")));
+    manual->setChecked(true);
+    send(turn());
+    send(stop());
+    m_peer->sendTextMessage(QStringLiteral("AZ=370\r\n"));
+    QCOMPARE(receivePosition(), QByteArray("GS232B@10"));
+    QTest::qWait(30);
+    QCOMPARE(commands.size(), 2);
+}
+
+void N1mmConnectionTests::longPathDoesNotChangeN1mmTargets()
+{
+    enable();
+    QVERIFY(connectDevice());
+    m_peer->sendTextMessage(QStringLiteral("AZ=350 EL=020\r\n"));
+    QCOMPARE(receivePosition(), QByteArray("GS232B@350"));
+    auto *longPath = m_window->findChild<QCheckBox *>(QStringLiteral("longPath"));
+    longPath->setChecked(true);
+    send(turn());
+    QTRY_COMPARE(m_commands.count(QStringLiteral("M370\r")), 1);
+    send(turn().replace("<goazi>10.0", "<goazi>190.0"));
+    QTRY_COMPARE(m_commands.count(QStringLiteral("M190\r")), 1);
+    longPath->setChecked(false);
+    send(turn());
+    QTRY_COMPARE(m_commands.count(QStringLiteral("M370\r")), 2);
+    QVERIFY(!m_receiver.hasPendingDatagrams());
 }
 
 QTEST_MAIN(N1mmConnectionTests)

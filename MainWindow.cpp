@@ -101,6 +101,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     });
     setupRotorModel();
     createMenus();
+    connect(m_control, &ControlPanel::trackingEnabledChanged, this, &MainWindow::updateBridgeState);
     setupVirtualSerial();
     connect(m_connection, &ConnectionPanel::stateChanged,
             this, &MainWindow::updateConnectionState);
@@ -195,6 +196,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
 MainWindow::~MainWindow()
 {
+    m_control->cancelPendingMotion();
     // NOTE: 先关闭两侧连接，避免 QObject 子对象析构时回调已销毁的界面。
     m_n1mm->setEnabled(false);
     m_gridTracker->setEnabled(false);
@@ -349,7 +351,6 @@ void MainWindow::updateConnectionState()
     updateBridgeState();
     const bool virtualCom = m_connection->isVirtualComEnabled();
     const bool commandEnabled = m_connection->isConnected() && !virtualCom;
-    m_control->setCommandEnabled(commandEnabled);
     m_console->setCommandEnabled(commandEnabled);
     m_speedMenu->setEnabled(commandEnabled);
     updateRotorModelState();
@@ -398,6 +399,7 @@ void MainWindow::openTransport()
 
 void MainWindow::closeTransport()
 {
+    m_control->cancelPendingMotion();
     m_transport->close();
     m_virtualSerial->stop();
     m_connection->setVirtualSerialPort({});

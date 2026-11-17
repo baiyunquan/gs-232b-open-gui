@@ -25,6 +25,8 @@ public:
     QString rotorName() const;
     /** @brief 连接断开、透传或校准时传 false，同时作废缓存位置，丢弃期间的命令。 */
     void setControlAvailable(bool available);
+    /** @brief 切换跟踪控制权限，默认手动；丢弃切换前排队命令，保持实测位置反馈。 */
+    void setTrackingEnabled(bool enabled);
     /** @brief 更新设备实测方位；有效读数可使用 3 秒，关闭接入时同样更新缓存。 */
     void setPosition(int mechanicalAzimuth);
     /** @brief 更新本地设备补偿并重报新鲜位置，不启动旋转。 */
@@ -50,5 +52,6 @@ private:
     int m_position = 0;
     int m_offset = 0;
     bool m_controlAvailable = false;
+    bool m_trackingEnabled = false;
     bool m_shortestPath = true;
 };

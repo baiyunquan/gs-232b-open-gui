@@ -1,5 +1,6 @@
 #include "CommunicationProtocol.h"
 
+#include <QDeadlineTimer>
 #include <QSerialPort>
 #include <QSignalBlocker>
 #include <QWebSocket>
@@ -115,13 +116,27 @@ void Transport::close()
 {
     const bool wasActive = m_open || m_opening;
     m_opening = false;
-    if (m_serial->isOpen())
+    QString serialError;
+    if (m_serial->isOpen()) {
+        // NOTE: close 会丢弃 Qt 写缓存；最多等待一秒，确保点动停止字节在断开前发出。
+        // NOTE: 排空期间不向界面交付串口回调，避免关闭流程被读数、错误或弹窗重入。
+        const QSignalBlocker blocker(m_serial);
+        QDeadlineTimer deadline(1000);
+        while (m_serial->isOpen() && m_serial->bytesToWrite() > 0) {
+            if (!m_serial->waitForBytesWritten(int(deadline.remainingTime()))) {
+                serialError = m_serial->errorString();
+                break;
+            }
+        }
         m_serial->close();
+    }
     if (m_webSocket->isValid() || m_webSocket->state() != QAbstractSocket::UnconnectedState)
         m_webSocket->close();
     m_open = false;
     if (wasActive)
         emit disconnected();
+    if (!serialError.isEmpty())
+        reportError(serialError);
 }
 
 bool Transport::isOpen() const

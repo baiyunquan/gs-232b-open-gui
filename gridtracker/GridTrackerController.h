@@ -21,6 +21,8 @@ public:
     QString errorString() const;
     /** @brief 断线、透传和校准时传 false，作废两轴读数并丢弃期间命令。 */
     void setControlAvailable(bool available);
+    /** @brief 切换跟踪控制权限，默认手动；丢弃排队控制，继续应答查询且保留实测缓存。 */
+    void setTrackingEnabled(bool enabled);
     /** @brief 更新 0–450° 实测机械方位，有效期 3 秒；不可控或越界时作废。 */
     void setAzimuthPosition(int mechanicalAzimuth);
     /** @brief 更新 0–180° 实测仰角，有效期 3 秒；不可控或越界时作废。 */
@@ -29,6 +31,8 @@ public:
     void setAzimuthOffset(int degrees);
     /** @brief 更新重叠行程的选解偏好，不启动旋转。 */
     void setShortestPathEnabled(bool enabled);
+    /** @brief 将后续方位目标反转 180° 后选解，不影响仰角或实测位置反馈。 */
+    void setLongPathEnabled(bool enabled);
 
 signals:
     /** @brief 请求发送 GS-232B 的 Mddd 或 Wddd eee；宿主仍须检查设备可控状态。 */
@@ -49,5 +53,7 @@ private:
     int m_elevation = 0;
     int m_offset = 0;
     bool m_controlAvailable = false;
+    bool m_trackingEnabled = false;
     bool m_shortestPath = true;
+    bool m_longPath = false;
 };
