@@ -993,10 +993,6 @@ Wireless IP: %2</source>
             <translation>在“设置 → 我的网格…”中设置网格，地图将以其为中心。</translation>
         </message>
         <message>
-            <source>Great-circle map centered on %1. Map by NS6T.</source>
-            <translation>以 %1 为中心的大圆图。地图由 NS6T 提供。</translation>
-        </message>
-        <message>
             <source>Set your grid
 to show the map</source>
             <translation>设置本站网格
