@@ -16,7 +16,8 @@
 - Cache the entire build directory, including FetchContent sources/builds, object files, static libraries, EXE and packaged output. Isolate incompatible compiler/SDK/Qt/CMake/Ninja combinations in the restore prefix.
 - Matching source/toolchain builds reuse the compiled EXE; compatible older sources reconfigure and build incrementally. Cached dependency sources bypass downloads on both kinds of hit. Packaging runs again to refresh the changelog.
 - Cache keys exclude commits, run IDs and dates; source-content and compiled-content hashes distinguish changed builds. Save full builds whenever compiled intermediates/outputs change, even if dependency versions do not change. Ignore log, archive and mtime-only changes. Only the default branch saves custom caches.
-- After saving, retain the latest two caches in each managed family (Qt, full build, PE tools), across this workflow's refs. Delete older entries without an age threshold. Also run maintenance weekly.
+- After saving, retain the latest two caches in each managed family (.venv, Qt, full build, PE tools), across this workflow's refs. Delete older entries without an age threshold. Also run maintenance weekly.
+- Python installer tools live in cached `.venv`, installed with `uv pip sync` from the locked requirements only on misses. Invoke aqt directly to avoid unconditional pip operations inside the Qt installation action.
 - Release version comes from CMake, tag is `v<version>`, notes come from that version's `CHANGELOG.md` section, and the full changelog is included in the ZIP.
 - Publish only when the manual boolean input is true, after a successful build. Reject an existing release or a tag pointing to another commit.
 

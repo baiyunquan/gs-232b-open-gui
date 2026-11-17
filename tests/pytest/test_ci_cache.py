@@ -25,7 +25,7 @@ class CacheTests(unittest.TestCase):
 
     def test_retention_is_separate_for_qt_build_and_tools(self):
         entries = []
-        for family in ("qt", "build", "pe-tools"):
+        for family in ("qt", "build", "pe-tools", "venv"):
             for generation in range(3):
                 entries.append({
                     "id": f"{family}-{generation}", "key": f"gs232b-windows-{family}-{generation}",
@@ -33,7 +33,7 @@ class CacheTests(unittest.TestCase):
                 })
         self.assertEqual(
             {entry["id"] for entry in cache.obsolete_caches(entries)},
-            {"qt-0", "build-0", "pe-tools-0"},
+            {"qt-0", "build-0", "pe-tools-0", "venv-0"},
         )
 
     def test_two_old_generations_are_kept_regardless_of_age(self):

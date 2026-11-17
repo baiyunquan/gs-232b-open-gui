@@ -32,6 +32,7 @@ jobs:
     env:
       BUILD_DIR: build/windows-msvc-x86_64
       QT_VERSION: '6.8.3'
+      UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
 
     steps:
       - name: Checkout
@@ -40,6 +41,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
+        id: python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
@@ -50,19 +52,90 @@ jobs:
           arch: x64
           vsversion: '2022'
 
-      - name: Install Qt
-        uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
+      - name: Restore local Python environment and uv downloads
+        id: venv_cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
-          version: ${{ env.QT_VERSION }}
-          host: windows
-          target: desktop
-          arch: win64_msvc2022_64
-          archives: qtbase qttools qttranslations
-          modules: qtserialport qtwebsockets qtpdf
-          aqtversion: '==3.3.0'
-          setup-python: false
-          cache: true
-          cache-key-prefix: gs232b-windows-qt
+          path: |
+            .venv
+            ${{ env.UV_CACHE_DIR }}
+          key: gs232b-windows-venv-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.python.outputs.python-version }}-${{ hashFiles('.github/requirements-ci.txt') }}
+
+      - name: Set up uv on environment cache miss
+        if: steps.venv_cache.outputs.cache-hit != 'true'
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.8'
+          enable-cache: false
+
+      - name: Create .venv and install locked tools with uv pip
+        if: steps.venv_cache.outputs.cache-hit != 'true'
+        env:
+          BASE_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          uv venv --python "$env:BASE_PYTHON" .venv
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to create .venv' }
+          uv pip sync --python .venv/Scripts/python.exe .github/requirements-ci.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to install locked CI tools' }
+
+      - name: Activate cached .venv
+        run: |
+          $venv = Join-Path $env:GITHUB_WORKSPACE '.venv'
+          & (Join-Path $venv 'Scripts/python.exe') -c 'import aqt, py7zr, sys; print(sys.executable)'
+          if ($LASTEXITCODE -ne 0) { throw 'Cached .venv is unusable; remove its cache and rerun.' }
+          "VIRTUAL_ENV=$venv" >> $env:GITHUB_ENV
+          (Join-Path $venv 'Scripts') >> $env:GITHUB_PATH
+
+      - name: Save .venv only on cache miss
+        if: steps.venv_cache.outputs.cache-hit != 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            .venv
+            ${{ env.UV_CACHE_DIR }}
+          key: ${{ steps.venv_cache.outputs.cache-primary-key }}
+
+      - name: Locate Qt SDK and preserve its existing cache key
+        id: qt_paths
+        run: |
+          $installDir = Join-Path $env:RUNNER_WORKSPACE 'Qt'
+          $qtRoot = Join-Path $installDir "$env:QT_VERSION/msvc2022_64"
+          $windowsRelease = node -p 'require("os").release()'
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the Windows runner version' }
+          $key = "gs232b-windows-qt-windows-$windowsRelease-desktop-win64_msvc2022_64-$env:QT_VERSION-$installDir-==1.1.0-==3.3.0-qtserialport-qtwebsockets-qtpdf-qtbase-qttools-qttranslations"
+          "install_dir=$installDir" >> $env:GITHUB_OUTPUT
+          "key=$key" >> $env:GITHUB_OUTPUT
+          "QT_INSTALL_DIR=$installDir" >> $env:GITHUB_ENV
+          "QT_ROOT_DIR=$qtRoot" >> $env:GITHUB_ENV
+
+      - name: Restore Qt SDK
+        id: qt_cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ steps.qt_paths.outputs.install_dir }}
+          key: ${{ steps.qt_paths.outputs.key }}
+
+      - name: Install Qt with .venv aqt only on SDK cache miss
+        if: steps.qt_cache.outputs.cache-hit != 'true'
+        run: >-
+          python -m aqt install-qt windows desktop "$env:QT_VERSION" win64_msvc2022_64
+          --outputdir "$env:QT_INSTALL_DIR" --archives qtbase qttools qttranslations
+          --modules qtserialport qtwebsockets qtpdf
+
+      - name: Enable Qt SDK
+        run: |
+          if (-not (Test-Path "$env:QT_ROOT_DIR/bin/Qt6Core.dll" -PathType Leaf)) {
+            throw 'Qt SDK cache is incomplete; remove its cache and rerun.'
+          }
+          (Join-Path $env:QT_ROOT_DIR 'bin') >> $env:GITHUB_PATH
+          "QT_PLUGIN_PATH=$(Join-Path $env:QT_ROOT_DIR 'plugins')" >> $env:GITHUB_ENV
+
+      - name: Save Qt SDK only on cache miss
+        if: steps.qt_cache.outputs.cache-hit != 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ steps.qt_paths.outputs.install_dir }}
+          key: ${{ steps.qt_cache.outputs.cache-primary-key }}
 
       - name: Check CI and runtime verification tests
         run: python -X utf8 -B -W error::ResourceWarning -m unittest discover -s tests/pytest -p 'test_*.py'
@@ -70,7 +143,7 @@ jobs:
       - name: Compute build cache key
         id: build_key
         env:
-          SOURCE_HASH: ${{ hashFiles('**/*.cpp', '**/*.h', 'CMakeLists.txt', 'cmake/**', 'translations/**', 'targeting/data/**', '.github/workflows/windows.yml') }}
+          SOURCE_HASH: ${{ hashFiles('**/*.cpp', '**/*.h', 'CMakeLists.txt', 'cmake/**', 'translations/**', 'targeting/data/**', '.github/workflows/windows.yml', '!.venv/**', '!.uv-cache/**') }}
           DEPENDENCY_HASH: ${{ hashFiles('cmake/TerminalDependencies.cmake') }}
         run: |
           $cmakeVersion = (cmake --version | Select-Object -First 1)

@@ -8,7 +8,7 @@ import json
 import subprocess
 
 
-CACHE_FAMILIES = ("gs232b-windows-qt-", "gs232b-windows-build-", "gs232b-windows-pe-tools-")
+CACHE_FAMILIES = ("gs232b-windows-qt-", "gs232b-windows-build-", "gs232b-windows-pe-tools-", "gs232b-windows-venv-")
 
 
 def obsolete_caches(entries: list[dict], keep: int = 2) -> list[dict]:

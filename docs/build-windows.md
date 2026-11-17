@@ -17,7 +17,11 @@ artifact 内包含 `gs-232b-open-gui-windows-x86_64.zip`，解压其中的完整
 
 ### 缓存与自动清理
 
-- Qt SDK 沿用安装工具的自动缓存，命中后跳过 SDK 下载和缓存上传。
+- Python 工具安装到项目内 `.venv/`，使用 `uv pip sync` 安装
+  `.github/requirements-ci.txt` 中锁定的依赖。`.venv` 和 uv 下载缓存一起保存；
+  缓存键包含实际 Python 补丁版本与锁文件哈希，命中后直接激活，跳过创建环境和依赖安装。
+- Qt SDK 保留原有缓存键，命中后跳过 SDK 下载和缓存上传。安装步骤改为直接调用
+  `.venv` 中的 `python -m aqt`，避免 Qt 安装 action 每次都运行 `pip install`。
 - 完整构建目录也进入缓存：包括 anytermqt、utf8proc 的源码与编译库、对象文件、
   CMake/Ninja 状态、应用 EXE，以及打包目录和 ZIP。
 - 构建缓存使用编译器、Windows SDK、Qt、CMake、Ninja、路径及依赖声明组成兼容前缀，
@@ -28,12 +32,18 @@ artifact 内包含 `gs-232b-open-gui-windows-x86_64.zip`，解压其中的完整
   编译中间文件和 EXE/DLL 计算内容哈希；**只要编译内容变化就上传新缓存**，没有变化则跳过。
   保存键包含编译内容哈希，避免 GitHub 不可覆盖的旧键阻止更新；仅修改时间、日志变化或
   重新压缩 ZIP 不触发上传。自定义缓存仅由默认分支写入。
-- 每次默认分支构建完成保存后，分别保留 Qt、完整构建和 PE 工具的**最新两份**缓存，
+- 每次默认分支构建完成保存后，分别保留 `.venv`、Qt、完整构建和 PE 工具的**最新两份**缓存，
   删除第三份及更早的条目，不按天数判断。每周日北京时间 11:17 也单独执行清理。
-  清理仅匹配本工作流的三类 `gs232b-windows-*` 前缀，不影响其他工作流的缓存。
+  清理仅匹配本工作流的四类 `gs232b-windows-*` 前缀，不影响其他工作流的缓存。
 
 每次运行仍会重新打包和检查，确保 ZIP 内的 `CHANGELOG.md` 与此次提交一致。
 缓存未命中时正常下载并构建，成功后才保存缓存。
+
+更新 Python 工具依赖时，修改 `.github/requirements-ci.in` 后生成锁文件：
+
+```powershell
+uv pip compile .github/requirements-ci.in --python-version 3.12 --python-platform windows --output-file .github/requirements-ci.txt
+```
 
 ### 可选的自动 Release
 
