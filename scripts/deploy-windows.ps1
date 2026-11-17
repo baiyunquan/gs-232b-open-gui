@@ -73,6 +73,7 @@ Translations=translations
     # main.cpp loads qtbase_zh_CN.qm; the application's own translation is embedded.
     Copy-Item -LiteralPath (Join-Path $qtDir 'translations/qtbase_zh_CN.qm') -Destination $translationsDir
     Copy-Item -LiteralPath (Join-Path $projectDir 'LICENSE') -Destination $stagingPackage
+    Copy-Item -LiteralPath (Join-Path $projectDir 'CHANGELOG.md') -Destination $stagingPackage
     Copy-Item -LiteralPath (Join-Path $buildRoot 'licenses') -Destination $stagingPackage -Recurse
     foreach ($licenseFolder in @('LICENSES', 'licenses')) {
         $qtLicenses = Join-Path $qtDir $licenseFolder

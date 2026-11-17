@@ -6,13 +6,51 @@
 `windows-2022`、Visual Studio 2022 MSVC、CMake 和 Ninja 构建 Windows x64 Release。
 Qt 固定为 6.8.3 `msvc2022_64`，安装 QtBase、QtTools、QtTranslations、
 QtSerialPort、QtWebSockets 和 QtPdf，并缓存 SDK。构建关闭 C++ 测试目标，
-但会运行无需 SDK 的 Windows 运行库检查回归测试。
+但会运行无需 SDK 的 CI 发布、缓存清理和 Windows 运行库检查回归测试。
 
 在仓库 **Actions → Windows** 查看进度；也可以点击 **Run workflow** 手动构建。
 成功后下载运行页面中的 `gs-232b-open-gui-windows-x86_64` artifact，保留 14 天。
 artifact 内包含 `gs-232b-open-gui-windows-x86_64.zip`，解压其中的完整程序目录，
 运行 `gs_232b_open_gui.exe`。ZIP 包含 Qt DLL、平台插件、MSVC 可再分发 DLL、
 中文翻译、许可证和 `qt.conf`。
+
+### 缓存与自动清理
+
+- Qt SDK 沿用安装工具的自动缓存，命中后跳过 SDK 下载和缓存上传。
+- 完整构建目录也进入缓存：包括 anytermqt、utf8proc 的源码与编译库、对象文件、
+  CMake/Ninja 状态、应用 EXE，以及打包目录和 ZIP。
+- 构建缓存使用编译器、Windows SDK、Qt、CMake、Ninja、路径及依赖声明组成兼容前缀，
+  再加项目源码内容哈希。源码和工具链完全匹配时直接复用编译成果；源码变化时恢复
+  兼容前缀下的上一份构建，重新配置并增量编译，第三方源码无需再次下载。
+- PE 检查用的 objdump 和配套 DLL 单独缓存，命中后跳过 MSYS2 安装。
+- 缓存键不含提交号、运行编号或日期。恢复缓存后和构建完成后，分别对对象文件、静态库、
+  编译中间文件和 EXE/DLL 计算内容哈希；**只要编译内容变化就上传新缓存**，没有变化则跳过。
+  保存键包含编译内容哈希，避免 GitHub 不可覆盖的旧键阻止更新；仅修改时间、日志变化或
+  重新压缩 ZIP 不触发上传。自定义缓存仅由默认分支写入。
+- 每次默认分支构建完成保存后，分别保留 Qt、完整构建和 PE 工具的**最新两份**缓存，
+  删除第三份及更早的条目，不按天数判断。每周日北京时间 11:17 也单独执行清理。
+  清理仅匹配本工作流的三类 `gs232b-windows-*` 前缀，不影响其他工作流的缓存。
+
+每次运行仍会重新打包和检查，确保 ZIP 内的 `CHANGELOG.md` 与此次提交一致。
+缓存未命中时正常下载并构建，成功后才保存缓存。
+
+### 可选的自动 Release
+
+在 **Actions → Windows → Run workflow** 中，`publish_release` 默认不勾选。
+普通推送、Pull Request、定时清理和未勾选的手动运行都不会发布 Release。
+
+勾选后，构建和打包成功才执行独立的发布任务：
+
+1. 从此次提交的 `CMakeLists.txt` 读取版本，例如 `0.2.1`，使用标签和标题 `v0.2.1`，
+   标签指向此次构建的提交，不自动递增版本。
+2. 将已验证的 ZIP 原样复制为 `gs-232b-open-gui-0.2.1-windows-x86_64.zip`，
+   附带 `.zip.sha256` 校验文件，自动发布正式 Release。
+3. 从根目录 `CHANGELOG.md` 的 `## [0.2.1]` 一节提取 Release 正文；
+   完整 `CHANGELOG.md` 同时包含在便携 ZIP 内。
+
+发布前应同时更新 CMake 版本和对应 changelog。缺少本版本更新说明时发布失败；
+已存在同名 Release，或同名标签指向其他提交时，也会失败并保留已有发布内容。
+只有发布任务获得 `contents: write`，普通构建保持只读仓库权限。
 
 工作流通过 `scripts/deploy-windows.ps1` 调用原生 `windeployqt.exe` 打包。
 MSVC DLL 仅来自当前工具链的 `VCToolsRedistDir/x64/Microsoft.VC143.CRT`，
