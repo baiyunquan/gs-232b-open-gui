@@ -19,7 +19,6 @@ class QLabel;
 class ManagementKeyDialog;
 class QMenu;
 class RotorModelDialog;
-class RotorSettingsPanel;
 class QTimer;
 class VirtualSerialBridge;
 class N1mmController;
@@ -96,7 +95,7 @@ private:
     ConnectionPanel *m_connection;
     ControlPanel *m_control;
     ConsolePanel *m_console;
-    RotorSettingsPanel *m_settings;
+    QMenu *m_speedMenu;
     RotorModelDialog *m_rotorModelDialog;
     QPointer<ManagementKeyDialog> m_rotorModelAuthDialog;
     QPointer<CalibrationDialog> m_calibrationDialog;

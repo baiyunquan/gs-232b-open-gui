@@ -129,8 +129,6 @@ set(GUI_SOURCES
     GreatCircleMap.h
     ConsolePanel.cpp
     ConsolePanel.h
-    RotorSettingsPanel.cpp
-    RotorSettingsPanel.h
     RotorModelDialog.cpp
     RotorModelDialog.h
     StationGridDialog.cpp

@@ -13,13 +13,13 @@
 #include "ManagementKeyDialog.h"
 #include "NetworkPortConfigDialog.h"
 #include "PasswordChangeDialog.h"
-#include "RotorSettingsPanel.h"
 #include "StationGridDialog.h"
 #include "WifiProvisioningDialog.h"
 #include "virtual_serial/VirtualSerialBridge.h"
 #include "n1mm/N1mmController.h"
 #include "gridtracker/GridTrackerController.h"
 
+#include <QActionGroup>
 #include <QApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -82,9 +82,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     auto *rightLayout = new QVBoxLayout(right);
     rightLayout->setContentsMargins(0, 0, 0, 0);
     rightLayout->setSpacing(10);
-    m_settings = new RotorSettingsPanel(right);
     m_faultStatus = new FaultStatusMonitor(this);
-    rightLayout->addWidget(m_settings);
     rightLayout->addWidget(new FaultStatusPanel(m_faultStatus, right));
     rightLayout->addStretch(1);
     columns->addWidget(right);
@@ -173,8 +171,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
                 sendControlCommand(command);
             });
     connect(m_control, &ControlPanel::commandRequested,
-            this, [this](const QString &command) { sendControlCommand(command); });
-    connect(m_settings, &RotorSettingsPanel::commandRequested,
             this, [this](const QString &command) { sendControlCommand(command); });
     connect(m_faultStatus, &FaultStatusMonitor::commandRequested,
             this, [this](const QString &command) { sendControlCommand(command); });
@@ -300,6 +296,20 @@ void MainWindow::createMenus()
                                  tr("Could not save application settings."));
     });
     settings->addSeparator();
+    m_speedMenu = settings->addMenu(tr("Azimuth speed"));
+    m_speedMenu->setObjectName(QStringLiteral("azimuthSpeedMenu"));
+    auto *speeds = new QActionGroup(m_speedMenu);
+    speeds->setExclusive(true);
+    for (int speed = 1; speed <= 4; ++speed) {
+        const QString command = QStringLiteral("X%1").arg(speed);
+        auto *action = m_speedMenu->addAction(command);
+        action->setObjectName(QStringLiteral("speed%1").arg(speed));
+        action->setCheckable(true);
+        speeds->addAction(action);
+        connect(action, &QAction::triggered, this, [this, command] {
+            sendControlCommand(command);
+        });
+    }
     m_rotorModelAction = settings->addAction(
         tr("Rotor model..."), this, &MainWindow::openRotorModel);
     m_rotorModelAction->setObjectName(QStringLiteral("rotorModelAction"));
@@ -352,7 +362,7 @@ void MainWindow::updateConnectionState()
     const bool commandEnabled = m_connection->isConnected() && !virtualCom;
     m_control->setCommandEnabled(commandEnabled);
     m_console->setCommandEnabled(commandEnabled);
-    m_settings->setCommandEnabled(commandEnabled);
+    m_speedMenu->setEnabled(commandEnabled);
     updateRotorModelState();
     updateCalibrationState();
     m_faultStatus->setEnabled(commandEnabled);

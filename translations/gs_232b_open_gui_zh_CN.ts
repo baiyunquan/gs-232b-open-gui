@@ -286,6 +286,10 @@
             <translation>设置</translation>
         </message>
         <message>
+            <source>Azimuth speed</source>
+            <translation>方位角速度</translation>
+        </message>
+        <message>
             <source>Calibration...</source>
             <translation>校准…</translation>
         </message>
@@ -748,14 +752,6 @@ Wireless IP: %2</source>
         <message>
             <source>Cancel</source>
             <translation>取消</translation>
-        </message>
-    </context>
-    <context>
-        <name>RotorSettingsPanel</name>
-        <message>
-            <location filename="../RotorSettingsPanel.cpp" line="36" />
-            <source>AZIMUTH SPEED</source>
-            <translation>方位速度</translation>
         </message>
     </context>
     <context>
