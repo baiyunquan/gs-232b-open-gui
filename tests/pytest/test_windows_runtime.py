@@ -26,13 +26,13 @@ class WindowsRuntimeTests(unittest.TestCase):
             runtime.verify(pathlib.Path(name))
 
     def test_msvc_ucrt_application_and_qt_pass(self):
-        for name in ("app.exe", "Qt6Core.dll", "platforms/qwindows.dll"):
+        for name in ("app.exe", "Qt5Core.dll", "Qt6Core.dll", "platforms/qwindows.dll"):
             with self.subTest(name=name):
                 self.verify(name, MSVC_UCRT)
 
     def test_original_msvcrt_qt_is_rejected(self):
         with self.assertRaises(ValueError):
-            self.verify("Qt6Core.dll", {"msvcrt.dll", "libstdc++-6.dll"})
+            self.verify("Qt5Core.dll", {"msvcrt.dll", "libstdc++-6.dll"})
 
     def test_ucrt_mingw_application_is_rejected(self):
         with self.assertRaises(ValueError):

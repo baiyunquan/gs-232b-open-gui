@@ -31,7 +31,7 @@ jobs:
         shell: pwsh
     env:
       BUILD_DIR: build/windows-msvc-x86_64
-      QT_VERSION: '6.8.3'
+      QT_VERSION: '5.15.2'
       UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
       CCACHE_VERSION: '4.14.3'
       CCACHE_DIR: ${{ github.workspace }}/build/windows-msvc-x86_64/ccache
@@ -56,6 +56,7 @@ jobs:
         with:
           arch: x64
           vsversion: '2022'
+          toolset: '14.29'
 
       - name: Restore local Python environment and uv downloads
         id: venv_cache
@@ -104,10 +105,10 @@ jobs:
         id: qt_paths
         run: |
           $installDir = Join-Path $env:RUNNER_WORKSPACE 'Qt'
-          $qtRoot = Join-Path $installDir "$env:QT_VERSION/msvc2022_64"
+          $qtRoot = Join-Path $installDir "$env:QT_VERSION/msvc2019_64"
           $windowsRelease = node -p 'require("os").release()'
           if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the Windows runner version' }
-          $key = "gs232b-windows-qt-windows-$windowsRelease-desktop-win64_msvc2022_64-$env:QT_VERSION-$installDir-==1.1.0-==3.3.0-qtserialport-qtwebsockets-qtpdf-qtbase-qttools-qttranslations"
+          $key = "gs232b-windows-qt-windows-$windowsRelease-desktop-win64_msvc2019_64-$env:QT_VERSION-$installDir-==1.1.0-==3.3.0-qtserialport-qtwebsockets-qtbase-qttools-qttranslations"
           "install_dir=$installDir" >> $env:GITHUB_OUTPUT
           "key=$key" >> $env:GITHUB_OUTPUT
           "QT_INSTALL_DIR=$installDir" >> $env:GITHUB_ENV
@@ -123,13 +124,13 @@ jobs:
       - name: Install Qt with .venv aqt only on SDK cache miss
         if: steps.qt_cache.outputs.cache-hit != 'true'
         run: >-
-          python -m aqt install-qt windows desktop "$env:QT_VERSION" win64_msvc2022_64
+          python -m aqt install-qt windows desktop "$env:QT_VERSION" win64_msvc2019_64
           --outputdir "$env:QT_INSTALL_DIR" --archives qtbase qttools qttranslations
-          --modules qtserialport qtwebsockets qtpdf
+          --modules qtserialport qtwebsockets
 
       - name: Enable Qt SDK
         run: |
-          if (-not (Test-Path "$env:QT_ROOT_DIR/bin/Qt6Core.dll" -PathType Leaf)) {
+          if (-not (Test-Path "$env:QT_ROOT_DIR/bin/Qt5Core.dll" -PathType Leaf)) {
             throw 'Qt SDK cache is incomplete; remove its cache and rerun.'
           }
           (Join-Path $env:QT_ROOT_DIR 'bin') >> $env:GITHUB_PATH
@@ -148,7 +149,7 @@ jobs:
       - name: Compute build cache key
         id: build_key
         env:
-          SOURCE_HASH: ${{ hashFiles('**/*.cpp', '**/*.h', 'CMakeLists.txt', 'cmake/**', 'translations/**', 'targeting/data/**', 'assets/**', '.github/workflows/windows.yml', '!.venv/**', '!.uv-cache/**') }}
+          SOURCE_HASH: ${{ hashFiles('**/*.cpp', '**/*.h', '**/*.qrc', 'CMakeLists.txt', 'cmake/**', 'translations/**', 'targeting/data/**', 'assets/**', '.github/workflows/windows.yml', '!.venv/**', '!.uv-cache/**') }}
           DEPENDENCY_HASH: ${{ hashFiles('cmake/TerminalDependencies.cmake') }}
         run: |
           $cmakeVersion = (cmake --version | Select-Object -First 1)

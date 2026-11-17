@@ -4,16 +4,21 @@
 
 `.github/workflows/windows.yml` 在推送、Pull Request 或手动触发时，使用
 `windows-2022`、Visual Studio 2022 MSVC、CMake 和 Ninja 构建 Windows x64 Release。
-Qt 固定为 6.8.3 `msvc2022_64`，安装 QtBase、QtTools、QtTranslations、
-QtSerialPort、QtWebSockets 和 QtPdf，并缓存 SDK。构建关闭 C++ 测试目标，
+Windows CI 固定为 Qt 5.15.2 `msvc2019_64` SDK，安装 QtBase、QtTools、QtTranslations、
+QtSerialPort 和 QtWebSockets，并缓存 SDK。应用使用 Visual Studio 2022 编译器构建；
+Visual Studio 2022 提供的 14.29（v142）工具集与 Qt SDK 匹配。构建关闭 C++ 测试目标，
 但会运行无需 SDK 的 CI 发布、缓存清理和 Windows 运行库检查回归测试。
 Python 测试统一放在 `tests/pytest/`，与 `tests/` 中的 C++/Qt 测试分开保存。
 
 在仓库 **Actions → Windows** 查看进度；也可以点击 **Run workflow** 手动构建。
 成功后下载运行页面中的 `gs-232b-open-gui-windows-x86_64` artifact，保留 14 天。
 artifact 内包含 `gs-232b-open-gui-windows-x86_64.zip`，解压其中的完整程序目录，
-运行 `gs_232b_open_gui.exe`。ZIP 包含 Qt DLL、平台插件、MSVC 可再分发 DLL、
+运行 `gs_232b_open_gui.exe`。ZIP 包含 Qt5 DLL、平台插件、MSVC 可再分发 DLL、
 中文翻译、许可证和 `qt.conf`。
+
+Qt 5.15 的公开 Windows SDK 没有 QtPdf 模块。Windows 版本用系统自带的
+`Windows.Data.Pdf` 渲染方位地图；该 API 从 Windows 10 build 10240 开始提供。
+Windows 构建因此不下载或打包 QtPdf。Linux 和 macOS 仍通过 Qt 6 构建，并使用 QtPdf。
 
 ### 缓存与自动清理
 
@@ -71,11 +76,11 @@ uv pip compile .github/requirements-ci.in --python-version 3.12 --python-platfor
 
 勾选后，构建和打包成功才执行独立的发布任务：
 
-1. 从此次提交的 `CMakeLists.txt` 读取版本，例如 `0.2.1`，使用标签和标题 `v0.2.1`，
+1. 从此次提交的 `CMakeLists.txt` 读取版本，例如 `0.3.0`，使用标签和标题 `v0.3.0`，
    标签指向此次构建的提交，不自动递增版本。
-2. 将已验证的 ZIP 原样复制为 `gs-232b-open-gui-0.2.1-windows-x86_64.zip`，
+2. 将已验证的 ZIP 原样复制为 `gs-232b-open-gui-0.3.0-windows-x86_64.zip`，
    附带 `.zip.sha256` 校验文件，自动发布正式 Release。
-3. 从根目录 `CHANGELOG.md` 的 `## [0.2.1]` 一节提取 Release 正文；
+3. 从根目录 `CHANGELOG.md` 的 `## [0.3.0]` 一节提取 Release 正文；
    完整 `CHANGELOG.md` 同时包含在便携 ZIP 内。
 
 发布前应同时更新 CMake 版本和对应 changelog。缺少本版本更新说明时发布失败；
@@ -83,12 +88,13 @@ uv pip compile .github/requirements-ci.in --python-version 3.12 --python-platfor
 只有发布任务获得 `contents: write`，普通构建保持只读仓库权限。
 
 工作流通过 `scripts/deploy-windows.ps1` 调用原生 `windeployqt.exe` 打包。
-MSVC DLL 仅来自当前工具链的 `VCToolsRedistDir/x64/Microsoft.VC143.CRT`，
+MSVC DLL 仅来自当前工具链的 x64 CRT 可再分发目录（Windows CI 使用
+`Microsoft.VC142.CRT`，本地 Qt 6 示例使用 `Microsoft.VC143.CRT`），
 不会从 Windows 系统目录补齐 DLL。打包前复用 `verify-windows-runtime.py`
 递归检查全部 EXE/DLL，拒绝非 x64、MinGW、旧 CRT 和 Debug CRT。
 `objdump` 在编译完成后通过 MSYS2 binutils 安装，仅用于检查 PE 文件。
 
-本地原生构建可在 **VS 2022 x64 开发者 PowerShell（PowerShell 7）** 中运行：
+本地 Qt 6 原生构建可在 **VS 2022 x64 开发者 PowerShell（PowerShell 7）** 中运行：
 
 ```powershell
 $qtPrefix = 'C:/Qt/6.8.3/msvc2022_64'

@@ -2,6 +2,13 @@
 
 版本号以 `CMakeLists.txt` 为准。发布前在本文件中补充对应版本的更新内容。
 
+## [Unreleased]
+
+### 构建与兼容性
+
+- Windows CI 改用 Qt 5.15.2，兼容 Windows 10 早期版本；地图 PDF 渲染使用 Windows 内置接口。
+- 保留 Linux 和 macOS 的 Qt 6 构建配置。
+
 ## [0.3.0] - 2026-11-17
 
 ### 新增与改进
