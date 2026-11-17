@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 
 spec = importlib.util.spec_from_file_location(
-    "ci_release", pathlib.Path(__file__).resolve().parents[1] / "scripts/ci-release.py"
+    "ci_release", pathlib.Path(__file__).resolve().parents[2] / "scripts/ci-release.py"
 )
 release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)

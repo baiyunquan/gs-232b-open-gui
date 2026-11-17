@@ -65,7 +65,7 @@ jobs:
           cache-key-prefix: gs232b-windows-qt
 
       - name: Check CI and runtime verification tests
-        run: python -X utf8 -B -W error::ResourceWarning -m unittest discover -s tests -p 'test_*.py'
+        run: python -X utf8 -B -W error::ResourceWarning -m unittest discover -s tests/pytest -p 'test_*.py'
 
       - name: Compute build cache key
         id: build_key

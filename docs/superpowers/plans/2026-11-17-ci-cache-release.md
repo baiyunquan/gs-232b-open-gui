@@ -22,11 +22,11 @@
 
 ## Tasks
 
-- [ ] Add behavioral tests for release metadata, byte-identical artifact promotion, duplicate/version protection, and two-generation cache retention/scope. Observe missing implementation failures, then implement the Python helpers.
-- [ ] Extend the workflow with conditional full-build restore/save, compatible incremental reuse, PE tools reuse, maintenance, and a separate optional publishing job.
-- [ ] Add the changelog to the package and document checkbox usage, cache lifecycle, and release version rules.
-- [ ] Run Python tests, PowerShell parsing and actionlint; commit and push to main. The user explicitly requested no further review.
-- [ ] Run CI with publishing disabled, then repeat to confirm exact hits and no duplicate cache uploads. Do not publish a Release during verification.
+- [x] Add behavioral tests under `tests/pytest/` for release metadata, byte-identical artifact promotion, duplicate/version protection, changed compiled content, and two-generation cache retention/scope. Observe missing implementation failures, then implement the Python helpers.
+- [x] Extend the workflow with conditional full-build restore/save, compatible incremental reuse, PE tools reuse, maintenance, and a separate optional publishing job.
+- [x] Add the changelog to the package and document checkbox usage, cache lifecycle, and release version rules.
+- [x] Run Python tests, PowerShell parsing and actionlint; commit and push to main. The user explicitly requested no further review.
+- [x] Trigger CI with publishing disabled. Per the user's latest instruction, do not poll Actions or perform repeat CI runs; stop after pushing. No Release is published during verification.
 
 ## Review focus
 

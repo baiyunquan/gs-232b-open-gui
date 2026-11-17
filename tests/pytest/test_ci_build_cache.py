@@ -8,7 +8,7 @@ import unittest
 
 
 spec = importlib.util.spec_from_file_location(
-    "ci_build_cache", pathlib.Path(__file__).resolve().parents[1] / "scripts/ci-build-cache.py"
+    "ci_build_cache", pathlib.Path(__file__).resolve().parents[2] / "scripts/ci-build-cache.py"
 )
 cache = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cache)

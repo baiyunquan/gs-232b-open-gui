@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 sys.dont_writebytecode = True
 spec = importlib.util.spec_from_file_location(
-    "windows_runtime", pathlib.Path(__file__).resolve().parents[1] / "scripts/verify-windows-runtime.py"
+    "windows_runtime", pathlib.Path(__file__).resolve().parents[2] / "scripts/verify-windows-runtime.py"
 )
 runtime = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runtime)

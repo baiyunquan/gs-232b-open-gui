@@ -6,7 +6,7 @@ import unittest
 
 
 spec = importlib.util.spec_from_file_location(
-    "ci_cache", pathlib.Path(__file__).resolve().parents[1] / "scripts/cleanup-ci-cache.py"
+    "ci_cache", pathlib.Path(__file__).resolve().parents[2] / "scripts/cleanup-ci-cache.py"
 )
 cache = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cache)

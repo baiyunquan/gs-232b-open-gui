@@ -7,6 +7,7 @@
 Qt 固定为 6.8.3 `msvc2022_64`，安装 QtBase、QtTools、QtTranslations、
 QtSerialPort、QtWebSockets 和 QtPdf，并缓存 SDK。构建关闭 C++ 测试目标，
 但会运行无需 SDK 的 CI 发布、缓存清理和 Windows 运行库检查回归测试。
+Python 测试统一放在 `tests/pytest/`，与 `tests/` 中的 C++/Qt 测试分开保存。
 
 在仓库 **Actions → Windows** 查看进度；也可以点击 **Run workflow** 手动构建。
 成功后下载运行页面中的 `gs-232b-open-gui-windows-x86_64` artifact，保留 14 天。
@@ -150,5 +151,5 @@ QT_WINDOWS_PREFIX=/path/to/Qt/6.8.3/msvc2022_64 \
 python3 scripts/verify-windows-runtime.py build/windows-msvc-x86_64/package
 
 # 运行打包运行库约束的回归检查，无需安装 Windows SDK。
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p test_windows_runtime.py
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/pytest -p test_windows_runtime.py
 ```
