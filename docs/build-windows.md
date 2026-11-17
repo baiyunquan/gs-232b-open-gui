@@ -23,7 +23,7 @@ artifact 内包含 `gs-232b-open-gui-windows-x86_64.zip`，解压其中的完整
 - Qt SDK 保留原有缓存键，命中后跳过 SDK 下载和缓存上传。安装步骤改为直接调用
   `.venv` 中的 `python -m aqt`，避免 Qt 安装 action 每次都运行 `pip install`。
 - 完整构建目录也进入缓存：包括 anytermqt、utf8proc 的源码与编译库、对象文件、
-  CMake/Ninja 状态、应用 EXE，以及打包目录和 ZIP。
+  CMake/Ninja 状态、应用 EXE、ccache 工具和对象缓存，以及打包目录和 ZIP。
 - 构建缓存使用编译器、Windows SDK、Qt、CMake、Ninja、路径及依赖声明组成兼容前缀，
   再加项目源码内容哈希。源码和工具链完全匹配时直接复用编译成果；源码变化时恢复
   兼容前缀下的上一份构建，重新配置并增量编译，第三方源码无需再次下载。
@@ -38,6 +38,25 @@ artifact 内包含 `gs-232b-open-gui-windows-x86_64.zip`，解压其中的完整
 
 每次运行仍会重新打包和检查，确保 ZIP 内的 `CHANGELOG.md` 与此次提交一致。
 缓存未命中时正常下载并构建，成功后才保存缓存。
+
+### MSVC 与 ccache
+
+CI 使用固定版本 ccache 4.14.3，通过 `CMAKE_C_COMPILER_LAUNCHER` 和
+`CMAKE_CXX_COMPILER_LAUNCHER` 包装 C/C++ 编译；应用和第三方库都使用同一套设置。
+ccache 工具在首次下载时校验 SHA256，之后随完整构建目录恢复，无需重复下载。
+
+MSVC 配置位于 `cmake/ccache-msvc.conf`：明确指定 `compiler_type=msvc`，
+按编译器内容判断版本，启用 depend mode、UTF-8 和压缩，对象缓存限制为 500 MiB。
+`VSLANG=1033` 固定英文诊断，与 `msvc_dep_prefix=Note: including file:` 配套；
+Ninja/MSVC 的 `/showIncludes` 提供头文件依赖，ccache 在 depend mode 下也会自动补齐该参数。
+
+`CMP0141` 在首次 `project()` 前设为 `NEW`，CI 显式选择
+`CMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded`，生成 `/Z7` 调试信息，
+避免 `/Zi`、`/ZI` 的共享编译 PDB；不叠加 `/MP`，由 Ninja 控制并行编译。
+动态 CRT `/MD` 和既有 `/utf-8` 保持一致。
+
+ccache 目录放在构建缓存内部，编译结果变化时与构建成果一起上传，沿用每类最新两份的
+清理规则，不新增按运行编号生成的缓存。日志会输出 ccache 命中、未命中和不可缓存的统计。
 
 更新 Python 工具依赖时，修改 `.github/requirements-ci.in` 后生成锁文件：
 
@@ -81,6 +100,11 @@ cmake --build build/windows-msvc-x86_64 --target gs_232b_open_gui --parallel 4
 # 打包还需 python 和 GNU objdump 在 PATH 中；仅检查 PE，不使用 MinGW 编译。
 ./scripts/deploy-windows.ps1 -QtPrefix $qtPrefix
 ```
+
+本地也要使用 ccache 时，需 CMake 3.25+ 和 PATH 中的 ccache，并在配置命令增加
+`-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded`；在开发者 PowerShell 中设置
+`$env:VSLANG='1033'` 和 `$env:CCACHE_CONFIGPATH=(Resolve-Path cmake/ccache-msvc.conf).Path`。
 
 如开发者环境未设置 `VCToolsRedistDir`，可通过 `-MsvcRedistDir` 指定完整的
 x64 `Microsoft.VC143.CRT` 目录。构建目录中的 `package/` 和

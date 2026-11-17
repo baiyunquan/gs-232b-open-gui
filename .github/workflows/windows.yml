@@ -33,6 +33,11 @@ jobs:
       BUILD_DIR: build/windows-msvc-x86_64
       QT_VERSION: '6.8.3'
       UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
+      CCACHE_VERSION: '4.14.3'
+      CCACHE_DIR: ${{ github.workspace }}/build/windows-msvc-x86_64/ccache
+      CCACHE_CONFIGPATH: ${{ github.workspace }}/cmake/ccache-msvc.conf
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      VSLANG: '1033'
 
     steps:
       - name: Checkout
@@ -148,7 +153,7 @@ jobs:
         run: |
           $cmakeVersion = (cmake --version | Select-Object -First 1)
           $ninjaVersion = (ninja --version)
-          $identity = "$env:VCToolsVersion|$env:WindowsSDKVersion|$env:QT_VERSION|$env:QT_ROOT_DIR|$cmakeVersion|$ninjaVersion|$((Get-Location).Path)"
+          $identity = "$env:VCToolsVersion|$env:WindowsSDKVersion|$env:QT_VERSION|$env:QT_ROOT_DIR|$cmakeVersion|$ninjaVersion|$((Get-Location).Path)|ccache-$env:CCACHE_VERSION|Embedded"
           $toolchainHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($identity))).Substring(0, 16).ToLowerInvariant()
           $prefix = "gs232b-windows-build-v1-${{ runner.os }}-${{ runner.arch }}-$toolchainHash-$env:DEPENDENCY_HASH-"
           "prefix=$prefix" >> $env:GITHUB_OUTPUT
@@ -161,6 +166,32 @@ jobs:
           path: build/windows-msvc-x86_64
           key: ${{ steps.build_key.outputs.key }}
           restore-keys: ${{ steps.build_key.outputs.prefix }}
+
+      - name: Set up cached ccache for MSVC
+        id: ccache
+        run: |
+          $tools = Join-Path $env:BUILD_DIR 'ccache-tools'
+          $name = "ccache-$env:CCACHE_VERSION-windows-x86_64"
+          $directory = Join-Path $tools $name
+          $executable = Join-Path $directory 'ccache.exe'
+          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            New-Item -ItemType Directory -Path $tools -Force | Out-Null
+            $archive = Join-Path $tools "$name.zip"
+            Invoke-WebRequest -Uri "https://github.com/ccache/ccache/releases/download/v$env:CCACHE_VERSION/$name.zip" -OutFile $archive
+            $expected = 'c845c3d65be81954c75659145a522a793a27586bf940c5dcfe18af33fa1a67dd'
+            if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+              throw 'ccache archive checksum mismatch'
+            }
+            Expand-Archive -LiteralPath $archive -DestinationPath $tools -Force
+          }
+          & $executable --version
+          if ($LASTEXITCODE -ne 0) { throw 'Cached ccache cannot run' }
+          & $executable --show-config
+          if ($LASTEXITCODE -ne 0) { throw 'Invalid MSVC ccache configuration' }
+          & $executable --zero-stats
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot reset ccache statistics' }
+          (Resolve-Path -LiteralPath $directory).Path >> $env:GITHUB_PATH
+          'ready=true' >> $env:GITHUB_OUTPUT
 
       - name: Fingerprint restored intermediates and outputs
         id: restored_build
@@ -182,6 +213,9 @@ jobs:
           cmake -S . -B "$env:BUILD_DIR" -G Ninja `
             "-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR" `
             "-DFETCHCONTENT_FULLY_DISCONNECTED=$disconnected" `
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
+            -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_WIN32_EXECUTABLE=ON `
             -DBUILD_TESTING=OFF
@@ -197,6 +231,10 @@ jobs:
             throw 'Build cache is incomplete; remove this cache and rerun.'
           }
           Write-Host 'Source and toolchain match: reusing cached libraries and EXE.'
+
+      - name: Show ccache hits and misses
+        if: always() && steps.ccache.outputs.ready == 'true'
+        run: ccache --show-stats --verbose
 
       - name: Restore PE inspection tools
         id: pe_cache

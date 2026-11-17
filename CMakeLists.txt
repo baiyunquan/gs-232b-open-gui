@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.21)
 
+# Select the MSVC debug format before project() enables the compiler. CI uses
+# Embedded (/Z7) so ccache does not depend on a shared compiler PDB (/Zi, /ZI).
+if(POLICY CMP0141)
+    cmake_policy(SET CMP0141 NEW)
+endif()
+
 project(gs_232b_open_gui VERSION 0.2.1 LANGUAGES C CXX)
 
 if(WIN32)
