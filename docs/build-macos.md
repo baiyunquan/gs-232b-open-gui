@@ -3,9 +3,10 @@
 ## GitHub Actions
 
 `.github/workflows/macos-arm64.yml` 在推送、Pull Request 和手动运行时构建 macOS ARM64
-Release。工作流使用 GitHub `macos-15` ARM runner、Apple Clang、CMake、Ninja 和 Qt 6.8.3
+Release。工作流使用 GitHub `macos-26` ARM runner、Apple Clang、CMake、Ninja 和 Qt 6.8.3
 `clang_64` SDK；CMake 目标架构固定为 `arm64`，最低部署版本为 macOS 12。Qt 官方支持 Qt 6.8
-在 macOS 12 或更新版本运行，并支持 `arm64`。
+在 macOS 12 或更新版本运行，并支持 `arm64`。工作流会核对运行时的 Xcode 和 SDK 版本，
+把它们纳入编译缓存键，避免镜像更新后复用旧编译文件。
 
 成功后可从 Actions 运行页下载 `gs-232b-open-gui-macos-arm64` artifact，其中包含自包含的
 `GS-232B Open GUI.app` 和 ZIP。`macdeployqt` 部署 Qt Framework、Cocoa 平台插件和 Qt 运行时，
@@ -22,7 +23,8 @@ Release。工作流使用 GitHub `macos-15` ARM runner、Apple Clang、CMake、N
   源码及工具链匹配时复用已编译程序；源码变化时从兼容缓存继续增量构建。
 - 编译成果根据 `.o`、`.a`、动态库和应用可执行文件内容计算指纹；编译内容变化才上传新缓存，
   时间戳、日志或重新打包变化不会产生重复缓存。
-- 只在默认分支保存缓存。每类缓存保留最新两份并立即删除第三份及更早的条目，不使用天数门槛。
+- 推送和手动运行在各自分支保存缓存；Pull Request 只读取缓存。每个分支的每类缓存保留
+  最新两份并立即删除第三份及更早的条目，不使用天数门槛。
 
 ### 可选的自动 Release
 
@@ -60,6 +62,6 @@ cmake --build "$BUILD_DIR" --target gs_232b_open_gui --parallel 2
 ./scripts/deploy-macos.sh
 ```
 
-最终输出位于 `build/macos-arm64/GS-232B Open GUI.app`（`package/` 下）和
+最终输出位于 `build/macos-arm64/package/GS-232B Open GUI.app` 和
 `build/macos-arm64/gs-232b-open-gui-macos-arm64.zip`。当前工作流生成未签名的 ARM64 包，
 不执行 Apple Developer ID 签名或公证。
