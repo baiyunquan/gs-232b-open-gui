@@ -21,10 +21,13 @@ Release。工作流使用 GitHub `macos-26` ARM runner、Apple Clang、CMake、N
   工具和对象缓存，以及打包目录和 ZIP。
 - 编译前检查 Apple 工具链、Qt 所需模块、翻译工具、FetchContent 依赖和 ccache；CMake 使用
   ccache 的绝对路径，避免 Ninja 切换工作目录后找不到编译器启动器。
+- macOS 26 SDK 已不提供 AGL。Qt 6.8.3 的 CMake 配置仍会链接它，CI 注入
+  `cmake/MacOSQt68OpenGL.cmake`，保留 OpenGL 并在编译前检查生成的链接命令没有 AGL。
 - 缓存按 Apple Clang、Xcode/macOS SDK、Qt、CMake、Ninja、部署目标、依赖和源码内容隔离。
   源码及工具链匹配时复用已编译程序；源码变化时从兼容缓存继续增量构建。
 - 编译成果根据 `.o`、`.a`、动态库和应用可执行文件内容计算指纹；编译内容变化才上传新缓存，
-  时间戳、日志或重新打包变化不会产生重复缓存。
+  时间戳、日志或重新打包变化不会产生重复缓存。即使链接或打包失败，已生成的编译文件也能
+  供下一次增量构建复用。
 - 推送和手动运行在各自分支保存缓存；Pull Request 只读取缓存。每个分支的每类缓存保留
   最新两份并立即删除第三份及更早的条目，不使用天数门槛。
 
@@ -57,6 +60,7 @@ export PATH="$QT_ROOT_DIR/bin:$PATH"
 export BUILD_DIR="$PWD/build/macos-arm64"
 cmake -S . -B "$BUILD_DIR" -G Ninja \
   "-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR" \
+  "-DCMAKE_PROJECT_gs_232b_open_gui_INCLUDE=$PWD/cmake/MacOSQt68OpenGL.cmake" \
   -DCMAKE_OSX_ARCHITECTURES=arm64 \
   -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
   -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
