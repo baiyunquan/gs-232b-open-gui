@@ -1,4 +1,43 @@
-# 在 Linux 上用 MSVC 编译 Windows 版本
+# 编译 Windows 版本
+
+## GitHub Actions：原生 Windows 构建
+
+`.github/workflows/windows.yml` 在推送、Pull Request 或手动触发时，使用
+`windows-2022`、Visual Studio 2022 MSVC、CMake 和 Ninja 构建 Windows x64 Release。
+Qt 固定为 6.8.3 `msvc2022_64`，安装 QtBase、QtTools、QtTranslations、
+QtSerialPort、QtWebSockets 和 QtPdf，并缓存 SDK。构建关闭 C++ 测试目标，
+但会运行无需 SDK 的 Windows 运行库检查回归测试。
+
+在仓库 **Actions → Windows** 查看进度；也可以点击 **Run workflow** 手动构建。
+成功后下载运行页面中的 `gs-232b-open-gui-windows-x86_64` artifact，保留 14 天。
+artifact 内包含 `gs-232b-open-gui-windows-x86_64.zip`，解压其中的完整程序目录，
+运行 `gs_232b_open_gui.exe`。ZIP 包含 Qt DLL、平台插件、MSVC 可再分发 DLL、
+中文翻译、许可证和 `qt.conf`。
+
+工作流通过 `scripts/deploy-windows.ps1` 调用原生 `windeployqt.exe` 打包。
+MSVC DLL 仅来自当前工具链的 `VCToolsRedistDir/x64/Microsoft.VC143.CRT`，
+不会从 Windows 系统目录补齐 DLL。打包前复用 `verify-windows-runtime.py`
+递归检查全部 EXE/DLL，拒绝非 x64、MinGW、旧 CRT 和 Debug CRT。
+`objdump` 在编译完成后通过 MSYS2 binutils 安装，仅用于检查 PE 文件。
+
+本地原生构建可在 **VS 2022 x64 开发者 PowerShell（PowerShell 7）** 中运行：
+
+```powershell
+$qtPrefix = 'C:/Qt/6.8.3/msvc2022_64'
+$env:PATH = "$qtPrefix/bin;$env:PATH"
+cmake -S . -B build/windows-msvc-x86_64 -G Ninja `
+    "-DCMAKE_PREFIX_PATH=$qtPrefix" -DCMAKE_BUILD_TYPE=Release `
+    -DCMAKE_WIN32_EXECUTABLE=ON -DBUILD_TESTING=OFF
+cmake --build build/windows-msvc-x86_64 --target gs_232b_open_gui --parallel 4
+# 打包还需 python 和 GNU objdump 在 PATH 中；仅检查 PE，不使用 MinGW 编译。
+./scripts/deploy-windows.ps1 -QtPrefix $qtPrefix
+```
+
+如开发者环境未设置 `VCToolsRedistDir`，可通过 `-MsvcRedistDir` 指定完整的
+x64 `Microsoft.VC143.CRT` 目录。构建目录中的 `package/` 和
+`gs-232b-open-gui-windows-x86_64.zip` 为最终输出。
+
+## 在 Linux 上用 MSVC 交叉编译
 
 `scripts/build-windows.sh` 面向 Linux x86_64 主机，通过 [msvc-wine](https://github.com/mstorsjo/msvc-wine) 在 Wine 中运行微软的 `cl.exe`、链接器和 Windows SDK 工具。CMake、Ninja 和 Qt 主机构建工具在 Linux 上运行。目标系统为 Windows 10（1809 或更新版本）/11 x64。
 

@@ -1,0 +1,88 @@
+name: Windows
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Windows x64 Release
+    runs-on: windows-2022
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      BUILD_DIR: build/windows-msvc-x86_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+          vsversion: '2022'
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
+        with:
+          version: '6.8.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          archives: qtbase qttools qttranslations
+          modules: qtserialport qtwebsockets qtpdf
+          aqtversion: '==3.3.0'
+          setup-python: false
+          cache: true
+          cache-key-prefix: gs232b-windows-qt
+
+      - name: Check runtime verification tests
+        run: python -B -m unittest discover -s tests -p test_windows_runtime.py
+
+      - name: Configure
+        run: >-
+          cmake -S . -B "$env:BUILD_DIR" -G Ninja
+          "-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR"
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_WIN32_EXECUTABLE=ON
+          -DBUILD_TESTING=OFF
+
+      - name: Build
+        run: cmake --build "$env:BUILD_DIR" --target gs_232b_open_gui --parallel 4
+
+      # Add binutils only after compilation so it cannot select a MinGW toolchain.
+      - name: Install PE inspection tool
+        run: |
+          & C:\msys64\usr\bin\bash.exe -lc 'pacman -Sy --needed --noconfirm mingw-w64-x86_64-binutils'
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to install objdump' }
+          'C:\msys64\mingw64\bin' >> $env:GITHUB_PATH
+
+      - name: Package and verify
+        run: ./scripts/deploy-windows.ps1 -QtPrefix "$env:QT_ROOT_DIR" -BuildDir "$env:BUILD_DIR"
+
+      - name: Upload Windows ZIP
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gs-232b-open-gui-windows-x86_64
+          path: build/windows-msvc-x86_64/gs-232b-open-gui-windows-x86_64.zip
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
