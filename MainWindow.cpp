@@ -49,14 +49,6 @@ QString managementAuthCommand(const QString &password)
         .arg(QString::fromUtf8(QJsonDocument(request).toJson(QJsonDocument::Compact)));
 }
 
-QString modelSetCommand(int modelId)
-{
-    QJsonObject request;
-    request.insert(QStringLiteral("model_id"), modelId);
-    return QStringLiteral("!ROTOR SET %1")
-        .arg(QString::fromUtf8(QJsonDocument(request).toJson(QJsonDocument::Compact)));
-}
-
 } // namespace
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
@@ -120,6 +112,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(m_control, &ControlPanel::inputError, this, [this](const QString &message) {
         statusBar()->showMessage(message, 15000);
     });
+    setupRotorModel();
     createMenus();
     setupVirtualSerial();
     connect(m_connection, &ConnectionPanel::stateChanged,
@@ -185,8 +178,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             this, [this](const QString &command) { sendControlCommand(command); });
     connect(m_faultStatus, &FaultStatusMonitor::commandRequested,
             this, [this](const QString &command) { sendControlCommand(command); });
-    connect(m_settings, &RotorSettingsPanel::modelApplyRequested,
-            this, &MainWindow::applyRotorModel);
     connect(m_positionPollTimer, &QTimer::timeout, this, [this] {
         sendControlCommand(QStringLiteral("C2"));
     });
@@ -309,6 +300,9 @@ void MainWindow::createMenus()
                                  tr("Could not save application settings."));
     });
     settings->addSeparator();
+    m_rotorModelAction = settings->addAction(
+        tr("Rotor model..."), this, &MainWindow::openRotorModel);
+    m_rotorModelAction->setObjectName(QStringLiteral("rotorModelAction"));
     m_calibrationAction = settings->addAction(
         tr("Calibration..."), this, &MainWindow::openCalibration);
     m_calibrationAction->setObjectName(QStringLiteral("calibrationAction"));
@@ -359,6 +353,7 @@ void MainWindow::updateConnectionState()
     m_control->setCommandEnabled(commandEnabled);
     m_console->setCommandEnabled(commandEnabled);
     m_settings->setCommandEnabled(commandEnabled);
+    updateRotorModelState();
     updateCalibrationState();
     m_faultStatus->setEnabled(commandEnabled);
     const bool managementEnabled = m_connection->isConnected() && !virtualCom;
@@ -377,10 +372,8 @@ void MainWindow::updateConnectionState()
         m_positionPollTimer->stop();
     m_connectionStatus->setText(m_connection->isConnected() ? tr("Connected") : tr("Disconnected"));
     m_transportStatus->setText(m_connection->isNetworkMode() ? tr("WebSocket") : tr("Serial"));
-    if (!m_connection->isConnected()) {
+    if (!m_connection->isConnected())
         setDevicePosition(0, 0);
-        m_settings->clearModelSelection();
-    }
 }
 
 void MainWindow::setDevicePosition(int azimuth, int elevation)
@@ -583,16 +576,6 @@ void MainWindow::openAbout()
     dialog->open();
 }
 
-void MainWindow::applyRotorModel()
-{
-    const QString command = modelSetCommand(m_settings->selectedModelId());
-    if (m_connection->isNetworkMode()) {
-        openManagementKey([this, command] { sendControlCommand(command); });
-        return;
-    }
-    sendControlCommand(command);
-}
-
 void MainWindow::flashFirmware(const QString &port, const QString &file)
 {
     if (port.isEmpty() || file.isEmpty())
@@ -661,15 +644,16 @@ void MainWindow::runManagementAction(const std::function<void()> &action,
         action();
 }
 
-void MainWindow::openManagementKey(const std::function<void()> &continuation,
-                                   const std::function<void()> &cancelled)
+ManagementKeyDialog *MainWindow::openManagementKey(const std::function<void()> &continuation,
+                                                  const std::function<void()> &cancelled,
+                                                  QWidget *promptParent)
 {
     if (m_managementAuthenticated) {
         continuation();
-        return;
+        return nullptr;
     }
 
-    auto *dialog = new ManagementKeyDialog(this);
+    auto *dialog = new ManagementKeyDialog(promptParent ? promptParent : this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     connect(dialog, &QDialog::accepted, this, [this, dialog, continuation] {
         const QString password = dialog->password();
@@ -686,6 +670,7 @@ void MainWindow::openManagementKey(const std::function<void()> &continuation,
             cancelled();
     });
     dialog->open();
+    return dialog;
 }
 
 void MainWindow::sendManagementCommand(
@@ -871,16 +856,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
     const QJsonObject response = document.object();
     const QString command = response.value(QStringLiteral("cmd")).toString().toUpper();
     const bool ok = response.value(QStringLiteral("ok")).toBool();
-    if (command == QStringLiteral("ROTOR GET") || command == QStringLiteral("ROTOR SET")) {
-        if (ok && m_connection->isConnected() && !m_connection->isVirtualComEnabled()) {
-            // NOTE: model_id 是已保存选择；active_model_id 可能仍是重启前的旧型号。
-            const QJsonValue modelId = response.value(QStringLiteral("data")).toObject()
-                                          .value(QStringLiteral("model_id"));
-            const int id = modelId.toInt(-1);
-            if (modelId.isDouble() && modelId.toDouble() == id)
-                m_settings->setSelectedModelId(id);
-        }
-    }
+    handleRotorModelResponse(response);
     if (!ok && response.value(QStringLiteral("error")).toString() ==
                   QStringLiteral("NOT_AUTHORIZED")) {
         m_managementAuthenticated = false;

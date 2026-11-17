@@ -113,6 +113,7 @@ set(GUI_SOURCES
     MainWindowNetworkAddresses.cpp
     MainWindowN1mm.cpp
     MainWindowGridTracker.cpp
+    MainWindowRotorModel.cpp
     MainWindow.h
     NetworkAddresses.cpp
     NetworkAddresses.h
@@ -130,6 +131,8 @@ set(GUI_SOURCES
     ConsolePanel.h
     RotorSettingsPanel.cpp
     RotorSettingsPanel.h
+    RotorModelDialog.cpp
+    RotorModelDialog.h
     StationGridDialog.cpp
     StationGridDialog.h
     FaultStatusMonitor.cpp

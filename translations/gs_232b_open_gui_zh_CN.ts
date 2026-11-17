@@ -601,6 +601,62 @@ Wireless IP: %2</source>
             <source>Network port configuration saved.</source>
             <translation>网口配置已保存。</translation>
         </message>
+        <message>
+            <source>Rotor model...</source>
+            <translation>旋转器型号…</translation>
+        </message>
+        <message>
+            <source>The device did not respond to the model request. Try again.</source>
+            <translation>设备未响应型号设置请求，请重试。</translation>
+        </message>
+        <message>
+            <source>Model write timed out. Reading the saved model again.</source>
+            <translation>写入型号超时，正在重新读取已保存型号。</translation>
+        </message>
+        <message>
+            <source>Connect to the controller to change its rotor model.</source>
+            <translation>请连接控制器后再修改旋转器型号。</translation>
+        </message>
+        <message>
+            <source>Writing rotor model...</source>
+            <translation>正在写入旋转器型号…</translation>
+        </message>
+        <message>
+            <source>Waiting for management authentication...</source>
+            <translation>正在等待管理认证…</translation>
+        </message>
+        <message>
+            <source>Management authentication failed. The model was not written.</source>
+            <translation>管理认证失败，未写入型号。</translation>
+        </message>
+        <message>
+            <source>Stop the rotator and wait for any sequence, upload or calibration to finish, then try again.</source>
+            <translation>请停止旋转器，等待序列、上传或校准完成后重试。</translation>
+        </message>
+        <message>
+            <source>Management authentication expired. Authenticate again to write the model.</source>
+            <translation>管理认证已失效，请重新认证后写入型号。</translation>
+        </message>
+        <message>
+            <source>Could not write the rotor model. The saved model has not changed.</source>
+            <translation>无法写入旋转器型号，已保存型号未改变。</translation>
+        </message>
+        <message>
+            <source>Could not read the rotor model. Reopen this dialog to try again.</source>
+            <translation>无法读取旋转器型号，请重新打开此窗口重试。</translation>
+        </message>
+        <message>
+            <source>The device returned an invalid rotor model. Read the saved model again before retrying.</source>
+            <translation>设备返回的旋转器型号无效，请重新读取已保存型号后重试。</translation>
+        </message>
+        <message>
+            <source>The device did not confirm the requested model. Check the saved model before retrying.</source>
+            <translation>设备未确认所选型号，请核对已保存型号后重试。</translation>
+        </message>
+        <message>
+            <source>Rotor model saved.</source>
+            <translation>旋转器型号已保存。</translation>
+        </message>
     </context>
     <context>
         <name>ManagementKeyDialog</name>
@@ -696,21 +752,6 @@ Wireless IP: %2</source>
     </context>
     <context>
         <name>RotorSettingsPanel</name>
-        <message>
-            <location filename="../RotorSettingsPanel.cpp" line="15" />
-            <source>ROTOR MODEL</source>
-            <translation>旋转器型号</translation>
-        </message>
-        <message>
-            <location filename="../RotorSettingsPanel.cpp" line="24" />
-            <source>SDX series</source>
-            <translation>SDX 系列</translation>
-        </message>
-        <message>
-            <location filename="../RotorSettingsPanel.cpp" line="29" />
-            <source>Apply model</source>
-            <translation>写入型号</translation>
-        </message>
         <message>
             <location filename="../RotorSettingsPanel.cpp" line="36" />
             <source>AZIMUTH SPEED</source>
@@ -1141,6 +1182,45 @@ Turn the map off and on to retry</source>
         <message>
             <source>Could not save the rotator name.</source>
             <translation>无法保存旋转器名称。</translation>
+        </message>
+    </context>
+    <context>
+        <name>RotorModelDialog</name>
+        <message>
+            <source>Rotor model</source>
+            <translation>旋转器型号</translation>
+        </message>
+        <message>
+            <source>Saved model</source>
+            <translation>已保存型号</translation>
+        </message>
+        <message>
+            <source>Select model</source>
+            <translation>选择型号</translation>
+        </message>
+        <message>
+            <source>SDX series</source>
+            <translation>SDX 系列</translation>
+        </message>
+        <message>
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <source>Apply model</source>
+            <translation>写入型号</translation>
+        </message>
+        <message>
+            <source>Not read</source>
+            <translation>尚未读取</translation>
+        </message>
+        <message>
+            <source>Active model: %1. Restart the controller to use the saved model.</source>
+            <translation>当前生效型号：%1。重启控制器后应用已保存型号。</translation>
+        </message>
+        <message>
+            <source>Restart the controller to use the saved model.</source>
+            <translation>重启控制器后应用已保存型号。</translation>
         </message>
     </context>
 </TS>

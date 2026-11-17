@@ -2,8 +2,10 @@
 #include "CommunicationProtocol.h"
 #include "ConnectionPanel.h"
 #include "MainWindow.h"
-#include "RotorSettingsPanel.h"
+#include "RotorModelDialog.h"
+#include "ManagementKeyDialog.h"
 
+#include <QAction>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFile>
@@ -15,6 +17,7 @@
 #include <QSignalSpy>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <QTimer>
 #include <QWebSocket>
 #include <QWebSocketServer>
 #include <QtTest>
@@ -54,6 +57,11 @@ private slots:
     void readsConfiguredModel();
     void invalidResponsesPreserveSelection();
     void reconnectClearsAndReadsAgain();
+    void writesAfterAuthenticationAndAcknowledgement();
+    void failedWritesPreserveSavedModel_data();
+    void failedWritesPreserveSavedModel();
+    void closingDuringAuthenticationCancelsWrite();
+    void writeTimeoutReadsSavedModelAgain();
 #ifdef Q_OS_UNIX
     void virtualComDoesNotQuery();
     void serialConnectionReadsModel();
@@ -61,11 +69,13 @@ private slots:
 
 private:
     bool connectDevice();
+    void selectModel(int modelId);
+    void submitPassword();
 
     QTemporaryDir m_settingsDirectory;
     MainWindow *m_window = nullptr;
     ConnectionPanel *m_connection = nullptr;
-    RotorSettingsPanel *m_settings = nullptr;
+    RotorModelDialog *m_modelDialog = nullptr;
     Communication::Transport *m_transport = nullptr;
     QWebSocketServer *m_server = nullptr;
     QPointer<QWebSocket> m_peer;
@@ -91,10 +101,10 @@ void RotorModelConnectionTests::init()
 
     m_window = new MainWindow;
     m_connection = m_window->findChild<ConnectionPanel *>();
-    m_settings = m_window->findChild<RotorSettingsPanel *>();
+    m_modelDialog = m_window->findChild<RotorModelDialog *>();
     m_transport = m_window->findChild<Communication::Transport *>();
     QVERIFY(m_connection);
-    QVERIFY(m_settings);
+    QVERIFY(m_modelDialog);
     QVERIFY(m_transport);
     m_window->findChild<QRadioButton *>(QStringLiteral("networkMode"))->setChecked(true);
     m_window->findChild<QLineEdit *>(QStringLiteral("websocketAddress"))
@@ -114,6 +124,22 @@ bool RotorModelConnectionTests::connectDevice()
 {
     m_connection->connectRequested();
     return QTest::qWaitFor([this] { return m_peer && m_connection->isConnected(); }, 3000);
+}
+
+void RotorModelConnectionTests::selectModel(int modelId)
+{
+    m_window->findChild<QAction *>(QStringLiteral("rotorModelAction"))->trigger();
+    auto *model = m_modelDialog->findChild<QComboBox *>(QStringLiteral("rotorModel"));
+    model->setCurrentIndex(model->findData(modelId));
+}
+
+void RotorModelConnectionTests::submitPassword()
+{
+    auto *dialog = m_modelDialog->findChild<ManagementKeyDialog *>();
+    QVERIFY(dialog);
+    dialog->findChild<QLineEdit *>(QStringLiteral("managementPassword"))
+        ->setText(QStringLiteral("test-password"));
+    dialog->findChild<QPushButton *>(QStringLiteral("authorizeButton"))->click();
 }
 
 void RotorModelConnectionTests::persistsAndRestoresConnectionPreferences()
@@ -180,7 +206,7 @@ void RotorModelConnectionTests::readsConfiguredModel_data()
 void RotorModelConnectionTests::readsConfiguredModel()
 {
     QFETCH(int, modelId);
-    QCOMPARE(m_settings->selectedModelId(), 0);
+    QCOMPARE(m_modelDialog->savedModelId(), 0);
     QVERIFY(connectDevice());
     QTRY_VERIFY(m_commands.contains(QStringLiteral("!ROTOR GET\r")));
     QCOMPARE(m_commands.count(QStringLiteral("!ROTOR GET\r")), 1);
@@ -189,28 +215,28 @@ void RotorModelConnectionTests::readsConfiguredModel()
         QVERIFY(!command.startsWith(QStringLiteral("!SESSION AUTH")));
         QVERIFY(!command.startsWith(QStringLiteral("!ROTOR SET")));
     }
-    auto *apply = m_settings->findChild<QPushButton *>(QStringLiteral("applyModel"));
+    auto *apply = m_modelDialog->findChild<QPushButton *>(QStringLiteral("applyModel"));
     QVERIFY(!apply->isEnabled());
-    QCOMPARE(m_settings->selectedModelId(), 0);
+    QCOMPARE(m_modelDialog->savedModelId(), 0);
 
     const QString response = rotorResponse(modelId);
     QSignalSpy received(m_transport, &Communication::Transport::bytesReceived);
     m_peer->sendTextMessage(response.left(response.size() / 2));
     QTRY_COMPARE(received.size(), 1);
-    QCOMPARE(m_settings->selectedModelId(), 0);
+    QCOMPARE(m_modelDialog->savedModelId(), 0);
     m_peer->sendTextMessage(response.mid(response.size() / 2));
-    QTRY_COMPARE(m_settings->selectedModelId(), modelId);
-    QVERIFY(apply->isEnabled());
+    QTRY_COMPARE(m_modelDialog->savedModelId(), modelId);
+    QVERIFY(!apply->isEnabled());
 
     m_peer->sendTextMessage(rotorResponse(16, QStringLiteral("ROTOR SET")));
-    QTRY_COMPARE(m_settings->selectedModelId(), 16);
+    QTRY_COMPARE(m_modelDialog->savedModelId(), 16);
 }
 
 void RotorModelConnectionTests::invalidResponsesPreserveSelection()
 {
     QVERIFY(connectDevice());
     m_peer->sendTextMessage(rotorResponse(5));
-    QTRY_COMPARE(m_settings->selectedModelId(), 5);
+    QTRY_COMPARE(m_modelDialog->savedModelId(), 5);
     const QList<QJsonValue> invalidIds = {
         QJsonValue(), QJsonValue(QJsonValue::Undefined), "6", true, 0, -1, 17, 6.5, 4294967296.0
     };
@@ -219,7 +245,7 @@ void RotorModelConnectionTests::invalidResponsesPreserveSelection()
         const auto count = received.size();
         m_peer->sendTextMessage(rotorResponse(id));
         QTRY_COMPARE(received.size(), count + 1);
-        QCOMPARE(m_settings->selectedModelId(), 5);
+        QCOMPARE(m_modelDialog->savedModelId(), 5);
     }
     const QStringList unrelatedOrFailed = {
         QStringLiteral("!{\"cmd\":\"ROTOR GET\",\"ok\":false,\"error\":\"BUSY\",\"data\":{\"model_id\":6}}\r\n"),
@@ -231,7 +257,7 @@ void RotorModelConnectionTests::invalidResponsesPreserveSelection()
         const auto count = received.size();
         m_peer->sendTextMessage(response);
         QTRY_COMPARE(received.size(), count + 1);
-        QCOMPARE(m_settings->selectedModelId(), 5);
+        QCOMPARE(m_modelDialog->savedModelId(), 5);
     }
 }
 
@@ -240,19 +266,118 @@ void RotorModelConnectionTests::reconnectClearsAndReadsAgain()
     QVERIFY(connectDevice());
     QTRY_COMPARE(m_commands.count(QStringLiteral("!ROTOR GET\r")), 1);
     m_peer->sendTextMessage(rotorResponse(7));
-    QTRY_COMPARE(m_settings->selectedModelId(), 7);
+    QTRY_COMPARE(m_modelDialog->savedModelId(), 7);
     m_peer->close();
     QTRY_VERIFY(!m_connection->isConnected());
-    QCOMPARE(m_settings->selectedModelId(), 0);
+    QCOMPARE(m_modelDialog->savedModelId(), 0);
     m_peer.clear();
 
     m_transport->bytesReceived(rotorResponse(5).toUtf8());
-    QCOMPARE(m_settings->selectedModelId(), 0);
+    QCOMPARE(m_modelDialog->savedModelId(), 0);
     QVERIFY(connectDevice());
     QTRY_COMPARE(m_commands.count(QStringLiteral("!ROTOR GET\r")), 2);
-    QCOMPARE(m_settings->selectedModelId(), 0);
+    QCOMPARE(m_modelDialog->savedModelId(), 0);
     m_peer->sendTextMessage(rotorResponse(12));
-    QTRY_COMPARE(m_settings->selectedModelId(), 12);
+    QTRY_COMPARE(m_modelDialog->savedModelId(), 12);
+}
+
+void RotorModelConnectionTests::writesAfterAuthenticationAndAcknowledgement()
+{
+    QVERIFY(connectDevice());
+    m_peer->sendTextMessage(rotorResponse(5));
+    QTRY_COMPARE(m_modelDialog->savedModelId(), 5);
+    selectModel(6);
+    QCOMPARE(m_modelDialog->selectedModelId(), 6);
+    QCOMPARE(m_modelDialog->savedModelId(), 5);
+    auto *apply = m_modelDialog->findChild<QPushButton *>(QStringLiteral("applyModel"));
+    QVERIFY(apply->isEnabled());
+    apply->click();
+    QVERIFY(!apply->isEnabled());
+    submitPassword();
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("!SESSION AUTH {\"password\":\"test-password\"}\r")));
+    const QString write = QStringLiteral("!ROTOR SET {\"model_id\":6}\r");
+    QVERIFY(!m_commands.contains(write));
+    m_peer->sendTextMessage(QStringLiteral("!{\"cmd\":\"SESSION AUTH\",\"ok\":true}\r\n"));
+    QTRY_VERIFY(m_commands.contains(write));
+    QCOMPARE(m_modelDialog->savedModelId(), 5);
+    m_modelDialog->modelApplyRequested(6);
+    m_peer->sendTextMessage(rotorResponse(6, QStringLiteral("ROTOR SET")));
+    QTRY_COMPARE(m_modelDialog->savedModelId(), 6);
+    QCOMPARE(m_commands.count(write), 1);
+    QVERIFY(!apply->isEnabled());
+
+    selectModel(7);
+    m_modelDialog->reject();
+    m_window->findChild<QAction *>(QStringLiteral("rotorModelAction"))->trigger();
+    QCOMPARE(m_modelDialog->selectedModelId(), 6);
+    QVERIFY(!apply->isEnabled());
+}
+
+void RotorModelConnectionTests::failedWritesPreserveSavedModel_data()
+{
+    QTest::addColumn<QString>("error");
+    for (const auto &error : {"BUSY", "NOT_AUTHORIZED", "IO"})
+        QTest::newRow(error) << QString::fromLatin1(error);
+}
+
+void RotorModelConnectionTests::failedWritesPreserveSavedModel()
+{
+    QFETCH(QString, error);
+    QVERIFY(connectDevice());
+    m_peer->sendTextMessage(rotorResponse(5));
+    QTRY_COMPARE(m_modelDialog->savedModelId(), 5);
+    m_transport->bytesReceived("!{\"cmd\":\"SESSION AUTH\",\"ok\":true}\r\n");
+    selectModel(6);
+    auto *apply = m_modelDialog->findChild<QPushButton *>(QStringLiteral("applyModel"));
+    apply->click();
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("!ROTOR SET {\"model_id\":6}\r")));
+    QVERIFY(!apply->isEnabled());
+    const QJsonObject response{{"cmd", "ROTOR SET"}, {"ok", false}, {"error", error}};
+    m_peer->sendTextMessage(QLatin1Char('!') +
+                           QString::fromUtf8(QJsonDocument(response).toJson(QJsonDocument::Compact)) +
+                           QStringLiteral("\r\n"));
+    QTRY_VERIFY(apply->isEnabled());
+    QCOMPARE(m_modelDialog->savedModelId(), 5);
+    QCOMPARE(m_modelDialog->selectedModelId(), 6);
+}
+
+void RotorModelConnectionTests::closingDuringAuthenticationCancelsWrite()
+{
+    QVERIFY(connectDevice());
+    m_peer->sendTextMessage(rotorResponse(5));
+    QTRY_COMPARE(m_modelDialog->savedModelId(), 5);
+    selectModel(6);
+    m_modelDialog->findChild<QPushButton *>(QStringLiteral("applyModel"))->click();
+    submitPassword();
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("!SESSION AUTH {\"password\":\"test-password\"}\r")));
+    m_modelDialog->reject();
+    QSignalSpy received(m_transport, &Communication::Transport::bytesReceived);
+    m_peer->sendTextMessage(QStringLiteral("!{\"cmd\":\"SESSION AUTH\",\"ok\":true}\r\n"));
+    QTRY_COMPARE(received.size(), 1);
+    QVERIFY(!m_commands.contains(QStringLiteral("!ROTOR SET {\"model_id\":6}\r")));
+    QCOMPARE(m_modelDialog->savedModelId(), 5);
+}
+
+void RotorModelConnectionTests::writeTimeoutReadsSavedModelAgain()
+{
+    QVERIFY(connectDevice());
+    m_peer->sendTextMessage(rotorResponse(5));
+    QTRY_COMPARE(m_modelDialog->savedModelId(), 5);
+    m_transport->bytesReceived("!{\"cmd\":\"SESSION AUTH\",\"ok\":true}\r\n");
+    selectModel(6);
+    auto *apply = m_modelDialog->findChild<QPushButton *>(QStringLiteral("applyModel"));
+    apply->click();
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("!ROTOR SET {\"model_id\":6}\r")));
+    const int readsBefore = m_commands.count(QStringLiteral("!ROTOR GET\r"));
+    auto *timeout = m_window->findChild<QTimer *>(QStringLiteral("rotorModelTimeoutTimer"));
+    QVERIFY(timeout->isActive());
+    QVERIFY(QMetaObject::invokeMethod(timeout, "timeout", Qt::DirectConnection));
+    QTRY_COMPARE(m_commands.count(QStringLiteral("!ROTOR GET\r")), readsBefore + 1);
+    QCOMPARE(m_modelDialog->savedModelId(), 0);
+    QVERIFY(!apply->isEnabled());
+    m_peer->sendTextMessage(rotorResponse(6));
+    QTRY_COMPARE(m_modelDialog->savedModelId(), 6);
+    QVERIFY(!apply->isEnabled());
 }
 
 #ifdef Q_OS_UNIX
@@ -265,7 +390,7 @@ void RotorModelConnectionTests::virtualComDoesNotQuery()
     m_peer->sendTextMessage(rotorResponse(5));
     QSignalSpy received(m_transport, &Communication::Transport::bytesReceived);
     QTRY_COMPARE(received.size(), 1);
-    QCOMPARE(m_settings->selectedModelId(), 0);
+    QCOMPARE(m_modelDialog->savedModelId(), 0);
 }
 
 void RotorModelConnectionTests::serialConnectionReadsModel()
@@ -296,9 +421,9 @@ void RotorModelConnectionTests::serialConnectionReadsModel()
     QVERIFY(!commands.contains("!ROTOR SET"));
     const QByteArray response = rotorResponse(9).toUtf8();
     QCOMPARE(::write(masterFd, response.constData(), response.size()), response.size());
-    QTRY_COMPARE(m_settings->selectedModelId(), 9);
+    QTRY_COMPARE(m_modelDialog->savedModelId(), 9);
     m_connection->disconnectRequested();
-    QCOMPARE(m_settings->selectedModelId(), 0);
+    QCOMPARE(m_modelDialog->savedModelId(), 0);
 }
 #endif
 
