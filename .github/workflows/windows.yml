@@ -321,7 +321,8 @@ jobs:
           python3 -X utf8 scripts/ci-release.py
           --archive build/artifact/gs-232b-open-gui-windows-x86_64.zip
           --output-dir build/release
-          --publish --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA"
+          --asset-suffix windows-x86_64 --publish --allow-existing-release-assets
+          --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA"
 
   cleanup:
     name: Keep the latest two cache generations

@@ -162,6 +162,15 @@ set(GUI_SOURCES
 )
 
 qt_add_executable(gs_232b_open_gui main.cpp ${GUI_SOURCES})
+if(APPLE)
+    set_target_properties(gs_232b_open_gui PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER "org.gs232b.open-gui"
+        MACOSX_BUNDLE_BUNDLE_NAME "GS-232B Open GUI"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+    )
+endif()
 
 qt_add_resources(gs_232b_open_gui branding
     PREFIX "/branding"

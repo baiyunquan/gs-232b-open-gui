@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Keep the latest two generations of each Windows CI cache family."""
+"""Keep the latest two generations of each managed Windows/macOS CI cache family."""
 
 import argparse
 import collections
@@ -8,7 +8,11 @@ import json
 import subprocess
 
 
-CACHE_FAMILIES = ("gs232b-windows-qt-", "gs232b-windows-build-", "gs232b-windows-pe-tools-", "gs232b-windows-venv-")
+CACHE_FAMILIES = (
+    "gs232b-windows-qt-", "gs232b-windows-build-",
+    "gs232b-windows-pe-tools-", "gs232b-windows-venv-",
+    "gs232b-macos-qt-", "gs232b-macos-build-", "gs232b-macos-venv-",
+)
 
 
 def obsolete_caches(entries: list[dict], keep: int = 2) -> list[dict]:
