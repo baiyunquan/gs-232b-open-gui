@@ -128,6 +128,7 @@ set(GUI_SOURCES
     MotionButtons.h
     Compass.cpp
     Compass.h
+    CompassLayout.h
     GreatCircleMap.cpp
     GreatCircleMap.h
     ConsolePanel.cpp

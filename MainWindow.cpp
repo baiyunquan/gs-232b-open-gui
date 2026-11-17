@@ -55,8 +55,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
     setObjectName(QStringLiteral("mainWindow"));
     setWindowTitle(tr("GS-232B Open Control"));
-    setMinimumSize(860, 600);
-    resize(1280, 800);
+    setMinimumWidth(860);
+    resize(1280, 360);
 
     auto *central = new QWidget(this);
     auto *layout = new QVBoxLayout(central);
@@ -73,7 +73,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     m_faultStatus = new FaultStatusMonitor(this);
     auto *faultPanel = new FaultStatusPanel(m_faultStatus, m_control);
     faultPanel->setMinimumWidth(140);
-    faultPanel->setMaximumWidth(180);
     m_control->setStatusPanel(faultPanel);
     setCentralWidget(central);
 

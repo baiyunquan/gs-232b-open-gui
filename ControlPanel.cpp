@@ -3,6 +3,7 @@
 #include "AnglePresets.h"
 #include "AppSettings.h"
 #include "Compass.h"
+#include "CompassLayout.h"
 #include "MotionButtons.h"
 #include "targeting/TargetBearing.h"
 
@@ -21,19 +22,19 @@
 ControlPanel::ControlPanel(QWidget *parent) : QWidget(parent)
 {
     setObjectName(QStringLiteral("controlPanel"));
-    m_layout = new QHBoxLayout(this);
-    m_layout->setContentsMargins(0, 0, 0, 0);
-    m_layout->setSpacing(10);
     m_compass = new Compass(this);
     m_compass->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    // NOTE: 其余列按内容保留宽度，新增空间优先交给罗盘和大圆图。
-    m_layout->addWidget(m_compass, 1);
+    auto *controls = new QWidget(this);
+    new CompassLayout(m_compass, controls, this);
+    m_layout = new QHBoxLayout(controls);
+    m_layout->setContentsMargins(0, 0, 0, 0);
+    m_layout->setSpacing(10);
     connect(m_compass, &Compass::mapError, this, &ControlPanel::mapError);
     connect(m_compass, &Compass::angleRequested, this, [this](int angle) {
         requestAzimuth(m_azimuthScale.mechanicalBearing(angle, m_azimuthValue));
     });
-    auto *azimuthControls = new QWidget(this);
-    azimuthControls->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+    auto *azimuthControls = new QWidget(controls);
+    azimuthControls->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     auto *azimuthColumn = new QVBoxLayout(azimuthControls);
     azimuthColumn->setContentsMargins(0, 0, 0, 0);
     auto *mode = new QGroupBox(tr("Mode"), azimuthControls);
@@ -82,12 +83,12 @@ ControlPanel::ControlPanel(QWidget *parent) : QWidget(parent)
     m_azimuthMotion = new MotionButtons(Qt::Horizontal, azimuthControls);
     m_azimuthMotion->setMaximumHeight(42);
     azimuthColumn->addWidget(m_azimuthMotion);
-    m_layout->addWidget(azimuthControls);
-    auto *azimuthPresetGroup = new QGroupBox(tr("Presets"), this);
+    m_layout->addWidget(azimuthControls, 1);
+    auto *azimuthPresetGroup = new QGroupBox(tr("Presets"), controls);
     auto *azimuthPresetLayout = new QVBoxLayout(azimuthPresetGroup);
     m_azimuthPresets = new AnglePresets(AppSettings::Axis::Azimuth, azimuthPresetGroup);
     azimuthPresetLayout->addWidget(m_azimuthPresets);
-    m_layout->addWidget(azimuthPresetGroup);
+    m_layout->addWidget(azimuthPresetGroup, 1);
 
     connect(m_azimuthPresets, &AnglePresets::angleRequested, this, [this](int mechanical) {
         requestAzimuth(m_shortestPathEnabled
@@ -95,9 +96,9 @@ ControlPanel::ControlPanel(QWidget *parent) : QWidget(parent)
                            : mechanical);
     });
 
-    m_elevationControls = new QWidget(this);
+    m_elevationControls = new QWidget(controls);
     m_elevationControls->setObjectName(QStringLiteral("elevationControls"));
-    m_elevationControls->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+    m_elevationControls->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     auto *elevationLayout = new QHBoxLayout(m_elevationControls);
     elevationLayout->setContentsMargins(0, 0, 0, 0);
     elevationLayout->setSpacing(10);
@@ -127,7 +128,7 @@ ControlPanel::ControlPanel(QWidget *parent) : QWidget(parent)
     });
     elevationColumn->addWidget(m_slider, 1, Qt::AlignHCenter);
     elevationColumn->addWidget(m_elevation);
-    elevationLayout->addLayout(elevationColumn);
+    elevationLayout->addLayout(elevationColumn, 1);
     m_elevationMotion = new MotionButtons(Qt::Vertical, m_elevationControls);
     m_elevationMotion->setMaximumHeight(150);
     elevationLayout->addWidget(m_elevationMotion, 0, Qt::AlignVCenter);
@@ -135,8 +136,8 @@ ControlPanel::ControlPanel(QWidget *parent) : QWidget(parent)
     auto *elevationPresetLayout = new QVBoxLayout(elevationPresetGroup);
     m_elevationPresets = new AnglePresets(AppSettings::Axis::Elevation, elevationPresetGroup);
     elevationPresetLayout->addWidget(m_elevationPresets);
-    elevationLayout->addWidget(elevationPresetGroup);
-    m_layout->addWidget(m_elevationControls);
+    elevationLayout->addWidget(elevationPresetGroup, 1);
+    m_layout->addWidget(m_elevationControls, 2);
 
     connect(m_elevationPresets, &AnglePresets::angleRequested, this, &ControlPanel::requestElevation);
 
@@ -158,7 +159,7 @@ ControlPanel::ControlPanel(QWidget *parent) : QWidget(parent)
 
 void ControlPanel::setStatusPanel(QWidget *panel)
 {
-    m_layout->insertWidget(3, panel);
+    m_layout->insertWidget(2, panel, 1);
 }
 
 void ControlPanel::setElevationSupported(bool supported)
