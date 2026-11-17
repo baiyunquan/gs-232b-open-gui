@@ -31,8 +31,8 @@ private slots:
     void positioningCancelsJogWithoutLateStop();
     void cancelledHoldCannotRestartOnReentry();
     void modeChangesCancelDeferredMotion();
-    void longPathTargets_data();
-    void longPathTargets();
+    void longPathOnlyChangesGeographicTargets_data();
+    void longPathOnlyChangesGeographicTargets();
     void longPathPreservesMeasurementsPresetsAndElevation();
 
 private:
@@ -237,26 +237,33 @@ void MotionControlTests::cancelledHoldCannotRestartOnReentry()
     QCOMPARE(commands.size(), 4);
 }
 
-void MotionControlTests::longPathTargets_data()
+void MotionControlTests::longPathOnlyChangesGeographicTargets_data()
 {
     QTest::addColumn<QString>("input");
     QTest::addColumn<int>("offset");
     QTest::addColumn<bool>("shortest");
-    QTest::addColumn<QString>("command");
-    QTest::newRow("numeric") << QStringLiteral("10") << 0 << true << QStringLiteral("M190");
-    QTest::newRow("overlap") << QStringLiteral("190") << 0 << true << QStringLiteral("M370");
-    QTest::newRow("offset") << QStringLiteral("10") << 30 << true << QStringLiteral("M160");
-    QTest::newRow("continuous") << QStringLiteral("405") << 0 << false << QStringLiteral("M225");
-    QTest::newRow("no-shortest") << QStringLiteral("190") << 0 << false << QStringLiteral("M010");
-    QTest::newRow("callsign") << QStringLiteral("JA") << 0 << true << QStringLiteral("M191");
+    QTest::addColumn<QString>("shortCommand");
+    QTest::addColumn<QString>("longCommand");
+    QTest::newRow("numeric") << QStringLiteral("10") << 0 << true << QStringLiteral("M370") << QStringLiteral("M370");
+    QTest::newRow("overlap") << QStringLiteral("190") << 0 << true << QStringLiteral("M190") << QStringLiteral("M190");
+    QTest::newRow("offset") << QStringLiteral("10") << 30 << true << QStringLiteral("M340") << QStringLiteral("M340");
+    QTest::newRow("continuous") << QStringLiteral("405") << 0 << false << QStringLiteral("M405") << QStringLiteral("M405");
+    QTest::newRow("no-shortest") << QStringLiteral("190") << 0 << false << QStringLiteral("M190") << QStringLiteral("M190");
+    QTest::newRow("callsign") << QStringLiteral("ja1abc") << 0 << true << QStringLiteral("M371") << QStringLiteral("M191");
+    QTest::newRow("prefix") << QStringLiteral("JA") << 0 << true << QStringLiteral("M371") << QStringLiteral("M191");
+    QTest::newRow("callsign-offset") << QStringLiteral("JA") << 30 << true << QStringLiteral("M341") << QStringLiteral("M161");
+    QTest::newRow("grid") << QStringLiteral("FN31") << 0 << true << QStringLiteral("M383") << QStringLiteral("M203");
+    QTest::newRow("grid-overlap") << QStringLiteral("PM95AA12") << 0 << true << QStringLiteral("M246") << QStringLiteral("M426");
+    QTest::newRow("grid-no-shortest") << QStringLiteral("FN31") << 0 << false << QStringLiteral("M383") << QStringLiteral("M203");
 }
 
-void MotionControlTests::longPathTargets()
+void MotionControlTests::longPathOnlyChangesGeographicTargets()
 {
     QFETCH(QString, input);
     QFETCH(int, offset);
     QFETCH(bool, shortest);
-    QFETCH(QString, command);
+    QFETCH(QString, shortCommand);
+    QFETCH(QString, longCommand);
     ControlPanel panel;
     panel.setCommandEnabled(true);
     panel.setStationGrid(QStringLiteral("PM95AA"));
@@ -266,15 +273,17 @@ void MotionControlTests::longPathTargets()
     panel.show();
     QCoreApplication::processEvents();
     QSignalSpy commands(&panel, &ControlPanel::commandRequested);
-    panel.findChild<QCheckBox *>(QStringLiteral("longPath"))->setChecked(true);
-    QVERIFY(commands.isEmpty());
     auto *reading = panel.findChild<AngleReading *>(QStringLiteral("azimuthReading"));
-    reading->beginEditing();
     auto *editor = reading->findChild<QLineEdit *>();
-    editor->setText(input);
-    QTest::keyClick(editor, Qt::Key_Return);
-    QCOMPARE(commands.size(), 1);
-    QCOMPARE(commands.first().first().toString(), command);
+    for (const bool enabled : {false, true, false}) {
+        panel.findChild<QCheckBox *>(QStringLiteral("longPath"))->setChecked(enabled);
+        QVERIFY(commands.isEmpty());
+        reading->beginEditing();
+        editor->setText(input);
+        QTest::keyClick(editor, Qt::Key_Return);
+        QCOMPARE(commands.size(), 1);
+        QCOMPARE(commands.takeFirst().first().toString(), enabled ? longCommand : shortCommand);
+    }
     QCOMPARE(panel.azimuth(), 350);
     QCOMPARE(panel.elevation(), 20);
 }
@@ -288,9 +297,9 @@ void MotionControlTests::longPathPreservesMeasurementsPresetsAndElevation()
     panel.findChild<QCheckBox *>(QStringLiteral("longPath"))->setChecked(true);
     QSignalSpy commands(&panel, &ControlPanel::commandRequested);
     panel.findChild<QPushButton *>(QStringLiteral("azimuthPreset0"))->click();
-    QCOMPARE(commands.takeFirst().first().toString(), QStringLiteral("M370"));
+    QCOMPARE(commands.takeFirst().first().toString(), QStringLiteral("M190"));
     panel.findChild<Compass *>()->angleRequested(190);
-    QCOMPARE(commands.takeFirst().first().toString(), QStringLiteral("M370"));
+    QCOMPARE(commands.takeFirst().first().toString(), QStringLiteral("M190"));
     panel.findChild<QSlider *>()->setValue(45);
     QTRY_COMPARE(commands.size(), 1);
     QCOMPARE(commands.takeFirst().first().toString(), QStringLiteral("W350 045"));

@@ -32,7 +32,7 @@ public:
     void cancelPendingMotion();
     /** @return 是否允许桥接应用控制设备；手动模式仍保留位置反馈。 */
     bool trackingEnabled() const { return m_trackingEnabled; }
-    /** @return 本地及 GridTracker 的方位目标是否使用长径；不改变实测角度。 */
+    /** @return 本地网格/DXCC 及 GridTracker 目标是否使用长径；直接角度及实测值不变。 */
     bool longPathEnabled() const { return m_longPathEnabled; }
     /** @brief 更新设备实测角度，不触发滑条定位请求。 */
     void setPosition(int azimuth, int elevation);
@@ -58,7 +58,7 @@ signals:
     void inputError(const QString &message);
     /** @brief 用户切换桥接控制权限；宿主应立即同步到所有桥接应用。 */
     void trackingEnabledChanged(bool enabled);
-    /** @brief 用户切换后续方位目标的长径选路；N1MM 不使用该设置。 */
+    /** @brief 用户切换网格/DXCC 及 GridTracker 目标的长径选路；N1MM 不使用该设置。 */
     void longPathEnabledChanged(bool enabled);
 
 private:

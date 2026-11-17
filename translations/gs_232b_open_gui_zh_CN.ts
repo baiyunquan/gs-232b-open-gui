@@ -134,8 +134,8 @@
             <translation>允许桥接应用控制旋转器。</translation>
         </message>
         <message>
-            <source>Use the opposite azimuth for local and GridTracker targets. N1MM selects its own long or short path.</source>
-            <translation>本地与 GridTracker 的目标方位反转 180°。N1MM 自行选择长径或短径。</translation>
+            <source>Use long path for grid, callsign or DXCC targets and GridTracker. Direct angles and N1MM targets are unchanged.</source>
+            <translation>对网格、呼号/DXCC 及 GridTracker 目标使用长径。直接角度及 N1MM 目标不受影响。</translation>
         </message>
         <message>
             <source>Azimuth</source>

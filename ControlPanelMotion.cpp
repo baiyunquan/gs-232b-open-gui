@@ -30,11 +30,6 @@ void ControlPanel::requestAzimuth(int mechanical)
     if (!m_commandEnabled)
         return;
     cancelPendingMotion();
-    if (m_longPathEnabled) {
-        // NOTE: 先反转目标方位再选择可达行程；补偿、预设存储和设备读数保持原义。
-        mechanical = m_azimuthScale.mechanicalBearing(
-            m_azimuthScale.corrected(mechanical) + 180, m_shortestPathEnabled ? m_azimuthValue : 0);
-    }
     emit commandRequested(QStringLiteral("M%1").arg(mechanical, 3, 10, QLatin1Char('0')));
 }
 

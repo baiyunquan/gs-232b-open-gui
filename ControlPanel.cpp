@@ -48,7 +48,7 @@ ControlPanel::ControlPanel(QWidget *parent) : QWidget(parent)
     tracking->setToolTip(tr("Allow bridge apps to control the rotator."));
     auto *longPath = new QCheckBox(tr("LP"), mode);
     longPath->setObjectName(QStringLiteral("longPath"));
-    longPath->setToolTip(tr("Use the opposite azimuth for local and GridTracker targets. N1MM selects its own long or short path."));
+    longPath->setToolTip(tr("Use long path for grid, callsign or DXCC targets and GridTracker. Direct angles and N1MM targets are unchanged."));
     modeLayout->addWidget(manual);
     modeLayout->addWidget(tracking);
     modeLayout->addWidget(longPath);
@@ -198,7 +198,10 @@ void ControlPanel::updateAzimuthInput()
     m_azimuth->setInputResolver([this](const QString &text) -> AngleReading::InputResult {
         const auto result = TargetBearing::calculate(m_stationGrid, text);
         if (result.solution) {
-            const int bearing = result.solution->roundedDegrees();
+            // NOTE: LP 只反转网格及 DXCC 算出的方位；数字输入、预设和罗盘选角不经过此解析器。
+            const int shortBearing = result.solution->roundedDegrees();
+            const int bearing = m_longPathEnabled ? AzimuthScale::normalized(shortBearing + 180)
+                                                 : shortBearing;
             if (m_shortestPathEnabled)
                 return {bearing, {}};
             const int mechanical = m_azimuthScale.mechanicalBearing(
