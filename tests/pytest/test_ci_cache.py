@@ -43,6 +43,19 @@ class CacheTests(unittest.TestCase):
         ]
         self.assertEqual(cache.obsolete_caches(entries), [])
 
+    def test_retention_is_separate_for_each_branch(self):
+        entries = [
+            {"id": f"{ref}-{generation}", "ref": ref,
+             "key": f"gs232b-macos-build-v2-{generation}",
+             "created_at": f"2026-11-17T03:0{generation}:00Z"}
+            for ref in ("refs/heads/main", "refs/heads/multi-platforms")
+            for generation in range(3)
+        ]
+        self.assertEqual(
+            {entry["id"] for entry in cache.obsolete_caches(entries)},
+            {"refs/heads/main-0", "refs/heads/multi-platforms-0"},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

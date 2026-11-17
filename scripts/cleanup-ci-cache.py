@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Keep the latest two generations of each managed Windows/macOS CI cache family."""
+"""Keep the latest two generations per ref and managed CI cache family."""
 
 import argparse
 import collections
@@ -22,7 +22,7 @@ def obsolete_caches(entries: list[dict], keep: int = 2) -> list[dict]:
     for entry in entries:
         for prefix in CACHE_FAMILIES:
             if entry["key"].startswith(prefix):
-                families[prefix].append(entry)
+                families[(prefix, entry.get("ref", ""))].append(entry)
                 break
     obsolete = []
     for family in families.values():
@@ -53,7 +53,7 @@ def main() -> None:
             # Another workflow or GitHub's own eviction may have removed it in the meantime.
             if deletion.returncode and "HTTP 404" not in deletion.stderr:
                 raise RuntimeError(deletion.stderr.strip())
-    print(f"Retaining {args.keep} generations per managed family; {len(obsolete)} obsolete cache(s).")
+    print(f"Retaining {args.keep} generations per ref and managed family; {len(obsolete)} obsolete cache(s).")
 
 
 if __name__ == "__main__":
