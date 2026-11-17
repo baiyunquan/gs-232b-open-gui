@@ -10,7 +10,7 @@
 // NOTE: 显式引用资源初始化函数，确保静态库被其他接口链接时也带上离线数据。
 static void initializeDxccData()
 {
-    Q_INIT_RESOURCE(dxcc_data);
+    Q_INIT_RESOURCE(dxcc);
 }
 
 namespace {

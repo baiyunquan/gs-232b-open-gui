@@ -13,6 +13,7 @@
 #include "ManagementKeyDialog.h"
 #include "NetworkPortConfigDialog.h"
 #include "PasswordChangeDialog.h"
+#include "QtCompat.h"
 #include "StationGridDialog.h"
 #include "WifiProvisioningDialog.h"
 #include "virtual_serial/VirtualSerialBridge.h"
@@ -871,8 +872,8 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
     const QJsonObject data = response.value(QStringLiteral("data")).toObject();
     if (m_networkConfigurationStage == NetworkConfigurationStage::AwaitBegin &&
         command == QStringLiteral("CFG BEGIN")) {
-        m_pendingNetworkCandidate = data.value(QStringLiteral("candidate_id")).toInteger(-1);
-        m_pendingNetworkRevision = data.value(QStringLiteral("base_revision")).toInteger(-1);
+        m_pendingNetworkCandidate = jsonIntegerValue(data.value(QStringLiteral("candidate_id")), -1);
+        m_pendingNetworkRevision = jsonIntegerValue(data.value(QStringLiteral("base_revision")), -1);
         if (m_pendingNetworkCandidate < 0) {
             m_console->appendError(tr("Device did not return a network candidate ID."));
             m_networkConfigurationStage = NetworkConfigurationStage::Idle;
@@ -913,7 +914,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
 
     if (m_networkConfigurationStage == NetworkConfigurationStage::AwaitApply &&
         command == QStringLiteral("CFG APPLY")) {
-        m_pendingNetworkTrial = data.value(QStringLiteral("trial_id")).toInteger(-1);
+        m_pendingNetworkTrial = jsonIntegerValue(data.value(QStringLiteral("trial_id")), -1);
         if (m_pendingNetworkTrial < 0) {
             m_console->appendError(tr("Device did not return a network trial ID."));
             m_networkConfigurationStage = NetworkConfigurationStage::Idle;

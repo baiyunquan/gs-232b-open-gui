@@ -15,6 +15,7 @@ $qtDir = (Resolve-Path -LiteralPath $QtPrefix).Path
 $buildRoot = (Resolve-Path -LiteralPath $BuildDir).Path
 $packageName = 'gs-232b-open-gui-windows-x86_64'
 $qtMajor = if (Test-Path -LiteralPath (Join-Path $qtDir 'bin/Qt5Core.dll')) { 5 } else { 6 }
+$qtBaseTranslation = if ($qtMajor -eq 5) { 'qt_zh_CN.qm' } else { 'qtbase_zh_CN.qm' }
 
 if ([string]::IsNullOrWhiteSpace($MsvcRedistDir)) {
     $crtFolder = if ($env:VCToolsVersion -like '14.29*') { 'Microsoft.VC142.CRT' } else { 'Microsoft.VC143.CRT' }
@@ -44,7 +45,7 @@ foreach ($requiredFile in @(
     (Join-Path $buildRoot 'gs_232b_open_gui.exe'),
     (Join-Path $qtDir "bin/Qt${qtMajor}Core.dll"),
     (Join-Path $qtDir 'bin/windeployqt.exe'),
-    (Join-Path $qtDir 'translations/qtbase_zh_CN.qm'),
+    (Join-Path $qtDir "translations/$qtBaseTranslation"),
     (Join-Path $redistDir 'msvcp140.dll'),
     (Join-Path $redistDir 'vcruntime140.dll'),
     (Join-Path $redistDir 'vcruntime140_1.dll')
@@ -77,6 +78,8 @@ try {
     Get-ChildItem -LiteralPath $redistDir -Filter '*.dll' -File |
         Copy-Item -Destination $stagingPackage
 
+    # Resolve Qt dependencies from the selected SDK, even if another Qt is on PATH.
+    $env:PATH = "$qtDir/bin;$redistDir;$env:PATH"
     $executable = Join-Path $stagingPackage 'gs_232b_open_gui.exe'
     & (Join-Path $qtDir 'bin/windeployqt.exe') --release --no-compiler-runtime `
         --no-opengl-sw --no-system-d3d-compiler --no-translations `
@@ -92,7 +95,9 @@ Translations=translations
     $translationsDir = Join-Path $stagingPackage 'translations'
     New-Item -ItemType Directory -Path $translationsDir -Force | Out-Null
     # main.cpp loads the toolkit translation from this folder.
-    Copy-Item -LiteralPath (Join-Path $qtDir 'translations/qtbase_zh_CN.qm') -Destination $translationsDir
+    # Keep the package name expected by main.cpp; Qt 5 ships this catalog as qt_zh_CN.qm.
+    Copy-Item -LiteralPath (Join-Path $qtDir "translations/$qtBaseTranslation") `
+        -Destination (Join-Path $translationsDir 'qtbase_zh_CN.qm')
     if ($qtMajor -eq 5) {
         Copy-Item -LiteralPath (Join-Path $buildRoot 'gs_232b_open_gui_zh_CN.qm') -Destination $stagingPackage
     }

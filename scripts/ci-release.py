@@ -30,8 +30,8 @@ def prepare_release(
     project: pathlib.Path, archive: pathlib.Path, output: pathlib.Path,
     asset_suffix: str = "windows-x86_64",
 ) -> dict:
-    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", asset_suffix):
-        raise ValueError("Asset suffix must contain lowercase letters, digits, and hyphens")
+    if not re.fullmatch(r"[a-z0-9]+(?:[-_][a-z0-9]+)*", asset_suffix):
+        raise ValueError("Asset suffix must contain lowercase letters, digits, hyphens, and underscores")
     version, notes = read_metadata(project)
     if not archive.is_file():
         raise ValueError(f"Missing successful build artifact: {archive}")

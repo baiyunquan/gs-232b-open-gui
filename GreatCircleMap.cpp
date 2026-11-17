@@ -20,6 +20,7 @@
 #include <exception>
 #include <thread>
 #include <vector>
+#include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Data.Pdf.h>
 #include <winrt/Windows.Storage.Streams.h>
 #endif

@@ -125,8 +125,8 @@ jobs:
         if: steps.qt_cache.outputs.cache-hit != 'true'
         run: >-
           python -m aqt install-qt windows desktop "$env:QT_VERSION" win64_msvc2019_64
-          --outputdir "$env:QT_INSTALL_DIR" --archives qtbase qttools qttranslations
-          --modules qtserialport qtwebsockets
+          --outputdir "$env:QT_INSTALL_DIR"
+          --archives qtbase qttools qttranslations qtserialport qtwebsockets
 
       - name: Enable Qt SDK
         run: |

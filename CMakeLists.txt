@@ -224,6 +224,22 @@ target_link_libraries(gs_232b_open_gui
 )
 if(BUILD_TESTING)
     find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Test)
+    project_add_executable(command_line_tests
+        tests/CommandLineTests.cpp
+        terminal/CommandLine.cpp
+        terminal/CommandLine.h
+    )
+    target_compile_features(command_line_tests PRIVATE cxx_std_17)
+    target_include_directories(command_line_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(command_line_tests PRIVATE Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Test)
+    add_test(NAME command_line_tests COMMAND command_line_tests)
+
+    project_add_executable(qt_compat_tests tests/QtCompatTests.cpp)
+    target_compile_features(qt_compat_tests PRIVATE cxx_std_17)
+    target_include_directories(qt_compat_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(qt_compat_tests PRIVATE Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Test)
+    add_test(NAME qt_compat_tests COMMAND qt_compat_tests)
+
     project_add_executable(network_addresses_tests
         tests/NetworkAddressesTests.cpp
         NetworkAddresses.cpp

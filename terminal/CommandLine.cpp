@@ -63,7 +63,14 @@ void CommandLine::insert(QString text)
         if (ch == QLatin1Char('\r') || ch == QLatin1Char('\n') || ch == QLatin1Char('\t'))
             ch = QLatin1Char(' ');
     }
-    text.removeIf([](QChar ch) { return ch.category() == QChar::Other_Control; });
+    QString filtered;
+    filtered.reserve(text.size());
+    for (auto it = text.cbegin(); it != text.cend(); ++it) {
+        const QChar ch = *it;
+        if (ch.category() != QChar::Other_Control)
+            filtered.append(ch);
+    }
+    text.swap(filtered);
     m_text.insert(m_cursor, text);
     m_cursor += text.size();
 }
