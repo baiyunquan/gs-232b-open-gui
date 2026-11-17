@@ -5,7 +5,7 @@
 #include <QString>
 #include <QUdpSocket>
 
-/** @brief 同机单转台的 N1MM UDP 接口；仅在设备可控且有新鲜读数时执行方位定位。 */
+/** @brief 同机单旋转器的 N1MM UDP 接口；仅在设备可控且有新鲜读数时执行方位定位。 */
 class N1mmController final : public QObject
 {
     Q_OBJECT
@@ -19,9 +19,9 @@ public:
     bool isEnabled() const;
     /** @return 最近一次监听或发送失败的本地化错误。 */
     QString errorString() const;
-    /** @brief 设置合法转台名，自动去除首尾空白；不合法时返回 false 并保留原名。 */
+    /** @brief 设置合法旋转器名，自动去除首尾空白；不合法时返回 false 并保留原名。 */
     bool setRotorName(const QString &name);
-    /** @return 当前精确匹配控制报文并用于位置反馈的转台名。 */
+    /** @return 当前精确匹配控制报文并用于位置反馈的旋转器名。 */
     QString rotorName() const;
     /** @brief 连接断开、透传或校准时传 false，同时作废缓存位置，丢弃期间的命令。 */
     void setControlAvailable(bool available);

@@ -7,7 +7,7 @@
 class AppSettings final
 {
 public:
-    /** @brief 角度预设所属的转台轴。 */
+    /** @brief 角度预设所属的旋转器轴。 */
     enum class Axis { Azimuth, Elevation };
     /** @brief 返回指定轴的预设数量：方位 10 个，仰角 6 个。 */
     static constexpr int presetCount(Axis axis)
@@ -61,10 +61,15 @@ public:
     bool n1mmEnabled() const;
     /** @return 立即同步 N1MM 接入偏好到存储是否成功。 */
     bool setN1mmEnabled(bool enabled);
-    /** @brief 读取 N1MM 转台名；缺失或无效时返回 GS232B。 */
+    /** @brief 读取 N1MM 旋转器名；缺失或无效时返回 GS232B。 */
     QString n1mmRotorName() const;
-    /** @brief 去除首尾空白并立即保存合法转台名；非法值不写入。 */
+    /** @brief 去除首尾空白并立即保存合法旋转器名；非法值不写入。 */
     bool setN1mmRotorName(const QString &name);
+
+    /** @brief 读取同机 GridTracker 接入偏好；缺失或无效时默认关闭。 */
+    bool gridTrackerEnabled() const;
+    /** @return 立即同步 GridTracker 接入偏好到存储是否成功。 */
+    bool setGridTrackerEnabled(bool enabled);
 
     /** @brief 读取本站 Maidenhead 网格；返回大写，缺失或无效时返回空字符串。 */
     QString stationGrid() const;

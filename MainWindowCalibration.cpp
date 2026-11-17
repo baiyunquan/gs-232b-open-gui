@@ -7,6 +7,7 @@
 #include "ControlPanel.h"
 #include "FaultStatusMonitor.h"
 #include "n1mm/N1mmController.h"
+#include "gridtracker/GridTrackerController.h"
 
 #include <QAction>
 #include <QMessageBox>
@@ -63,8 +64,9 @@ void MainWindow::requestCalibration(const QString &command, const QString &quest
     if (!m_transport->isOpen() || !m_connection->isConnected() ||
         m_connection->isVirtualComEnabled() || !m_pendingCalibrationCommand.isEmpty())
         return;
-    // NOTE: 确认弹窗也暂停外部定位，避免用户确认零点前被 N1MM 或延迟滑条命令转离。
+    // NOTE: 确认弹窗也暂停外部定位，避免用户确认零点前被桥接或延迟滑条命令转离。
     m_n1mm->setControlAvailable(false);
+    m_gridTracker->setControlAvailable(false);
     m_control->cancelPendingMotion();
     QWidget *promptParent = m_calibrationDialog ? static_cast<QWidget *>(m_calibrationDialog.data()) : this;
     const auto answer = QMessageBox::question(
@@ -74,13 +76,13 @@ void MainWindow::requestCalibration(const QString &command, const QString &quest
     if (answer == QMessageBox::Ok && m_transport->isOpen() &&
         m_connection->isConnected() && !m_connection->isVirtualComEnabled()) {
         m_pendingCalibrationCommand = command;
-        updateN1mmState();
+        updateBridgeState();
         updateCalibrationState();
         m_faultStatus->setPaused(true);
         m_positionPollTimer->stop();
         m_calibrationTimeoutTimer->start();
         sendControlCommand(command);
     } else {
-        updateN1mmState();
+        updateBridgeState();
     }
 }

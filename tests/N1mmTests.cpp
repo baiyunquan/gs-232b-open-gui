@@ -111,7 +111,7 @@ void N1mmTests::validatesNames_data()
     QTest::addColumn<bool>("valid");
     QTest::newRow("default") << QStringLiteral("GS232B") << true;
     QTest::newRow("trimmed") << QStringLiteral(" Tower A ") << true;
-    QTest::newRow("unicode") << QStringLiteral("主转台") << true;
+    QTest::newRow("unicode") << QStringLiteral("主旋转器") << true;
     QTest::newRow("boundary") << QString(64, QLatin1Char('A')) << true;
     QTest::newRow("empty") << QString() << false;
     QTest::newRow("blank") << QStringLiteral("  ") << false;

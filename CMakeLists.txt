@@ -82,6 +82,16 @@ target_compile_features(gs232b_n1mm PUBLIC cxx_std_17)
 target_include_directories(gs232b_n1mm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gs232b_n1mm PUBLIC Qt6::Core Qt6::Network)
 
+qt_add_library(gs232b_gridtracker STATIC
+    gridtracker/GridTrackerProtocol.cpp
+    gridtracker/GridTrackerProtocol.h
+    gridtracker/GridTrackerController.cpp
+    gridtracker/GridTrackerController.h
+)
+target_compile_features(gs232b_gridtracker PUBLIC cxx_std_17)
+target_include_directories(gs232b_gridtracker PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(gs232b_gridtracker PUBLIC Qt6::Core Qt6::Network)
+
 set(GUI_SOURCES
     AppSettings.cpp
     AppSettings.h
@@ -102,6 +112,7 @@ set(GUI_SOURCES
     MainWindowCalibration.cpp
     MainWindowNetworkAddresses.cpp
     MainWindowN1mm.cpp
+    MainWindowGridTracker.cpp
     MainWindow.h
     NetworkAddresses.cpp
     NetworkAddresses.h
@@ -162,6 +173,7 @@ target_link_libraries(gs_232b_open_gui
         gs232b_terminal
         gs232b_targeting
         gs232b_n1mm
+        gs232b_gridtracker
 )
 
 if(BUILD_TESTING)
@@ -193,12 +205,26 @@ if(BUILD_TESTING)
     qt_add_executable(n1mm_connection_tests tests/N1mmConnectionTests.cpp ${GUI_SOURCES})
     target_link_libraries(n1mm_connection_tests PRIVATE
         Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test
-        gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm)
+        gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm gs232b_gridtracker)
     add_test(NAME n1mm_connection_tests COMMAND n1mm_connection_tests)
     set_tests_properties(n1mm_connection_tests PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
         RESOURCE_LOCK n1mm_udp_ports)
     set_tests_properties(n1mm_tests PROPERTIES RESOURCE_LOCK n1mm_udp_ports)
+
+    qt_add_executable(gridtracker_tests tests/GridTrackerTests.cpp)
+    target_link_libraries(gridtracker_tests PRIVATE gs232b_gridtracker Qt6::Test)
+    add_test(NAME gridtracker_tests COMMAND gridtracker_tests)
+
+    qt_add_executable(gridtracker_connection_tests tests/GridTrackerConnectionTests.cpp ${GUI_SOURCES})
+    target_link_libraries(gridtracker_connection_tests PRIVATE
+        Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test
+        gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm gs232b_gridtracker)
+    add_test(NAME gridtracker_connection_tests COMMAND gridtracker_connection_tests)
+    set_tests_properties(gridtracker_tests PROPERTIES RESOURCE_LOCK gridtracker_udp_ports)
+    set_tests_properties(gridtracker_connection_tests PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        RESOURCE_LOCK "gridtracker_udp_ports;n1mm_udp_ports")
 
     qt_add_executable(great_circle_map_tests
         tests/GreatCircleMapTests.cpp
@@ -307,7 +333,7 @@ if(BUILD_TESTING)
     target_compile_features(rotor_model_connection_tests PRIVATE cxx_std_17)
     target_include_directories(rotor_model_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(rotor_model_connection_tests
-        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm
+        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm gs232b_gridtracker
     )
     add_test(NAME rotor_model_connection_tests COMMAND rotor_model_connection_tests)
     set_tests_properties(rotor_model_connection_tests PROPERTIES
@@ -321,7 +347,7 @@ if(BUILD_TESTING)
     target_compile_features(ap_provisioning_connection_tests PRIVATE cxx_std_17)
     target_include_directories(ap_provisioning_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(ap_provisioning_connection_tests
-        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm
+        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm gs232b_gridtracker
     )
     add_test(NAME ap_provisioning_connection_tests COMMAND ap_provisioning_connection_tests)
     set_tests_properties(ap_provisioning_connection_tests PROPERTIES
@@ -335,7 +361,7 @@ if(BUILD_TESTING)
     target_compile_features(virtual_serial_connection_tests PRIVATE cxx_std_17)
     target_include_directories(virtual_serial_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(virtual_serial_connection_tests
-        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm
+        PRIVATE Qt6::Widgets Qt6::Network Qt6::Pdf Qt6::SerialPort Qt6::WebSockets Qt6::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm gs232b_gridtracker
     )
     add_test(NAME virtual_serial_connection_tests COMMAND virtual_serial_connection_tests)
     set_tests_properties(virtual_serial_connection_tests PROPERTIES

@@ -22,7 +22,7 @@ void MainWindow::createN1mmMenu(QMenu *bridge)
     m_n1mm->setAzimuthOffset(preferences.azimuthOffset());
     m_n1mm->setShortestPathEnabled(preferences.shortestPathEnabled());
     connect(m_n1mm, &N1mmController::commandRequested, this, [this](const QString &command) {
-        updateN1mmState();
+        updateBridgeState();
         if (!m_transport->isOpen() || m_connection->isVirtualComEnabled() ||
             !m_pendingCalibrationCommand.isEmpty())
             return;
@@ -64,13 +64,6 @@ void MainWindow::createN1mmMenu(QMenu *bridge)
             QMessageBox::warning(this, tr("Application settings"),
                                  tr("Could not save application settings."));
     });
-}
-
-void MainWindow::updateN1mmState()
-{
-    m_n1mm->setControlAvailable(m_transport->isOpen() && m_connection->isConnected() &&
-                               !m_connection->isVirtualComEnabled() &&
-                               m_pendingCalibrationCommand.isEmpty());
 }
 
 void MainWindow::openN1mmName()

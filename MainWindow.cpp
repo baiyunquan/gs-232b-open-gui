@@ -18,6 +18,7 @@
 #include "WifiProvisioningDialog.h"
 #include "virtual_serial/VirtualSerialBridge.h"
 #include "n1mm/N1mmController.h"
+#include "gridtracker/GridTrackerController.h"
 
 #include <QApplication>
 #include <QDialog>
@@ -207,7 +208,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     });
     connect(m_calibrationTimeoutTimer, &QTimer::timeout, this, [this] {
         m_pendingCalibrationCommand.clear();
-        updateN1mmState();
+        updateBridgeState();
         updateCalibrationState();
         m_faultStatus->setPaused(false);
         if (m_transport->isOpen())
@@ -220,6 +221,7 @@ MainWindow::~MainWindow()
 {
     // NOTE: 先关闭两侧连接，避免 QObject 子对象析构时回调已销毁的界面。
     m_n1mm->setEnabled(false);
+    m_gridTracker->setEnabled(false);
     const QSignalBlocker transportBlocker(m_transport);
     const QSignalBlocker virtualSerialBlocker(m_virtualSerial);
     m_transport->close();
@@ -301,6 +303,7 @@ void MainWindow::createMenus()
     connect(shortestPathAction, &QAction::toggled, this, [this](bool enabled) {
         m_control->setShortestPathEnabled(enabled);
         m_n1mm->setShortestPathEnabled(enabled);
+        m_gridTracker->setShortestPathEnabled(enabled);
         if (!AppSettings().setShortestPathEnabled(enabled))
             QMessageBox::warning(this, tr("Application settings"),
                                  tr("Could not save application settings."));
@@ -335,7 +338,9 @@ void MainWindow::createMenus()
     m_resetNetworkAction = management->addAction(
         tr("Reset network configuration"), this, &MainWindow::resetNetworkConfiguration);
     m_resetNetworkAction->setObjectName(QStringLiteral("resetNetworkAction"));
-    createN1mmMenu(menuBar()->addMenu(tr("Bridge")));
+    auto *bridge = menuBar()->addMenu(tr("Bridge"));
+    createN1mmMenu(bridge);
+    createGridTrackerMenu(bridge);
     auto *upgrade = menuBar()->addMenu(tr("Upgrade"));
     m_upgradeAction = upgrade->addAction(tr("Flash firmware..."),
                                         this, &MainWindow::openFirmwareUpgrade);
@@ -348,7 +353,7 @@ void MainWindow::createMenus()
 
 void MainWindow::updateConnectionState()
 {
-    updateN1mmState();
+    updateBridgeState();
     const bool virtualCom = m_connection->isVirtualComEnabled();
     const bool commandEnabled = m_connection->isConnected() && !virtualCom;
     m_control->setCommandEnabled(commandEnabled);
@@ -497,6 +502,7 @@ void MainWindow::openAzimuthOffset()
     connect(dialog, &QDialog::accepted, this, [this] {
         m_control->setAzimuthOffset(AppSettings().azimuthOffset());
         m_n1mm->setAzimuthOffset(AppSettings().azimuthOffset());
+        m_gridTracker->setAzimuthOffset(AppSettings().azimuthOffset());
         updateCalibrationPosition();
     });
     dialog->open();
@@ -803,7 +809,7 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
             } else {
                 sendControlCommand(QStringLiteral("NO"));
                 m_pendingCalibrationCommand.clear();
-                updateN1mmState();
+                updateBridgeState();
                 updateCalibrationState();
                 m_faultStatus->setPaused(false);
                 m_calibrationTimeoutTimer->stop();
@@ -814,7 +820,7 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
                    (text.contains(QStringLiteral("Completed"), Qt::CaseInsensitive) ||
                     text.startsWith(QStringLiteral("?>")))) {
             m_pendingCalibrationCommand.clear();
-            updateN1mmState();
+            updateBridgeState();
             updateCalibrationState();
             m_faultStatus->setPaused(false);
             m_calibrationTimeoutTimer->stop();
@@ -832,11 +838,15 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
             setDevicePosition(azElMatch.captured(1).toInt(),
                               azElMatch.captured(2).toInt());
             m_n1mm->setPosition(azElMatch.captured(1).toInt());
+            m_gridTracker->setAzimuthPosition(azElMatch.captured(1).toInt());
+            m_gridTracker->setElevationPosition(azElMatch.captured(2).toInt());
         } else if (const auto azMatch = azimuthOnly.match(text); azMatch.hasMatch()) {
             setDevicePosition(azMatch.captured(1).toInt(), m_controllerElevation);
             m_n1mm->setPosition(azMatch.captured(1).toInt());
+            m_gridTracker->setAzimuthPosition(azMatch.captured(1).toInt());
         } else if (const auto elMatch = elevationOnly.match(text); elMatch.hasMatch()) {
             setDevicePosition(m_controllerAzimuth, elMatch.captured(1).toInt());
+            m_gridTracker->setElevationPosition(elMatch.captured(1).toInt());
         }
     }
     // NOTE: 仅缓冲扩展响应以便按命令过滤；普通终端输出仍随字节到达立即显示。

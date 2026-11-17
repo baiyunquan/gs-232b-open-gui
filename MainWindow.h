@@ -14,6 +14,7 @@ class ConnectionPanel;
 class ConsolePanel;
 class ControlPanel;
 class FaultStatusMonitor;
+class GridTrackerController;
 class QLabel;
 class QMenu;
 class RotorSettingsPanel;
@@ -40,7 +41,8 @@ public:
 private:
     void createMenus();
     void createN1mmMenu(QMenu *bridge);
-    void updateN1mmState();
+    void createGridTrackerMenu(QMenu *bridge);
+    void updateBridgeState();
     void openN1mmName();
     void updateConnectionState();
     /** @brief 将设备原始角度同步到主控件和校准窗口，保留超出主控件显示范围的校准反馈。 */
@@ -93,6 +95,7 @@ private:
     Communication::Transport *m_transport;
     VirtualSerialBridge *m_virtualSerial;
     N1mmController *m_n1mm;
+    GridTrackerController *m_gridTracker;
     QAction *m_n1mmEnableAction;
     QAction *m_authenticateAction;
     QAction *m_changePasswordAction;

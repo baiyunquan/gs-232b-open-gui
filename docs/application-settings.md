@@ -16,7 +16,8 @@
 | 方位角补偿 | `rotor/azimuthOffset` | 默认 0；带符号整数度（−2147483648 至 2147483647），缺失、非整数或溢出值回退到 0 |
 | 最短路径旋转 | `rotor/shortestPathEnabled` | 默认开启；接受布尔值及 `true`/`false`、`1`/`0`，缺失或无效时按开启处理 |
 | N1MM 接入 | `n1mm/enabled` | 默认关闭；布尔值校验与控制台显示一致，重启恢复监听；绑定失败保持关闭且不覆盖已保存偏好 |
-| N1MM 转台名称 | `n1mm/rotorName` | 默认 `GS232B`；去除首尾空白后为 1–64 个字符，禁止逗号、`@`、制表符、换行和控制字符；缺失或无效时回退默认值 |
+| N1MM 旋转器名称 | `n1mm/rotorName` | 默认 `GS232B`；去除首尾空白后为 1–64 个字符，禁止逗号、`@`、制表符、换行和控制字符；缺失或无效时回退默认值 |
+| GridTracker 接入 | `gridtracker/enabled` | 默认关闭；布尔值校验与控制台显示一致，重启恢复本机 UDP 12000 监听；绑定失败保持关闭且不覆盖已保存偏好 |
 | 方位预设 | `azimuthPreset0` 至 `azimuthPreset9` | 默认 `0、45、90、135、180、225、270、315、360、405`；整数范围 0–450 度 |
 | 仰角预设 | `elevationPreset0` 至 `elevationPreset5` | 默认 `0、25、50、75、100、125`；整数范围 0–180 度 |
 
@@ -44,4 +45,6 @@
 
 新增偏好时，在 `AppSettings` 中增加明确类型的读写接口，并集中定义存储键、默认值和合法范围；使用方不直接操作 `QSettings` 或通过控件名称推导存储键。先恢复界面状态，再连接用户操作的保存逻辑，避免启动时回写默认值。持久化测试使用临时目录，验证存储契约，不固定界面布局或文字。
 
-通过“桥接 → N1MM Logger+… → 启用”接收同机 N1MM 的转台命令，“配置名称…”修改名称并立即保存、生效。接入和名称的设置、通信约定与使用步骤见 [N1MM Logger+ 接入](n1mm-integration.md)。
+通过“桥接 → N1MM Logger+… → 启用”接收同机 N1MM 的旋转器命令，“配置名称…”修改名称并立即保存、生效。接入和名称的设置、通信约定与使用步骤见 [N1MM Logger+ 接入](n1mm-integration.md)。
+
+通过“桥接 → GridTracker… → 启用”接收同机 GridTracker 的旋转器定位，并为 GridTracker 2 回复实测位置。使用 CatRotator / PstRotator 协议，配置和通信约定见 [GridTracker 接入](gridtracker-integration.md)。

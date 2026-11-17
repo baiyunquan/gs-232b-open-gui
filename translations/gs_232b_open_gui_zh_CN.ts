@@ -246,6 +246,18 @@
     <context>
         <name>MainWindow</name>
         <message>
+            <source>GridTracker...</source>
+            <translation>GridTracker…</translation>
+        </message>
+        <message>
+            <source>GridTracker</source>
+            <translation>GridTracker</translation>
+        </message>
+        <message>
+            <source>Receive CatRotator / PstRotator commands on 127.0.0.1:12000.</source>
+            <translation>在 127.0.0.1:12000 接收 CatRotator / PstRotator 控制命令。</translation>
+        </message>
+        <message>
             <source>N1MM Logger+...</source>
             <translation>N1MM Logger+…</translation>
         </message>
@@ -1075,6 +1087,21 @@ Turn the map off and on to retry</source>
         </message>
     </context>
     <context>
+        <name>GridTrackerController</name>
+        <message>
+            <source>Could not enable GridTracker integration: %1</source>
+            <translation>无法启用 GridTracker 接入：%1</translation>
+        </message>
+        <message>
+            <source>Could not report the rotator position to GridTracker: %1</source>
+            <translation>无法向 GridTracker 回传旋转器位置：%1</translation>
+        </message>
+        <message>
+            <source>GridTracker turn command ignored: no recent rotator position is available.</source>
+            <translation>已忽略 GridTracker 转向命令：尚无最新的旋转器方位读数。</translation>
+        </message>
+    </context>
+    <context>
         <name>N1mmController</name>
         <message>
             <source>Could not enable N1MM Logger+ integration: %1</source>
@@ -1082,22 +1109,22 @@ Turn the map off and on to retry</source>
         </message>
         <message>
             <source>Could not report the rotator position to N1MM Logger+: %1</source>
-            <translation>无法向 N1MM Logger+ 回传转台位置：%1</translation>
+            <translation>无法向 N1MM Logger+ 回传旋转器位置：%1</translation>
         </message>
         <message>
             <source>N1MM turn command ignored: no recent rotator position is available.</source>
-            <translation>已忽略 N1MM 转向命令：尚无最新的转台方位读数。</translation>
+            <translation>已忽略 N1MM 转向命令：尚无最新的旋转器方位读数。</translation>
         </message>
     </context>
     <context>
         <name>N1mmNameDialog</name>
         <message>
             <source>N1MM rotator name</source>
-            <translation>N1MM 转台名称</translation>
+            <translation>N1MM 旋转器名称</translation>
         </message>
         <message>
             <source>Rotator name</source>
-            <translation>转台名称</translation>
+            <translation>旋转器名称</translation>
         </message>
         <message>
             <source>Use exactly the same name in N1MM Logger+ → Configurer → Antennas → Rotor Description. Names are case-sensitive.</source>
@@ -1117,7 +1144,7 @@ Turn the map off and on to retry</source>
         </message>
         <message>
             <source>Could not save the rotator name.</source>
-            <translation>无法保存转台名称。</translation>
+            <translation>无法保存旋转器名称。</translation>
         </message>
     </context>
 </TS>

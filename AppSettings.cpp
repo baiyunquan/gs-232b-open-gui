@@ -17,6 +17,7 @@ const QString AzimuthOffsetKey = QStringLiteral("rotor/azimuthOffset");
 const QString ShortestPathEnabledKey = QStringLiteral("rotor/shortestPathEnabled");
 const QString N1mmEnabledKey = QStringLiteral("n1mm/enabled");
 const QString N1mmRotorNameKey = QStringLiteral("n1mm/rotorName");
+const QString GridTrackerEnabledKey = QStringLiteral("gridtracker/enabled");
 
 bool isSupportedBaudRate(int baudRate)
 {
@@ -174,6 +175,16 @@ QString AppSettings::n1mmRotorName() const
 bool AppSettings::setN1mmRotorName(const QString &name)
 {
     return N1mm::isValidRotorName(name) && storeValue(N1mmRotorNameKey, name.trimmed());
+}
+
+bool AppSettings::gridTrackerEnabled() const
+{
+    return readBoolean(m_settings.value(GridTrackerEnabledKey));
+}
+
+bool AppSettings::setGridTrackerEnabled(bool enabled)
+{
+    return storeValue(GridTrackerEnabledKey, enabled);
 }
 
 QString AppSettings::stationGrid() const

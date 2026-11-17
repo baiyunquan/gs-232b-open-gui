@@ -31,6 +31,7 @@ private slots:
     void readsShortestPathPreference();
     void persistsN1mmPreferences();
     void invalidN1mmPreferencesUseDefaults();
+    void persistsGridTrackerPreference();
     void validatesAndPersistsStationGrid_data();
     void validatesAndPersistsStationGrid();
     void clearsStationGrid();
@@ -55,6 +56,7 @@ void AppSettingsTests::defaultsDoNotWrite()
     QCOMPARE(settings.azimuthOffset(), 0);
     QVERIFY(settings.shortestPathEnabled());
     QVERIFY(!settings.n1mmEnabled());
+    QVERIFY(!settings.gridTrackerEnabled());
     QCOMPARE(settings.n1mmRotorName(), QStringLiteral("GS232B"));
     const std::array<int, 10> azimuth{0, 45, 90, 135, 180, 225, 270, 315, 360, 405};
     const std::array<int, 6> elevation{0, 25, 50, 75, 100, 125};
@@ -499,6 +501,26 @@ void AppSettingsTests::invalidN1mmPreferencesUseDefaults()
     QCOMPARE(file.readAll(), content);
 }
 
+void AppSettingsTests::persistsGridTrackerPreference()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString fileName = directory.filePath(QStringLiteral("settings.ini"));
+    AppSettings settings(fileName);
+    QVERIFY(settings.setN1mmEnabled(true));
+    for (bool enabled : {true, false}) {
+        QVERIFY(settings.setGridTrackerEnabled(enabled));
+        AppSettings reopened(fileName);
+        QCOMPARE(reopened.gridTrackerEnabled(), enabled);
+        QVERIFY(reopened.n1mmEnabled());
+    }
+    QSettings raw(fileName, QSettings::IniFormat);
+    raw.setValue(QStringLiteral("gridtracker/enabled"), QStringLiteral("invalid"));
+    raw.sync();
+    QVERIFY(!AppSettings(fileName).gridTrackerEnabled());
+    QCOMPARE(raw.value(QStringLiteral("gridtracker/enabled")).toString(), QStringLiteral("invalid"));
+}
+
 void AppSettingsTests::reportsStorageFailure()
 {
     QTemporaryDir directory;
@@ -515,6 +537,7 @@ void AppSettingsTests::reportsStorageFailure()
     QVERIFY(!settings.setAzimuthOffset(-30));
     QVERIFY(!settings.setShortestPathEnabled(false));
     QVERIFY(!settings.setN1mmEnabled(true));
+    QVERIFY(!settings.setGridTrackerEnabled(true));
     QVERIFY(!settings.setN1mmRotorName(QStringLiteral("Tower A")));
     QVERIFY(!settings.setStationGrid(QStringLiteral("PM95AA")));
     QVERIFY(!settings.setPresetAngle(AppSettings::Axis::Azimuth, 0, 90));
