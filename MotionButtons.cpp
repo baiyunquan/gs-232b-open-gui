@@ -5,6 +5,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QToolButton>
+#include <QtMath>
 
 namespace {
 
@@ -28,10 +29,13 @@ QIcon motionIcon(Symbol symbol, const QPalette &palette)
                 painter.setPen(Qt::NoPen);
                 painter.setBrush(mode == QIcon::Normal ? QColor(0xd8, 0x3a, 0x2e)
                                                       : QColor(0xb8, 0x70, 0x68));
-                painter.drawPolygon(QPolygonF{{6, 2}, {18, 2}, {23, 12},
-                                              {18, 22}, {6, 22}, {1, 12}});
-                painter.setBrush(Qt::white);
-                painter.drawRoundedRect(QRectF(8, 8, 8, 8), 1, 1);
+                // NOTE: 用正六边形的精确比例构造上下尖角，保证左右边严格竖直。
+                constexpr qreal radius = 11;
+                const qreal halfWidth = qSqrt(3.0) * radius / 2;
+                painter.translate(12, 12);
+                painter.drawPolygon(QPolygonF{{0, -radius}, {halfWidth, -radius / 2},
+                                              {halfWidth, radius / 2}, {0, radius},
+                                              {-halfWidth, radius / 2}, {-halfWidth, -radius / 2}});
             } else if (symbol == Symbol::Up || symbol == Symbol::Down) {
                 if (symbol == Symbol::Down) {
                     painter.translate(24, 24);

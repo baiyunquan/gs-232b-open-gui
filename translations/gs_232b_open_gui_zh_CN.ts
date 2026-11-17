@@ -122,8 +122,8 @@
             <translation>跟踪</translation>
         </message>
         <message>
-            <source>LP / Long path</source>
-            <translation>LP / 长径</translation>
+            <source>LP</source>
+            <translation>长径</translation>
         </message>
         <message>
             <source>Azimuth</source>

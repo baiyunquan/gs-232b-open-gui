@@ -53,7 +53,7 @@ ControlPanel::ControlPanel(QWidget *parent) : QWidget(parent)
     manual->setChecked(true);
     auto *tracking = new QRadioButton(tr("Tracking"), mode);
     tracking->setObjectName(QStringLiteral("trackingMode"));
-    auto *longPath = new QCheckBox(tr("LP / Long path"), mode);
+    auto *longPath = new QCheckBox(tr("LP"), mode);
     longPath->setObjectName(QStringLiteral("longPath"));
     modeLayout->addWidget(manual);
     modeLayout->addWidget(tracking);
