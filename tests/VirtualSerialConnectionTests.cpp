@@ -1,5 +1,5 @@
 #include "CommunicationProtocol.h"
-#include "ConnectionPanel.h"
+#include "ConnectionDialog.h"
 #include "ControlPanel.h"
 #include "MainWindow.h"
 #include "virtual_serial/VirtualSerialBridge.h"
@@ -11,6 +11,8 @@
 #include <QPointer>
 #include <QRadioButton>
 #include <QSignalSpy>
+#include <QSettings>
+#include <QTemporaryDir>
 #include <QWebSocket>
 #include <QWebSocketServer>
 #include <QtTest>
@@ -25,6 +27,7 @@ class VirtualSerialConnectionTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void initTestCase();
     void init();
     void cleanup();
     void failedConnectionDoesNotCreatePort();
@@ -44,13 +47,14 @@ private slots:
 
 private:
     bool connectDevice();
+    QTemporaryDir m_settingsDirectory;
 #ifdef Q_OS_UNIX
     bool openClient();
     QByteArray readReply(qsizetype expectedSize);
     QFile m_client;
 #endif
     MainWindow *m_window = nullptr;
-    ConnectionPanel *m_connection = nullptr;
+    ConnectionDialog *m_connection = nullptr;
     Communication::Transport *m_transport = nullptr;
     VirtualSerialBridge *m_bridge = nullptr;
     QWebSocketServer *m_server = nullptr;
@@ -58,6 +62,12 @@ private:
     QList<QByteArray> m_binaryFrames;
     QStringList m_textFrames;
 };
+
+void VirtualSerialConnectionTests::initTestCase()
+{
+    QVERIFY(m_settingsDirectory.isValid());
+    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, m_settingsDirectory.path());
+}
 
 void VirtualSerialConnectionTests::init()
 {
@@ -73,7 +83,7 @@ void VirtualSerialConnectionTests::init()
                 [this](const QString &text) { m_textFrames.append(text); });
     });
     m_window = new MainWindow;
-    m_connection = m_window->findChild<ConnectionPanel *>();
+    m_connection = m_window->findChild<ConnectionDialog *>();
     m_transport = m_window->findChild<Communication::Transport *>();
     m_bridge = m_window->findChild<VirtualSerialBridge *>();
     QVERIFY(m_connection);
@@ -287,7 +297,7 @@ void VirtualSerialConnectionTests::invalidPortPair()
     m_window->findChild<QComboBox *>(QStringLiteral("virtualClientPort"))->setEditText(clientPort);
     bool reportedConnected = false;
     QObject stateObserver;
-    connect(m_connection, &ConnectionPanel::stateChanged, &stateObserver,
+    connect(m_connection, &ConnectionDialog::stateChanged, &stateObserver,
             [&] { reportedConnected = reportedConnected || m_connection->isConnected(); });
     QSignalSpy error(m_bridge, &VirtualSerialBridge::errorOccurred);
     m_connection->connectRequested();

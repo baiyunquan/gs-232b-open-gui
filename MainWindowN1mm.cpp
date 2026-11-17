@@ -1,7 +1,7 @@
 #include "MainWindow.h"
 #include "AppSettings.h"
 #include "CommunicationProtocol.h"
-#include "ConnectionPanel.h"
+#include "ConnectionDialog.h"
 #include "ConsolePanel.h"
 #include "ControlPanel.h"
 #include "n1mm/N1mmController.h"
@@ -22,9 +22,10 @@ void MainWindow::createN1mmMenu(QMenu *bridge)
     m_n1mm->setAzimuthOffset(preferences.azimuthOffset());
     m_n1mm->setShortestPathEnabled(preferences.shortestPathEnabled());
     connect(m_n1mm, &N1mmController::commandRequested, this, [this](const QString &command) {
-        updateN1mmState();
-        if (!m_transport->isOpen() || m_connection->isVirtualComEnabled() ||
-            !m_pendingCalibrationCommand.isEmpty())
+        updateBridgeState();
+        if (!m_transport->isOpen() || !m_connection->isConnected() ||
+            m_connection->isVirtualComEnabled() || !m_pendingCalibrationCommand.isEmpty() ||
+            !m_control->trackingEnabled())
             return;
         m_control->cancelPendingMotion();
         sendControlCommand(command);
@@ -64,13 +65,6 @@ void MainWindow::createN1mmMenu(QMenu *bridge)
             QMessageBox::warning(this, tr("Application settings"),
                                  tr("Could not save application settings."));
     });
-}
-
-void MainWindow::updateN1mmState()
-{
-    m_n1mm->setControlAvailable(m_transport->isOpen() && m_connection->isConnected() &&
-                               !m_connection->isVirtualComEnabled() &&
-                               m_pendingCalibrationCommand.isEmpty());
 }
 
 void MainWindow::openN1mmName()

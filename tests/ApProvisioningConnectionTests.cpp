@@ -1,5 +1,5 @@
 #include "CommunicationProtocol.h"
-#include "ConnectionPanel.h"
+#include "ConnectionDialog.h"
 #include "MainWindow.h"
 #include "ManagementKeyDialog.h"
 #include "WifiProvisioningDialog.h"
@@ -13,6 +13,8 @@
 #include <QPointer>
 #include <QRadioButton>
 #include <QSignalSpy>
+#include <QSettings>
+#include <QTemporaryDir>
 #include <QTimer>
 #include <QWebSocket>
 #include <QWebSocketServer>
@@ -31,6 +33,7 @@ class ApProvisioningConnectionTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void initTestCase();
     void init();
     void cleanup();
     void networkStartUsesBareCommand();
@@ -47,14 +50,21 @@ private:
     bool connectDevice();
     void submitPassword();
 
+    QTemporaryDir m_settingsDirectory;
     MainWindow *m_window = nullptr;
-    ConnectionPanel *m_connection = nullptr;
+    ConnectionDialog *m_connection = nullptr;
     Communication::Transport *m_transport = nullptr;
     QAction *m_start = nullptr;
     QWebSocketServer *m_server = nullptr;
     QPointer<QWebSocket> m_peer;
     QStringList m_commands;
 };
+
+void ApProvisioningConnectionTests::initTestCase()
+{
+    QVERIFY(m_settingsDirectory.isValid());
+    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, m_settingsDirectory.path());
+}
 
 void ApProvisioningConnectionTests::init()
 {
@@ -69,7 +79,7 @@ void ApProvisioningConnectionTests::init()
     });
 
     m_window = new MainWindow;
-    m_connection = m_window->findChild<ConnectionPanel *>();
+    m_connection = m_window->findChild<ConnectionDialog *>();
     m_transport = m_window->findChild<Communication::Transport *>();
     m_start = m_window->findChild<QAction *>(QStringLiteral("startApProvisioningAction"));
     QVERIFY(m_connection);

@@ -21,6 +21,8 @@ public:
     void setAzimuthOffset(int degrees);
     /** @brief 切换方位预设的取模显示和编辑，不改写存储；仰角忽略此设置。 */
     void setShortestPathEnabled(bool enabled);
+    /** @brief 优先采用能完整容纳角度的紧凑尺寸，仍允许布局拉伸按钮。 */
+    QSize sizeHint() const override;
 
 signals:
     /** @brief 请求转到预设的机械角度，调用方不得再次应用补偿。 */

@@ -48,7 +48,7 @@ public:
 
     /** @brief 开始连接；WebSocket 连接在 connected 信号后才算成功。 */
     bool open(const ConnectionOptions &options);
-    /** @brief 关闭当前传输并释放底层资源。 */
+    /** @brief 关闭传输并释放资源；串口最多等待一秒发出已排队字节，失败时报告错误。 */
     void close();
     /** @return 当前是否已建立可读写连接。 */
     bool isOpen() const;

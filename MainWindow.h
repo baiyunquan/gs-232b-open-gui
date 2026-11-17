@@ -3,18 +3,23 @@
 #include <QByteArray>
 #include <QJsonObject>
 #include <QMainWindow>
+#include <QPointer>
 #include <QString>
 
 #include <functional>
 
 class QAction;
-class ConnectionPanel;
+class CalibrationDialog;
+class ConnectionDialog;
 class ConsolePanel;
 class ControlPanel;
 class FaultStatusMonitor;
+class GridTrackerController;
 class QLabel;
+class ManagementKeyDialog;
 class QMenu;
-class RotorSettingsPanel;
+class RotorModelDialog;
+class QShowEvent;
 class QTimer;
 class VirtualSerialBridge;
 class N1mmController;
@@ -36,11 +41,19 @@ public:
     ~MainWindow() override;
 
 private:
+    void showEvent(QShowEvent *event) override;
+    void openConnectionDialog();
     void createMenus();
+    void createViewMenu();
+    /** @brief 应用窗口置顶标志，保留可见性和最大化等窗口状态。 */
+    void setAlwaysOnTop(bool enabled);
     void createN1mmMenu(QMenu *bridge);
-    void updateN1mmState();
+    void createGridTrackerMenu(QMenu *bridge);
+    void updateBridgeState();
     void openN1mmName();
     void updateConnectionState();
+    /** @brief 将设备原始角度同步到主控件和校准窗口，保留超出主控件显示范围的校准反馈。 */
+    void setDevicePosition(int azimuth, int elevation);
     void openTransport();
     void closeTransport();
     void setupVirtualSerial();
@@ -51,19 +64,29 @@ private:
     void startApProvisioning();
     void openStationGrid();
     void openAzimuthOffset();
+    void openCalibration();
+    void updateCalibrationState();
+    void updateCalibrationPosition();
     void openWifiProvisioning();
     void openNetworkPortConfig();
     void resetNetworkConfiguration();
     void openFirmwareUpgrade();
     void openAbout();
-    void applyRotorModel();
+    void setupRotorModel();
+    void openRotorModel();
+    void updateRotorModelState();
+    void applyRotorModel(int modelId);
+    void finishRotorModelRequest(const QString &error = {});
+    void handleRotorModelResponse(const QJsonObject &response);
     void flashFirmware(const QString &port, const QString &file);
     void sendControlCommand(const QString &command);
     void requestCalibration(const QString &command, const QString &question);
     void runManagementAction(const std::function<void()> &action,
                              const std::function<void()> &cancelled = {});
-    void openManagementKey(const std::function<void()> &continuation,
-                           const std::function<void()> &cancelled = {});
+    /** @brief 按需认证；返回新建的密码窗口，已认证时立即继续并返回 nullptr。 */
+    ManagementKeyDialog *openManagementKey(const std::function<void()> &continuation,
+                                           const std::function<void()> &cancelled = {},
+                                           QWidget *promptParent = nullptr);
     void configureWifi(const QString &ssid, const QString &password);
     void configureEthernet(const EthernetConfiguration &configuration);
     void beginNetworkConfiguration(const QJsonObject &patch, bool wifiTarget,
@@ -75,17 +98,22 @@ private:
     void handleReceivedBytes(const QByteArray &bytes);
     void handleManagementResponse(const QByteArray &line);
 
-    ConnectionPanel *m_connection;
+    ConnectionDialog *m_connection;
     ControlPanel *m_control;
     ConsolePanel *m_console;
-    RotorSettingsPanel *m_settings;
+    QMenu *m_speedMenu;
+    RotorModelDialog *m_rotorModelDialog;
+    QPointer<ManagementKeyDialog> m_rotorModelAuthDialog;
+    QPointer<CalibrationDialog> m_calibrationDialog;
     FaultStatusMonitor *m_faultStatus;
     QLabel *m_connectionStatus;
     QLabel *m_transportStatus;
     Communication::Transport *m_transport;
     VirtualSerialBridge *m_virtualSerial;
     N1mmController *m_n1mm;
+    GridTrackerController *m_gridTracker;
     QAction *m_n1mmEnableAction;
+    QAction *m_connectionAction;
     QAction *m_authenticateAction;
     QAction *m_changePasswordAction;
     QAction *m_cancelManagementAction;
@@ -95,8 +123,12 @@ private:
     QAction *m_networkPortAction;
     QAction *m_resetNetworkAction;
     QAction *m_upgradeAction;
+    QAction *m_calibrationAction;
+    QAction *m_rotorModelAction;
     QByteArray m_receiveBuffer;
     qsizetype m_consoleForwardedBytes = 0;
+    int m_controllerAzimuth = 0;
+    int m_controllerElevation = 0;
     QString m_pendingWifiSsid;
     QJsonObject m_pendingNetworkPatch;
     qint64 m_pendingNetworkCandidate = -1;
@@ -106,11 +138,17 @@ private:
     QString m_pendingManagementPassword;
     QString m_pendingManagementResponseCommand;
     bool m_managementAuthenticated = false;
+    bool m_initialConnectionPrompt = true;
+    bool m_connectionPromptSuppressed = false;
+    int m_pendingRotorModelId = 0;
+    quint64 m_rotorModelRequest = 0;
+    bool m_rotorModelWriteSent = false;
     std::function<void()> m_pendingManagementContinuation;
     std::function<void(const QJsonObject &)> m_pendingManagementResponseContinuation;
     QTimer *m_positionPollTimer;
     QTimer *m_wifiTrialPollTimer;
     QTimer *m_calibrationTimeoutTimer;
+    QTimer *m_rotorModelTimeoutTimer;
     int m_wifiTrialPollCount = 0;
 
     enum class NetworkConfigurationStage {

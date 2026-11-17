@@ -148,7 +148,7 @@ jobs:
       - name: Compute build cache key
         id: build_key
         env:
-          SOURCE_HASH: ${{ hashFiles('**/*.cpp', '**/*.h', 'CMakeLists.txt', 'cmake/**', 'translations/**', 'targeting/data/**', '.github/workflows/windows.yml', '!.venv/**', '!.uv-cache/**') }}
+          SOURCE_HASH: ${{ hashFiles('**/*.cpp', '**/*.h', 'CMakeLists.txt', 'cmake/**', 'translations/**', 'targeting/data/**', 'assets/**', '.github/workflows/windows.yml', '!.venv/**', '!.uv-cache/**') }}
           DEPENDENCY_HASH: ${{ hashFiles('cmake/TerminalDependencies.cmake') }}
         run: |
           $cmakeVersion = (cmake --version | Select-Object -First 1)

@@ -26,6 +26,7 @@ private slots:
     void presetEditingUsesCircularAngles();
     void changingModeCancelsPendingCommands();
     void elevationKeepsMechanicalPosition();
+    void unsupportedElevationCancelsPendingCommands();
     void disabledPreferenceRestoresContinuousTravel();
 
 private:
@@ -241,6 +242,30 @@ void ShortestPathTests::disabledPreferenceRestoresContinuousTravel()
     QCOMPARE(commands.takeFirst().first().toString(), QStringLiteral("M405"));
     QTest::keyClick(edit(reading, QStringLiteral("451")), Qt::Key_Return);
     QVERIFY(commands.isEmpty());
+}
+
+void ShortestPathTests::unsupportedElevationCancelsPendingCommands()
+{
+    ControlPanel panel;
+    panel.setCommandEnabled(true);
+    panel.setPosition(405, 20);
+    panel.show();
+    QSignalSpy commands(&panel, &ControlPanel::commandRequested);
+    auto *slider = panel.findChild<QSlider *>();
+    auto *reading = panel.findChild<AngleReading *>(QStringLiteral("elevationReading"));
+    auto *preset = panel.findChild<QPushButton *>(QStringLiteral("elevationPreset0"));
+    auto *editor = edit(reading, QStringLiteral("90"));
+    slider->setValue(60);
+    panel.setElevationSupported(false);
+    QTest::keyClick(editor, Qt::Key_Return);
+    preset->click();
+    slider->setValue(70);
+    QTest::qWait(200);
+    QVERIFY(commands.isEmpty());
+    panel.setElevationSupported(true);
+    preset->click();
+    QCOMPARE(commands.size(), 1);
+    QCOMPARE(commands.first().first().toString(), QStringLiteral("W405 000"));
 }
 
 QTEST_MAIN(ShortestPathTests)

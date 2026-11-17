@@ -1,19 +1,26 @@
-#include "ConnectionPanel.h"
+#include "ConnectionDialog.h"
+#include "AppSettings.h"
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSerialPortInfo>
 
-ConnectionPanel::ConnectionPanel(QWidget *parent)
-    : QGroupBox(tr("CONNECTION"), parent)
+ConnectionDialog::ConnectionDialog(QWidget *parent)
+    : QDialog(parent)
 {
-    setObjectName(QStringLiteral("connectionPanel"));
+    setObjectName(QStringLiteral("connectionDialog"));
+    setWindowTitle(tr("Connection"));
+    setWindowModality(Qt::WindowModal);
+    setMinimumWidth(420);
+    const AppSettings settings;
     auto *layout = new QGridLayout(this);
     m_serialMode = new QRadioButton(tr("Serial"), this);
     m_serialMode->setObjectName(QStringLiteral("serialMode"));
@@ -21,11 +28,18 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
     m_serialPort = new QComboBox(this);
     m_serialPort->setObjectName(QStringLiteral("serialPort"));
     m_serialPort->setEditable(true);
+    m_serialPort->setMinimumContentsLength(8);
+    m_serialPort->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     const auto availablePorts = QSerialPortInfo::availablePorts();
-    for (const QSerialPortInfo &port : availablePorts)
+    QStringList availablePortNames;
+    for (const QSerialPortInfo &port : availablePorts) {
+        availablePortNames.append(port.portName());
         m_serialPort->addItem(port.portName(), port.portName());
+    }
     if (m_serialPort->count() == 0)
         m_serialPort->addItem(tr("No serial ports found"), QString());
+    else
+        m_serialPort->setCurrentIndex(m_serialPort->findData(settings.serialPort(availablePortNames)));
     layout->addWidget(m_serialMode, 0, 0);
     layout->addWidget(m_serialPort, 0, 1);
 
@@ -33,26 +47,28 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
     m_baudRate->setObjectName(QStringLiteral("baudRate"));
     m_baudRate->addItems({QStringLiteral("1200"), QStringLiteral("2400"),
                           QStringLiteral("4800"), QStringLiteral("9600")});
-    m_baudRate->setCurrentIndex(3);
-    auto *baudLabel = new QLabel(tr("Baud rate"), this);
-    baudLabel->setBuddy(m_baudRate);
-    layout->addWidget(baudLabel, 1, 0);
-    layout->addWidget(m_baudRate, 1, 1);
+    m_baudRate->setCurrentText(QString::number(settings.baudRate()));
+    m_baudRate->setAccessibleName(tr("Baud rate"));
+    m_baudRate->setToolTip(tr("Baud rate"));
+    layout->addWidget(m_baudRate, 0, 2);
 
     m_networkMode = new QRadioButton(tr("Network"), this);
     m_networkMode->setObjectName(QStringLiteral("networkMode"));
-    m_address = new QLineEdit(QStringLiteral("192.168.1.50"), this);
+    m_networkMode->setChecked(settings.networkMode());
+    m_address = new QLineEdit(settings.connectionAddress(), this);
     m_address->setObjectName(QStringLiteral("websocketAddress"));
-    layout->addWidget(m_networkMode, 2, 0);
-    layout->addWidget(m_address, 2, 1);
+    m_address->setMinimumWidth(140);
+    m_address->setAccessibleName(tr("Network address"));
+    layout->addWidget(m_networkMode, 1, 0);
+    layout->addWidget(m_address, 1, 1, 1, 2);
 
     m_virtualCom = new QCheckBox(tr("Virtual COM"), this);
     m_virtualCom->setObjectName(QStringLiteral("virtualCom"));
-    layout->addWidget(m_virtualCom, 3, 0, 1, 2);
+    layout->addWidget(m_virtualCom, 2, 1, 1, 2);
+#ifdef Q_OS_WIN
     m_virtualPortOptions = new QWidget(this);
     auto *virtualLayout = new QFormLayout(m_virtualPortOptions);
     virtualLayout->setContentsMargins(0, 0, 0, 0);
-#ifdef Q_OS_WIN
     m_virtualApplicationPort = new QComboBox(m_virtualPortOptions);
     m_virtualApplicationPort->setObjectName(QStringLiteral("virtualApplicationPort"));
     m_virtualClientPort = new QComboBox(m_virtualPortOptions);
@@ -70,38 +86,66 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
                                m_virtualPortOptions);
     pairHint->setWordWrap(true);
     virtualLayout->addRow(pairHint);
+    layout->addWidget(m_virtualPortOptions, 3, 1, 1, 2);
 #endif
-    m_virtualPort = new QLineEdit(m_virtualPortOptions);
-    m_virtualPort->setObjectName(QStringLiteral("virtualPort"));
-    m_virtualPort->setReadOnly(true);
-    m_virtualPort->setPlaceholderText(tr("Assigned after connection"));
-    virtualLayout->addRow(tr("Active port"), m_virtualPort);
-    layout->addWidget(m_virtualPortOptions, 4, 0, 1, 2);
 
-    m_connect = new QPushButton(tr("Connect"), this);
+    m_status = new QLabel(this);
+    m_status->setObjectName(QStringLiteral("connectionMessage"));
+    m_status->setWordWrap(true);
+    m_status->setTextFormat(Qt::PlainText);
+    layout->addWidget(m_status, 4, 0, 1, 3);
+
+    auto *buttons = new QDialogButtonBox(this);
+    m_connect = buttons->addButton(tr("Connect"), QDialogButtonBox::AcceptRole);
     m_connect->setObjectName(QStringLiteral("connectButton"));
-    m_disconnect = new QPushButton(tr("Disconnect"), this);
-    m_disconnect->setObjectName(QStringLiteral("disconnectButton"));
-    layout->addWidget(m_connect, 5, 0);
-    layout->addWidget(m_disconnect, 5, 1);
+    m_connect->setDefault(true);
+    auto *cancel = buttons->addButton(tr("Cancel"), QDialogButtonBox::RejectRole);
+    cancel->setAutoDefault(false);
+    layout->addWidget(buttons, 5, 0, 1, 3);
     layout->setColumnStretch(1, 1);
 
-    connect(m_networkMode, &QRadioButton::toggled, this, &ConnectionPanel::updateControls);
-    connect(m_virtualCom, &QCheckBox::toggled, this, &ConnectionPanel::updateControls);
-    connect(m_connect, &QPushButton::clicked, this, &ConnectionPanel::connectRequested);
-    connect(m_disconnect, &QPushButton::clicked, this, &ConnectionPanel::disconnectRequested);
-    // NOTE: 连接状态只由真实传输后端回写，面板按钮不伪造成功状态。
+    // NOTE: 先恢复全部偏好再绑定保存，自动回退串口时保留原选择，等待设备重新接入。
+    connect(m_serialPort, &QComboBox::currentTextChanged, this, [this] {
+        reportSettingsResult(AppSettings().setSerialPort(connectionOptions().serialPort));
+    });
+    connect(m_baudRate, &QComboBox::currentTextChanged, this, [this] {
+        reportSettingsResult(AppSettings().setBaudRate(m_baudRate->currentText().toInt()));
+    });
+    connect(m_address, &QLineEdit::textChanged, this, [this](const QString &address) {
+        reportSettingsResult(AppSettings().setConnectionAddress(address));
+    });
+    connect(m_networkMode, &QRadioButton::toggled, this, [this](bool enabled) {
+        reportSettingsResult(AppSettings().setNetworkMode(enabled));
+    });
+    connect(this, &ConnectionDialog::connectRequested, this, [this] {
+        const auto options = connectionOptions();
+        if (!isNetworkMode() && !options.serialPort.isEmpty())
+            reportSettingsResult(AppSettings().setSerialPort(options.serialPort));
+    });
+    connect(m_networkMode, &QRadioButton::toggled, this, &ConnectionDialog::updateControls);
+    connect(m_virtualCom, &QCheckBox::toggled, this, &ConnectionDialog::updateControls);
+    connect(buttons, &QDialogButtonBox::accepted, this, &ConnectionDialog::connectRequested);
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    // NOTE: 连接状态只由真实传输后端回写，连接按钮不伪造成功状态。
     updateControls();
 }
 
-bool ConnectionPanel::isConnected() const { return m_connected; }
-bool ConnectionPanel::isNetworkMode() const { return m_networkMode->isChecked(); }
-bool ConnectionPanel::isVirtualComEnabled() const
+void ConnectionDialog::reportSettingsResult(bool saved)
+{
+    if (!saved)
+        QMessageBox::warning(this, tr("Application settings"),
+                             tr("Could not save application settings."));
+}
+
+bool ConnectionDialog::isConnected() const { return m_connected; }
+bool ConnectionDialog::isConnecting() const { return m_connecting; }
+bool ConnectionDialog::isNetworkMode() const { return m_networkMode->isChecked(); }
+bool ConnectionDialog::isVirtualComEnabled() const
 {
     return isNetworkMode() && m_virtualCom->isChecked();
 }
 
-Communication::ConnectionOptions ConnectionPanel::connectionOptions(
+Communication::ConnectionOptions ConnectionDialog::connectionOptions(
     Communication::WebSocketEndpoint endpoint) const
 {
     Communication::ConnectionOptions options;
@@ -118,7 +162,7 @@ Communication::ConnectionOptions ConnectionPanel::connectionOptions(
     return options;
 }
 
-VirtualSerialOptions ConnectionPanel::virtualSerialOptions() const
+VirtualSerialOptions ConnectionDialog::virtualSerialOptions() const
 {
     VirtualSerialOptions options;
 #ifdef Q_OS_WIN
@@ -129,29 +173,34 @@ VirtualSerialOptions ConnectionPanel::virtualSerialOptions() const
     return options;
 }
 
-void ConnectionPanel::setVirtualSerialPort(const QString &port)
-{
-    m_virtualPort->setText(port);
-}
-
-void ConnectionPanel::setConnected(bool connected)
+void ConnectionDialog::setConnected(bool connected)
 {
     if (m_connected == connected)
         return;
     m_connecting = false;
     m_connected = connected;
     updateControls();
+    if (connected)
+        accept();
 }
 
-void ConnectionPanel::setConnecting(bool connecting)
+void ConnectionDialog::setConnecting(bool connecting)
 {
     if (m_connecting == connecting)
         return;
     m_connecting = connecting;
+    if (connecting)
+        m_error.clear();
     updateControls();
 }
 
-void ConnectionPanel::updateControls()
+void ConnectionDialog::setError(const QString &error)
+{
+    m_error = error;
+    updateControls();
+}
+
+void ConnectionDialog::updateControls()
 {
     const bool network = isNetworkMode();
     const bool locked = m_connected || m_connecting;
@@ -163,12 +212,13 @@ void ConnectionPanel::updateControls()
     baudRateEnabled = baudRateEnabled || isVirtualComEnabled();
     m_virtualApplicationPort->setEnabled(!locked);
     m_virtualClientPort->setEnabled(!locked);
+    m_virtualPortOptions->setVisible(isVirtualComEnabled());
 #endif
     m_baudRate->setEnabled(!locked && baudRateEnabled);
     m_address->setEnabled(!locked && network);
     m_virtualCom->setEnabled(!locked && network);
-    m_virtualPortOptions->setVisible(isVirtualComEnabled());
     m_connect->setEnabled(!locked);
-    m_disconnect->setEnabled(m_connected);
+    m_status->setText(m_connecting ? tr("Connecting...") : m_error);
+    m_status->setVisible(!m_status->text().isEmpty());
     emit stateChanged();
 }

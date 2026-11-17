@@ -111,7 +111,7 @@ void N1mmTests::validatesNames_data()
     QTest::addColumn<bool>("valid");
     QTest::newRow("default") << QStringLiteral("GS232B") << true;
     QTest::newRow("trimmed") << QStringLiteral(" Tower A ") << true;
-    QTest::newRow("unicode") << QStringLiteral("主转台") << true;
+    QTest::newRow("unicode") << QStringLiteral("主旋转器") << true;
     QTest::newRow("boundary") << QString(64, QLatin1Char('A')) << true;
     QTest::newRow("empty") << QString() << false;
     QTest::newRow("blank") << QStringLiteral("  ") << false;
@@ -191,6 +191,7 @@ void N1mmTests::resolvesExtremeLocalOffsets()
 void N1mmTests::routesNamedCommandsAndStops()
 {
     N1mmController controller;
+    controller.setTrackingEnabled(true);
     QVERIFY(controller.setEnabled(true));
     controller.setControlAvailable(true);
     controller.setPosition(350);
@@ -232,6 +233,7 @@ void N1mmTests::reportsMeasuredPositionAndNameChanges()
 void N1mmTests::dropsUnavailableAndStaleCommands()
 {
     N1mmController controller;
+    controller.setTrackingEnabled(true);
     QVERIFY(controller.setEnabled(true));
     QSignalSpy commands(&controller, &N1mmController::commandRequested);
     QSignalSpy errors(&controller, &N1mmController::errorOccurred);
@@ -259,6 +261,7 @@ void N1mmTests::dropsUnavailableAndStaleCommands()
 void N1mmTests::disablingDropsQueuedCommands()
 {
     N1mmController controller;
+    controller.setTrackingEnabled(true);
     QVERIFY(controller.setEnabled(true));
     controller.setControlAvailable(true);
     controller.setPosition(350);

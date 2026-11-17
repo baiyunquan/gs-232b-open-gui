@@ -36,14 +36,15 @@ void Compass::updateMapStatus()
 {
     QString description;
     if (m_mapEnabled) {
-        if (m_stationGrid.isEmpty())
+        if (m_stationGrid.isEmpty()) {
             description = tr("Set your grid in Settings → My grid… to center the map.");
-        else if (!m_map->errorString().isEmpty())
+            setToolTip(description);
+        }
+        else if (!m_map->errorString().isEmpty()) {
             description = m_map->errorString();
-        else
-            description = tr("Great-circle map centered on %1. Map by NS6T.").arg(m_stationGrid);
+            setToolTip(description);
+        }
     }
-    setToolTip(description);
     setAccessibleDescription(description);
     if (!m_map->errorString().isEmpty())
         emit mapError(m_map->errorString());

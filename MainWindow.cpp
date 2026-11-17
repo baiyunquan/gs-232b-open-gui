@@ -1,9 +1,10 @@
 #include "MainWindow.h"
 #include "AppSettings.h"
 #include "AzimuthOffsetDialog.h"
+#include "CalibrationDialog.h"
 #include "CommandLog.h"
 #include "CommunicationProtocol.h"
-#include "ConnectionPanel.h"
+#include "ConnectionDialog.h"
 #include "ConsolePanel.h"
 #include "ControlPanel.h"
 #include "FaultStatusMonitor.h"
@@ -12,12 +13,13 @@
 #include "ManagementKeyDialog.h"
 #include "NetworkPortConfigDialog.h"
 #include "PasswordChangeDialog.h"
-#include "RotorSettingsPanel.h"
 #include "StationGridDialog.h"
 #include "WifiProvisioningDialog.h"
 #include "virtual_serial/VirtualSerialBridge.h"
 #include "n1mm/N1mmController.h"
+#include "gridtracker/GridTrackerController.h"
 
+#include <QActionGroup>
 #include <QApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -47,53 +49,27 @@ QString managementAuthCommand(const QString &password)
         .arg(QString::fromUtf8(QJsonDocument(request).toJson(QJsonDocument::Compact)));
 }
 
-QString modelSetCommand(int modelId)
-{
-    QJsonObject request;
-    request.insert(QStringLiteral("model_id"), modelId);
-    return QStringLiteral("!ROTOR SET %1")
-        .arg(QString::fromUtf8(QJsonDocument(request).toJson(QJsonDocument::Compact)));
-}
-
 } // namespace
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
     setObjectName(QStringLiteral("mainWindow"));
     setWindowTitle(tr("GS-232B Open Control"));
-    setMinimumSize(760, 720);
-    resize(1440, 880);
+    setMinimumWidth(860);
+    resize(1280, 360);
 
     auto *central = new QWidget(this);
-    auto *columns = new QHBoxLayout(central);
-    columns->setContentsMargins(10, 10, 10, 10);
-    columns->setSpacing(12);
-    auto *left = new QWidget(central);
-    left->setMinimumWidth(340);
-    left->setMaximumWidth(390);
-    auto *leftLayout = new QVBoxLayout(left);
-    leftLayout->setContentsMargins(0, 0, 0, 0);
-    leftLayout->setSpacing(10);
-    m_connection = new ConnectionPanel(left);
-    m_control = new ControlPanel(left);
-    leftLayout->addWidget(m_connection);
-    leftLayout->addWidget(m_control, 1);
-    columns->addWidget(left);
+    auto *layout = new QVBoxLayout(central);
+    layout->setContentsMargins(10, 8, 10, 8);
+    layout->setSpacing(10);
+    m_connection = new ConnectionDialog(this);
+    m_control = new ControlPanel(central);
+    layout->addWidget(m_control, 1);
     m_console = new ConsolePanel(central);
-    columns->addWidget(m_console, 1);
-    auto *right = new QWidget(central);
-    right->setMinimumWidth(250);
-    // NOTE: 侧栏按内容尺寸限制宽度，避免硬性上限小于布局最小宽度时低估换行文字的高度。
-    right->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
-    auto *rightLayout = new QVBoxLayout(right);
-    rightLayout->setContentsMargins(0, 0, 0, 0);
-    rightLayout->setSpacing(10);
-    m_settings = new RotorSettingsPanel(right);
+    // NOTE: 控制台保持固定高度；显隐时由视图菜单同步调整窗口高度。
+    m_console->setFixedHeight(220);
+    layout->addWidget(m_console);
     m_faultStatus = new FaultStatusMonitor(this);
-    rightLayout->addWidget(m_settings);
-    rightLayout->addWidget(new FaultStatusPanel(m_faultStatus, right));
-    rightLayout->addStretch(1);
-    columns->addWidget(right);
     setCentralWidget(central);
 
     m_transport = new Communication::Transport(this);
@@ -112,20 +88,31 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     statusBar()->setSizeGripEnabled(false);
     statusBar()->addWidget(m_connectionStatus, 1);
     statusBar()->addPermanentWidget(m_transportStatus);
+    statusBar()->addPermanentWidget(new FaultStatusPanel(m_faultStatus, statusBar()));
     connect(m_control, &ControlPanel::mapError, this, [this](const QString &message) {
         statusBar()->showMessage(message, 15000);
     });
     connect(m_control, &ControlPanel::inputError, this, [this](const QString &message) {
         statusBar()->showMessage(message, 15000);
     });
+    setupRotorModel();
     createMenus();
+    connect(m_control, &ControlPanel::trackingEnabledChanged, this, &MainWindow::updateBridgeState);
     setupVirtualSerial();
-    connect(m_connection, &ConnectionPanel::stateChanged,
+    connect(m_connection, &ConnectionDialog::stateChanged,
             this, &MainWindow::updateConnectionState);
-    connect(m_connection, &ConnectionPanel::connectRequested,
+    connect(m_connection, &ConnectionDialog::connectRequested,
             this, &MainWindow::openTransport);
-    connect(m_connection, &ConnectionPanel::disconnectRequested,
+    connect(m_connection, &ConnectionDialog::disconnectRequested,
             this, &MainWindow::closeTransport);
+    connect(m_connection, &QDialog::rejected, this, [this] {
+        if (!m_connection->isConnecting())
+            return;
+        // NOTE: 用户取消握手时主动关闭传输，本次断开不重新弹出刚取消的窗口。
+        m_connectionPromptSuppressed = true;
+        closeTransport();
+        m_connectionPromptSuppressed = false;
+    });
     connect(m_transport, &Communication::Transport::connected, this, [this] {
         if (m_connection->isVirtualComEnabled() &&
             !m_virtualSerial->start(m_connection->virtualSerialOptions())) {
@@ -143,7 +130,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     });
     connect(m_transport, &Communication::Transport::disconnected, this, [this] {
         m_virtualSerial->stop();
-        m_connection->setVirtualSerialPort({});
         m_connection->setConnecting(false);
         m_connection->setConnected(false);
         m_positionPollTimer->stop();
@@ -152,6 +138,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         m_receiveBuffer.clear();
         m_consoleForwardedBytes = 0;
         m_pendingCalibrationCommand.clear();
+        updateCalibrationState();
         m_faultStatus->setPaused(false);
         m_networkConfigurationStage = NetworkConfigurationStage::Idle;
         m_pendingNetworkPatch = {};
@@ -162,6 +149,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         m_managementAuthenticated = false;
         m_pendingManagementContinuation = {};
         m_pendingManagementResponseContinuation = {};
+        if (!m_connectionPromptSuppressed)
+            openConnectionDialog();
     });
     connect(m_transport, &Communication::Transport::bytesReceived,
             this, &MainWindow::handleReceivedBytes);
@@ -169,8 +158,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             m_console, &ConsolePanel::appendSent);
     connect(m_transport, &Communication::Transport::errorOccurred, this,
             [this](const QString &error) {
-                m_console->appendError(tr("Transport error: %1").arg(error));
+                const QString message = tr("Transport error: %1").arg(error);
+                m_console->appendError(message);
                 m_connection->setConnecting(false);
+                m_connection->setError(message);
             });
     connect(m_console, &ConsolePanel::commandRequested, this,
             [this](const QString &command) {
@@ -178,24 +169,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             });
     connect(m_control, &ControlPanel::commandRequested,
             this, [this](const QString &command) { sendControlCommand(command); });
-    connect(m_settings, &RotorSettingsPanel::commandRequested,
-            this, [this](const QString &command) { sendControlCommand(command); });
     connect(m_faultStatus, &FaultStatusMonitor::commandRequested,
             this, [this](const QString &command) { sendControlCommand(command); });
-    connect(m_settings, &RotorSettingsPanel::modelApplyRequested,
-            this, &MainWindow::applyRotorModel);
-    connect(m_settings, &RotorSettingsPanel::azimuthZeroCalibrationRequested,
-            this, [this] {
-                requestCalibration(
-                    QStringLiteral("O"),
-                    tr("Move the azimuth to the counter-clockwise limit, then continue."));
-            });
-    connect(m_settings, &RotorSettingsPanel::elevationZeroCalibrationRequested,
-            this, [this] {
-                requestCalibration(
-                    QStringLiteral("O2"),
-                    tr("Move the elevation to 0 degrees, then continue."));
-            });
     connect(m_positionPollTimer, &QTimer::timeout, this, [this] {
         sendControlCommand(QStringLiteral("C2"));
     });
@@ -217,7 +192,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     });
     connect(m_calibrationTimeoutTimer, &QTimer::timeout, this, [this] {
         m_pendingCalibrationCommand.clear();
-        updateN1mmState();
+        updateBridgeState();
+        updateCalibrationState();
         m_faultStatus->setPaused(false);
         if (m_transport->isOpen())
             m_positionPollTimer->start();
@@ -227,8 +203,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
 MainWindow::~MainWindow()
 {
+    m_control->cancelPendingMotion();
     // NOTE: 先关闭两侧连接，避免 QObject 子对象析构时回调已销毁的界面。
     m_n1mm->setEnabled(false);
+    m_gridTracker->setEnabled(false);
     const QSignalBlocker transportBlocker(m_transport);
     const QSignalBlocker virtualSerialBlocker(m_virtualSerial);
     m_transport->close();
@@ -239,7 +217,6 @@ void MainWindow::setupVirtualSerial()
 {
     m_virtualSerial = new VirtualSerialBridge(this);
     connect(m_virtualSerial, &VirtualSerialBridge::started, this, [this](const QString &port) {
-        m_connection->setVirtualSerialPort(port);
         m_console->appendNotice(tr("Virtual serial port ready: %1").arg(port));
     });
     connect(m_virtualSerial, &VirtualSerialBridge::webSocketLineReady, this,
@@ -256,7 +233,9 @@ void MainWindow::setupVirtualSerial()
             });
     connect(m_virtualSerial, &VirtualSerialBridge::errorOccurred, this,
             [this](const QString &error) {
-                m_console->appendError(tr("Virtual serial error: %1").arg(error));
+                const QString message = tr("Virtual serial error: %1").arg(error);
+                m_console->appendError(message);
+                m_connection->setError(message);
             });
     connect(m_virtualSerial, &VirtualSerialBridge::stopped, this, &MainWindow::closeTransport);
 }
@@ -265,37 +244,18 @@ void MainWindow::createMenus()
 {
     // NOTE: 菜单固定在窗口内，所有控件和弹窗均沿用系统 Qt Widgets 样式。
     menuBar()->setNativeMenuBar(false);
+    m_connectionAction = menuBar()->addAction(tr("Connect"));
+    m_connectionAction->setObjectName(QStringLiteral("connectionAction"));
+    connect(m_connectionAction, &QAction::triggered, this, [this] {
+        if (m_connection->isConnected())
+            m_connection->disconnectRequested();
+        else
+            openConnectionDialog();
+    });
     auto *files = menuBar()->addMenu(tr("Files"));
     files->addAction(tr("Exit"), qApp, &QCoreApplication::quit);
-    auto *view = menuBar()->addMenu(tr("View"));
-    auto *consoleAction = view->addAction(tr("Console"));
-    consoleAction->setObjectName(QStringLiteral("consoleAction"));
-    consoleAction->setCheckable(true);
-    const bool consoleVisible = AppSettings().consoleVisible();
-    consoleAction->setChecked(consoleVisible);
-    m_console->setVisible(consoleVisible);
-    // NOTE: 恢复状态后再连接保存，启动读取不覆盖缺失或无效的配置值。
-    connect(consoleAction, &QAction::toggled, this, [this](bool visible) {
-        m_console->setVisible(visible);
-        if (!AppSettings().setConsoleVisible(visible))
-            QMessageBox::warning(this, tr("Application settings"),
-                                 tr("Could not save application settings."));
-    });
-    auto *mapAction = view->addAction(tr("Great-circle map"));
-    mapAction->setObjectName(QStringLiteral("greatCircleMapAction"));
-    mapAction->setCheckable(true);
+    createViewMenu();
     const AppSettings preferences;
-    m_control->setStationGrid(preferences.stationGrid());
-    mapAction->setChecked(preferences.greatCircleMapEnabled());
-    m_control->setGreatCircleMapEnabled(mapAction->isChecked());
-    connect(mapAction, &QAction::toggled, this, [this](bool enabled) {
-        m_control->setGreatCircleMapEnabled(enabled);
-        if (!AppSettings().setGreatCircleMapEnabled(enabled))
-            QMessageBox::warning(this, tr("Application settings"),
-                                 tr("Could not save application settings."));
-        if (enabled && AppSettings().stationGrid().isEmpty())
-            openStationGrid();
-    });
     auto *settings = menuBar()->addMenu(tr("Settings"));
     auto *stationGridAction = settings->addAction(
         tr("My grid..."), this, &MainWindow::openStationGrid);
@@ -310,10 +270,32 @@ void MainWindow::createMenus()
     connect(shortestPathAction, &QAction::toggled, this, [this](bool enabled) {
         m_control->setShortestPathEnabled(enabled);
         m_n1mm->setShortestPathEnabled(enabled);
+        m_gridTracker->setShortestPathEnabled(enabled);
         if (!AppSettings().setShortestPathEnabled(enabled))
             QMessageBox::warning(this, tr("Application settings"),
                                  tr("Could not save application settings."));
     });
+    settings->addSeparator();
+    m_speedMenu = settings->addMenu(tr("Azimuth speed"));
+    m_speedMenu->setObjectName(QStringLiteral("azimuthSpeedMenu"));
+    auto *speeds = new QActionGroup(m_speedMenu);
+    speeds->setExclusive(true);
+    for (int speed = 1; speed <= 4; ++speed) {
+        const QString command = QStringLiteral("X%1").arg(speed);
+        auto *action = m_speedMenu->addAction(command);
+        action->setObjectName(QStringLiteral("speed%1").arg(speed));
+        action->setCheckable(true);
+        speeds->addAction(action);
+        connect(action, &QAction::triggered, this, [this, command] {
+            sendControlCommand(command);
+        });
+    }
+    m_rotorModelAction = settings->addAction(
+        tr("Rotor model..."), this, &MainWindow::openRotorModel);
+    m_rotorModelAction->setObjectName(QStringLiteral("rotorModelAction"));
+    m_calibrationAction = settings->addAction(
+        tr("Calibration..."), this, &MainWindow::openCalibration);
+    m_calibrationAction->setObjectName(QStringLiteral("calibrationAction"));
     auto *management = menuBar()->addMenu(tr("Management"));
     m_authenticateAction = management->addAction(
         tr("Authenticate"), this, &MainWindow::authenticateManagement);
@@ -340,7 +322,9 @@ void MainWindow::createMenus()
     m_resetNetworkAction = management->addAction(
         tr("Reset network configuration"), this, &MainWindow::resetNetworkConfiguration);
     m_resetNetworkAction->setObjectName(QStringLiteral("resetNetworkAction"));
-    createN1mmMenu(menuBar()->addMenu(tr("Bridge")));
+    auto *bridge = menuBar()->addMenu(tr("Bridge"));
+    createN1mmMenu(bridge);
+    createGridTrackerMenu(bridge);
     auto *upgrade = menuBar()->addMenu(tr("Upgrade"));
     m_upgradeAction = upgrade->addAction(tr("Flash firmware..."),
                                         this, &MainWindow::openFirmwareUpgrade);
@@ -351,56 +335,13 @@ void MainWindow::createMenus()
     aboutAction->setObjectName(QStringLiteral("aboutAction"));
 }
 
-void MainWindow::updateConnectionState()
+void MainWindow::setDevicePosition(int azimuth, int elevation)
 {
-    updateN1mmState();
-    const bool virtualCom = m_connection->isVirtualComEnabled();
-    const bool commandEnabled = m_connection->isConnected() && !virtualCom;
-    m_control->setCommandEnabled(commandEnabled);
-    m_console->setCommandEnabled(commandEnabled);
-    m_settings->setCommandEnabled(commandEnabled);
-    m_faultStatus->setEnabled(commandEnabled);
-    const bool managementEnabled = m_connection->isConnected() && !virtualCom;
-    m_authenticateAction->setEnabled(managementEnabled);
-    m_changePasswordAction->setEnabled(managementEnabled);
-    m_cancelManagementAction->setEnabled(managementEnabled);
-    m_getIpAddressesAction->setEnabled(managementEnabled);
-    m_startApProvisioningAction->setEnabled(managementEnabled);
-    m_manualWifiAction->setEnabled(managementEnabled);
-    m_networkPortAction->setEnabled(managementEnabled);
-    m_resetNetworkAction->setEnabled(managementEnabled);
-    m_upgradeAction->setEnabled(!virtualCom);
-    if (commandEnabled)
-        m_positionPollTimer->start();
-    else
-        m_positionPollTimer->stop();
-    m_connectionStatus->setText(m_connection->isConnected() ? tr("Connected") : tr("Disconnected"));
-    m_transportStatus->setText(m_connection->isNetworkMode() ? tr("WebSocket") : tr("Serial"));
-    if (!m_connection->isConnected()) {
-        m_control->setPosition(0, 0);
-        m_settings->clearModelSelection();
-    }
-}
-
-void MainWindow::openTransport()
-{
-    if (m_transport->isOpen())
-        return;
-
-    m_connection->setConnecting(true);
-    // NOTE: 主页面终端固定使用控制端点；管理端点由协议模块保留给后续独立调用方。
-    const auto options = m_connection->connectionOptions(Communication::WebSocketEndpoint::Gs232b);
-    if (!m_transport->open(options))
-        m_connection->setConnecting(false);
-}
-
-void MainWindow::closeTransport()
-{
-    m_transport->close();
-    m_virtualSerial->stop();
-    m_connection->setVirtualSerialPort({});
-    m_connection->setConnecting(false);
-    m_connection->setConnected(false);
+    // NOTE: 校准保留设备原值，避免越过满量程的反馈被主控件钳位为 450° 或 180°。
+    m_controllerAzimuth = azimuth;
+    m_controllerElevation = elevation;
+    m_control->setPosition(azimuth, elevation);
+    updateCalibrationPosition();
 }
 
 void MainWindow::authenticateManagement()
@@ -492,6 +433,8 @@ void MainWindow::openAzimuthOffset()
     connect(dialog, &QDialog::accepted, this, [this] {
         m_control->setAzimuthOffset(AppSettings().azimuthOffset());
         m_n1mm->setAzimuthOffset(AppSettings().azimuthOffset());
+        m_gridTracker->setAzimuthOffset(AppSettings().azimuthOffset());
+        updateCalibrationPosition();
     });
     dialog->open();
 }
@@ -571,16 +514,6 @@ void MainWindow::openAbout()
     dialog->open();
 }
 
-void MainWindow::applyRotorModel()
-{
-    const QString command = modelSetCommand(m_settings->selectedModelId());
-    if (m_connection->isNetworkMode()) {
-        openManagementKey([this, command] { sendControlCommand(command); });
-        return;
-    }
-    sendControlCommand(command);
-}
-
 void MainWindow::flashFirmware(const QString &port, const QString &file)
 {
     if (port.isEmpty() || file.isEmpty())
@@ -638,27 +571,6 @@ void MainWindow::sendControlCommand(const QString &command)
         m_console->appendSent(logBytes);
 }
 
-void MainWindow::requestCalibration(const QString &command, const QString &question)
-{
-    if (!m_transport->isOpen() || m_connection->isVirtualComEnabled())
-        return;
-    // NOTE: 确认弹窗也暂停外部定位，避免用户确认零点前被 N1MM 或延迟滑条命令转离。
-    m_n1mm->setControlAvailable(false);
-    m_control->cancelPendingMotion();
-    if (QMessageBox::question(this, tr("Calibration confirmation"), question,
-                              QMessageBox::Ok | QMessageBox::Cancel,
-                              QMessageBox::Ok) == QMessageBox::Ok) {
-        m_pendingCalibrationCommand = command;
-        updateN1mmState();
-        m_faultStatus->setPaused(true);
-        m_positionPollTimer->stop();
-        m_calibrationTimeoutTimer->start();
-        sendControlCommand(command);
-    } else {
-        updateN1mmState();
-    }
-}
-
 void MainWindow::runManagementAction(const std::function<void()> &action,
                                      const std::function<void()> &cancelled)
 {
@@ -670,15 +582,16 @@ void MainWindow::runManagementAction(const std::function<void()> &action,
         action();
 }
 
-void MainWindow::openManagementKey(const std::function<void()> &continuation,
-                                   const std::function<void()> &cancelled)
+ManagementKeyDialog *MainWindow::openManagementKey(const std::function<void()> &continuation,
+                                                  const std::function<void()> &cancelled,
+                                                  QWidget *promptParent)
 {
     if (m_managementAuthenticated) {
         continuation();
-        return;
+        return nullptr;
     }
 
-    auto *dialog = new ManagementKeyDialog(this);
+    auto *dialog = new ManagementKeyDialog(promptParent ? promptParent : this);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     connect(dialog, &QDialog::accepted, this, [this, dialog, continuation] {
         const QString password = dialog->password();
@@ -695,6 +608,7 @@ void MainWindow::openManagementKey(const std::function<void()> &continuation,
             cancelled();
     });
     dialog->open();
+    return dialog;
 }
 
 void MainWindow::sendManagementCommand(
@@ -807,8 +721,9 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
         const QString text = QString::fromUtf8(line).trimmed();
         if (!m_pendingCalibrationCommand.isEmpty() &&
             text.contains(QStringLiteral("are you sure?"), Qt::CaseInsensitive)) {
+            QWidget *promptParent = m_calibrationDialog ? static_cast<QWidget *>(m_calibrationDialog.data()) : this;
             const auto answer = QMessageBox::question(
-                this, tr("Confirm calibration"),
+                promptParent, tr("Confirm calibration"),
                 tr("The device is ready to store this calibration point. Continue?"),
                 QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
             if (answer == QMessageBox::Yes) {
@@ -817,7 +732,8 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
             } else {
                 sendControlCommand(QStringLiteral("NO"));
                 m_pendingCalibrationCommand.clear();
-                updateN1mmState();
+                updateBridgeState();
+                updateCalibrationState();
                 m_faultStatus->setPaused(false);
                 m_calibrationTimeoutTimer->stop();
                 if (m_transport->isOpen())
@@ -827,7 +743,8 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
                    (text.contains(QStringLiteral("Completed"), Qt::CaseInsensitive) ||
                     text.startsWith(QStringLiteral("?>")))) {
             m_pendingCalibrationCommand.clear();
-            updateN1mmState();
+            updateBridgeState();
+            updateCalibrationState();
             m_faultStatus->setPaused(false);
             m_calibrationTimeoutTimer->stop();
             if (m_transport->isOpen())
@@ -841,14 +758,18 @@ void MainWindow::handleReceivedBytes(const QByteArray &bytes)
             QStringLiteral("^EL\\s*=\\s*(\\d{1,3})$"));
         const auto azElMatch = azimuthElevation.match(text);
         if (azElMatch.hasMatch()) {
-            m_control->setPosition(azElMatch.captured(1).toInt(),
-                                   azElMatch.captured(2).toInt());
+            setDevicePosition(azElMatch.captured(1).toInt(),
+                              azElMatch.captured(2).toInt());
             m_n1mm->setPosition(azElMatch.captured(1).toInt());
+            m_gridTracker->setAzimuthPosition(azElMatch.captured(1).toInt());
+            m_gridTracker->setElevationPosition(azElMatch.captured(2).toInt());
         } else if (const auto azMatch = azimuthOnly.match(text); azMatch.hasMatch()) {
-            m_control->setPosition(azMatch.captured(1).toInt(), m_control->elevation());
+            setDevicePosition(azMatch.captured(1).toInt(), m_controllerElevation);
             m_n1mm->setPosition(azMatch.captured(1).toInt());
+            m_gridTracker->setAzimuthPosition(azMatch.captured(1).toInt());
         } else if (const auto elMatch = elevationOnly.match(text); elMatch.hasMatch()) {
-            m_control->setPosition(m_control->azimuth(), elMatch.captured(1).toInt());
+            setDevicePosition(m_controllerAzimuth, elMatch.captured(1).toInt());
+            m_gridTracker->setElevationPosition(elMatch.captured(1).toInt());
         }
     }
     // NOTE: 仅缓冲扩展响应以便按命令过滤；普通终端输出仍随字节到达立即显示。
@@ -873,16 +794,7 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
     const QJsonObject response = document.object();
     const QString command = response.value(QStringLiteral("cmd")).toString().toUpper();
     const bool ok = response.value(QStringLiteral("ok")).toBool();
-    if (command == QStringLiteral("ROTOR GET") || command == QStringLiteral("ROTOR SET")) {
-        if (ok && m_connection->isConnected() && !m_connection->isVirtualComEnabled()) {
-            // NOTE: model_id 是已保存选择；active_model_id 可能仍是重启前的旧型号。
-            const QJsonValue modelId = response.value(QStringLiteral("data")).toObject()
-                                          .value(QStringLiteral("model_id"));
-            const int id = modelId.toInt(-1);
-            if (modelId.isDouble() && modelId.toDouble() == id)
-                m_settings->setSelectedModelId(id);
-        }
-    }
+    handleRotorModelResponse(response);
     if (!ok && response.value(QStringLiteral("error")).toString() ==
                   QStringLiteral("NOT_AUTHORIZED")) {
         m_managementAuthenticated = false;

@@ -21,34 +21,57 @@
         </message>
     </context>
     <context>
-        <name>ConnectionPanel</name>
+        <name>Communication::Transport</name>
         <message>
-            <location filename="../ConnectionPanel.cpp" line="12" />
-            <source>CONNECTION</source>
+            <source>Serial port is empty</source>
+            <translation>未选择串口</translation>
+        </message>
+        <message>
+            <source>Invalid WebSocket address</source>
+            <translation>WebSocket 地址无效</translation>
+        </message>
+    </context>
+    <context>
+        <name>ConnectionDialog</name>
+        <message>
+            <source>Network address</source>
+            <translation>网络地址</translation>
+        </message>
+        <message>
+            <source>Application settings</source>
+            <translation>应用设置</translation>
+        </message>
+        <message>
+            <source>Could not save application settings.</source>
+            <translation>无法保存应用设置。</translation>
+        </message>
+        <message>
+            <location filename="../ConnectionDialog.cpp" line="12" />
+            <source>Connection</source>
             <translation>连接</translation>
         </message>
         <message>
-            <location filename="../ConnectionPanel.cpp" line="16" />
+            <location filename="../ConnectionDialog.cpp" line="16" />
             <source>Serial</source>
             <translation>串口</translation>
         </message>
         <message>
-            <location filename="../ConnectionPanel.cpp" line="30" />
+            <location filename="../ConnectionDialog.cpp" line="30" />
             <source>Baud rate</source>
             <translation>波特率</translation>
         </message>
         <message>
-            <location filename="../ConnectionPanel.cpp" line="35" />
+            <location filename="../ConnectionDialog.cpp" line="35" />
             <source>Network</source>
             <translation>网络</translation>
         </message>
         <message>
-            <location filename="../ConnectionPanel.cpp" line="23" />
+            <location filename="../ConnectionDialog.cpp" line="23" />
             <source>No serial ports found</source>
             <translation>未找到串口</translation>
         </message>
         <message>
-            <location filename="../ConnectionPanel.cpp" line="42" />
+            <location filename="../ConnectionDialog.cpp" line="42" />
             <source>Virtual COM</source>
             <translation>虚拟串口</translation>
         </message>
@@ -69,22 +92,18 @@
             <translation>请选择已创建的虚拟串口对中的两个端口。</translation>
         </message>
         <message>
-            <source>Assigned after connection</source>
-            <translation>连接后分配</translation>
-        </message>
-        <message>
-            <source>Active port</source>
-            <translation>当前端口</translation>
-        </message>
-        <message>
-            <location filename="../ConnectionPanel.cpp" line="50" />
+            <location filename="../ConnectionDialog.cpp" line="50" />
             <source>Connect</source>
             <translation>连接</translation>
         </message>
         <message>
-            <location filename="../ConnectionPanel.cpp" line="52" />
-            <source>Disconnect</source>
-            <translation>断开</translation>
+            <location filename="../ConnectionDialog.cpp" line="52" />
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <source>Connecting...</source>
+            <translation>正在连接…</translation>
         </message>
     </context>
     <context>
@@ -98,6 +117,46 @@
     <context>
         <name>ControlPanel</name>
         <message>
+            <source>Mode</source>
+            <translation>模式</translation>
+        </message>
+        <message>
+            <source>Manual</source>
+            <translation>手动</translation>
+        </message>
+        <message>
+            <source>Tracking</source>
+            <translation>跟踪</translation>
+        </message>
+        <message>
+            <source>LP</source>
+            <translation>长径</translation>
+        </message>
+        <message>
+            <source>Ignore control commands from bridge apps and continue reporting measured positions.</source>
+            <translation>忽略桥接应用的控制指令，继续回报实测角度。</translation>
+        </message>
+        <message>
+            <source>Allow bridge apps to control the rotator.</source>
+            <translation>允许桥接应用控制旋转器。</translation>
+        </message>
+        <message>
+            <source>Use long path for grid, callsign or DXCC targets and GridTracker. Direct angles and N1MM targets are unchanged.</source>
+            <translation>对网格、呼号/DXCC 及 GridTracker 目标使用长径。直接角度及 N1MM 目标不受影响。</translation>
+        </message>
+        <message>
+            <source>Azimuth</source>
+            <translation>方位角</translation>
+        </message>
+        <message>
+            <source>Elevation</source>
+            <translation>仰角</translation>
+        </message>
+        <message>
+            <source>Presets</source>
+            <translation>预设</translation>
+        </message>
+        <message>
             <source>Click to enter an integer angle, grid, callsign or prefix. Angles wrap at 360° and use the shortest reachable rotation. Callsigns use DXCC coordinates. Press Enter to move or Esc to cancel.</source>
             <translation>点击输入整数角度、网格、呼号或前缀。角度按 360° 取余，并选择行程内最短的旋转路径。呼号使用所属 DXCC 的代表坐标。按回车转动，按 Esc 取消。</translation>
         </message>
@@ -108,11 +167,6 @@
         <message>
             <source>Could not save application settings.</source>
             <translation>无法保存应用设置。</translation>
-        </message>
-        <message>
-            <location filename="../ControlPanel.cpp" line="32" />
-            <source>CONTROL</source>
-            <translation>控制</translation>
         </message>
         <message>
             <source>Azimuth angle, grid or callsign</source>
@@ -137,6 +191,29 @@
         <message>
             <source>Elevation angle</source>
             <translation>仰角</translation>
+        </message>
+    </context>
+    <context>
+        <name>MotionButtons</name>
+        <message>
+            <source>Hold to move up; release to stop</source>
+            <translation>按住升高，松开停止</translation>
+        </message>
+        <message>
+            <source>Hold to move down; release to stop</source>
+            <translation>按住降低，松开停止</translation>
+        </message>
+        <message>
+            <source>Hold to rotate counterclockwise; release to stop</source>
+            <translation>按住逆时针旋转，松开停止</translation>
+        </message>
+        <message>
+            <source>Hold to rotate clockwise; release to stop</source>
+            <translation>按住顺时针旋转，松开停止</translation>
+        </message>
+        <message>
+            <source>Stop all motion</source>
+            <translation>停止所有运动</translation>
         </message>
     </context>
     <context>
@@ -238,6 +315,34 @@
     <context>
         <name>MainWindow</name>
         <message>
+            <source>Connect</source>
+            <translation>连接</translation>
+        </message>
+        <message>
+            <source>Disconnect</source>
+            <translation>断开</translation>
+        </message>
+        <message>
+            <source>Connecting...</source>
+            <translation>正在连接…</translation>
+        </message>
+        <message>
+            <source>WebSocket (%1)</source>
+            <translation>WebSocket（%1）</translation>
+        </message>
+        <message>
+            <source>GridTracker...</source>
+            <translation>GridTracker…</translation>
+        </message>
+        <message>
+            <source>GridTracker</source>
+            <translation>GridTracker</translation>
+        </message>
+        <message>
+            <source>Receive CatRotator / PstRotator commands on 127.0.0.1:12000.</source>
+            <translation>在 127.0.0.1:12000 接收 CatRotator / PstRotator 控制命令。</translation>
+        </message>
+        <message>
             <source>N1MM Logger+...</source>
             <translation>N1MM Logger+…</translation>
         </message>
@@ -264,6 +369,14 @@
         <message>
             <source>Settings</source>
             <translation>设置</translation>
+        </message>
+        <message>
+            <source>Azimuth speed</source>
+            <translation>方位角速度</translation>
+        </message>
+        <message>
+            <source>Calibration...</source>
+            <translation>校准…</translation>
         </message>
         <message>
             <source>My grid...</source>
@@ -305,6 +418,10 @@
         <message>
             <source>Great-circle map</source>
             <translation>大圆图</translation>
+        </message>
+        <message>
+            <source>Always on top</source>
+            <translation>窗口置顶</translation>
         </message>
         <message>
             <location filename="../MainWindow.cpp" line="72" />
@@ -577,6 +694,62 @@ Wireless IP: %2</source>
             <source>Network port configuration saved.</source>
             <translation>网口配置已保存。</translation>
         </message>
+        <message>
+            <source>Rotor model...</source>
+            <translation>旋转器型号…</translation>
+        </message>
+        <message>
+            <source>The device did not respond to the model request. Try again.</source>
+            <translation>设备未响应型号设置请求，请重试。</translation>
+        </message>
+        <message>
+            <source>Model write timed out. Reading the saved model again.</source>
+            <translation>写入型号超时，正在重新读取已保存型号。</translation>
+        </message>
+        <message>
+            <source>Connect to the controller to change its rotor model.</source>
+            <translation>请连接控制器后再修改旋转器型号。</translation>
+        </message>
+        <message>
+            <source>Writing rotor model...</source>
+            <translation>正在写入旋转器型号…</translation>
+        </message>
+        <message>
+            <source>Waiting for management authentication...</source>
+            <translation>正在等待管理认证…</translation>
+        </message>
+        <message>
+            <source>Management authentication failed. The model was not written.</source>
+            <translation>管理认证失败，未写入型号。</translation>
+        </message>
+        <message>
+            <source>Stop the rotator and wait for any sequence, upload or calibration to finish, then try again.</source>
+            <translation>请停止旋转器，等待序列、上传或校准完成后重试。</translation>
+        </message>
+        <message>
+            <source>Management authentication expired. Authenticate again to write the model.</source>
+            <translation>管理认证已失效，请重新认证后写入型号。</translation>
+        </message>
+        <message>
+            <source>Could not write the rotor model. The saved model has not changed.</source>
+            <translation>无法写入旋转器型号，已保存型号未改变。</translation>
+        </message>
+        <message>
+            <source>Could not read the rotor model. Reopen this dialog to try again.</source>
+            <translation>无法读取旋转器型号，请重新打开此窗口重试。</translation>
+        </message>
+        <message>
+            <source>The device returned an invalid rotor model. Read the saved model again before retrying.</source>
+            <translation>设备返回的旋转器型号无效，请重新读取已保存型号后重试。</translation>
+        </message>
+        <message>
+            <source>The device did not confirm the requested model. Check the saved model before retrying.</source>
+            <translation>设备未确认所选型号，请核对已保存型号后重试。</translation>
+        </message>
+        <message>
+            <source>Rotor model saved.</source>
+            <translation>旋转器型号已保存。</translation>
+        </message>
     </context>
     <context>
         <name>ManagementKeyDialog</name>
@@ -671,30 +844,30 @@ Wireless IP: %2</source>
         </message>
     </context>
     <context>
-        <name>RotorSettingsPanel</name>
+        <name>CalibrationDialog</name>
         <message>
-            <location filename="../RotorSettingsPanel.cpp" line="15" />
-            <source>ROTOR MODEL</source>
-            <translation>旋转器型号</translation>
+            <source>Current angles</source>
+            <translation>当前角度</translation>
         </message>
         <message>
-            <location filename="../RotorSettingsPanel.cpp" line="24" />
-            <source>SDX series</source>
-            <translation>SDX 系列</translation>
+            <source>Azimuth</source>
+            <translation>方位角</translation>
         </message>
         <message>
-            <location filename="../RotorSettingsPanel.cpp" line="29" />
-            <source>Apply model</source>
-            <translation>写入型号</translation>
+            <source>Elevation</source>
+            <translation>俯仰角</translation>
         </message>
         <message>
-            <location filename="../RotorSettingsPanel.cpp" line="36" />
-            <source>AZIMUTH SPEED</source>
-            <translation>方位速度</translation>
-        </message>
-        <message>
-            <source>CALIBRATION</source>
+            <source>Calibration</source>
             <translation>校准</translation>
+        </message>
+        <message>
+            <source>Zero calibration</source>
+            <translation>零点校准</translation>
+        </message>
+        <message>
+            <source>Full-scale calibration</source>
+            <translation>满量程校准</translation>
         </message>
         <message>
             <source>Azimuth zero</source>
@@ -709,8 +882,12 @@ Wireless IP: %2</source>
             <translation>将方位转至逆时针限位，或将俯仰角转至 0°，再点击对应按钮校准控制器零点。</translation>
         </message>
         <message>
-            <source>For full-scale calibration, turn off Settings → Shortest rotation path. Adjust the potentiometer until the reading matches 360° or 450° plus azimuth offset, or 180° elevation.</source>
-            <translation>满量程校准前，关闭“设置 → 最短路径旋转”。调节电位器，直到方位读数为 360° 或 450° 加上方位角补偿值，或俯仰读数为 180°。</translation>
+            <source>For full-scale calibration, adjust the potentiometer until the azimuth reading matches 360° or 450° plus azimuth offset, or the elevation reading matches 180°.</source>
+            <translation>满量程校准时，调节电位器，直到方位读数为 360° 或 450° 加上方位角补偿值，或俯仰读数为 180°。</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>关闭</translation>
         </message>
     </context>
     <context>
@@ -759,8 +936,20 @@ Wireless IP: %2</source>
     <context>
         <name>FaultStatusPanel</name>
         <message>
-            <source>FAULT STATUS</source>
+            <source>Fault status</source>
             <translation>报错状态</translation>
+        </message>
+        <message>
+            <source>Status unavailable</source>
+            <translation>状态不可用</translation>
+        </message>
+        <message>
+            <source>Click to view fault details</source>
+            <translation>点击查看报错详情</translation>
+        </message>
+        <message>
+            <source>Close</source>
+            <translation>关闭</translation>
         </message>
         <message>
             <source>Clear fault</source>
@@ -942,10 +1131,6 @@ Wireless IP: %2</source>
             <translation>在“设置 → 我的网格…”中设置网格，地图将以其为中心。</translation>
         </message>
         <message>
-            <source>Great-circle map centered on %1. Map by NS6T.</source>
-            <translation>以 %1 为中心的大圆图。地图由 NS6T 提供。</translation>
-        </message>
-        <message>
             <source>Set your grid
 to show the map</source>
             <translation>设置本站网格
@@ -1036,6 +1221,21 @@ Turn the map off and on to retry</source>
         </message>
     </context>
     <context>
+        <name>GridTrackerController</name>
+        <message>
+            <source>Could not enable GridTracker integration: %1</source>
+            <translation>无法启用 GridTracker 接入：%1</translation>
+        </message>
+        <message>
+            <source>Could not report the rotator position to GridTracker: %1</source>
+            <translation>无法向 GridTracker 回传旋转器位置：%1</translation>
+        </message>
+        <message>
+            <source>GridTracker turn command ignored: no recent rotator position is available.</source>
+            <translation>已忽略 GridTracker 转向命令：尚无最新的旋转器方位读数。</translation>
+        </message>
+    </context>
+    <context>
         <name>N1mmController</name>
         <message>
             <source>Could not enable N1MM Logger+ integration: %1</source>
@@ -1043,22 +1243,22 @@ Turn the map off and on to retry</source>
         </message>
         <message>
             <source>Could not report the rotator position to N1MM Logger+: %1</source>
-            <translation>无法向 N1MM Logger+ 回传转台位置：%1</translation>
+            <translation>无法向 N1MM Logger+ 回传旋转器位置：%1</translation>
         </message>
         <message>
             <source>N1MM turn command ignored: no recent rotator position is available.</source>
-            <translation>已忽略 N1MM 转向命令：尚无最新的转台方位读数。</translation>
+            <translation>已忽略 N1MM 转向命令：尚无最新的旋转器方位读数。</translation>
         </message>
     </context>
     <context>
         <name>N1mmNameDialog</name>
         <message>
             <source>N1MM rotator name</source>
-            <translation>N1MM 转台名称</translation>
+            <translation>N1MM 旋转器名称</translation>
         </message>
         <message>
             <source>Rotator name</source>
-            <translation>转台名称</translation>
+            <translation>旋转器名称</translation>
         </message>
         <message>
             <source>Use exactly the same name in N1MM Logger+ → Configurer → Antennas → Rotor Description. Names are case-sensitive.</source>
@@ -1078,7 +1278,46 @@ Turn the map off and on to retry</source>
         </message>
         <message>
             <source>Could not save the rotator name.</source>
-            <translation>无法保存转台名称。</translation>
+            <translation>无法保存旋转器名称。</translation>
+        </message>
+    </context>
+    <context>
+        <name>RotorModelDialog</name>
+        <message>
+            <source>Rotor model</source>
+            <translation>旋转器型号</translation>
+        </message>
+        <message>
+            <source>Saved model</source>
+            <translation>已保存型号</translation>
+        </message>
+        <message>
+            <source>Select model</source>
+            <translation>选择型号</translation>
+        </message>
+        <message>
+            <source>SDX series</source>
+            <translation>SDX 系列</translation>
+        </message>
+        <message>
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <source>Apply model</source>
+            <translation>写入型号</translation>
+        </message>
+        <message>
+            <source>Not read</source>
+            <translation>尚未读取</translation>
+        </message>
+        <message>
+            <source>Active model: %1. Restart the controller to use the saved model.</source>
+            <translation>当前生效型号：%1。重启控制器后应用已保存型号。</translation>
+        </message>
+        <message>
+            <source>Restart the controller to use the saved model.</source>
+            <translation>重启控制器后应用已保存型号。</translation>
         </message>
     </context>
 </TS>
