@@ -46,6 +46,10 @@ jobs:
         run: |
           set -euo pipefail
           test "$(uname -m)" = arm64
+          for tool in xcodebuild xcrun clang++ cmake ninja curl tar shasum \
+            ditto lipo otool plutil; do
+            command -v "$tool" >/dev/null || { echo "Missing macOS build tool: $tool" >&2; exit 1; }
+          done
           xcodebuild -version
           xcrun --sdk macosx --show-sdk-version
           clang++ --version | head -n 1
@@ -118,8 +122,15 @@ jobs:
           qt_root="$QT_INSTALL_DIR/$QT_VERSION/macos"
           for required in \
             "$qt_root/lib/cmake/Qt6/Qt6Config.cmake" \
+            "$qt_root/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake" \
+            "$qt_root/lib/cmake/Qt6Network/Qt6NetworkConfig.cmake" \
+            "$qt_root/lib/cmake/Qt6SerialPort/Qt6SerialPortConfig.cmake" \
+            "$qt_root/lib/cmake/Qt6WebSockets/Qt6WebSocketsConfig.cmake" \
+            "$qt_root/lib/cmake/Qt6Pdf/Qt6PdfConfig.cmake" \
+            "$qt_root/lib/cmake/Qt6LinguistTools/Qt6LinguistToolsConfig.cmake" \
             "$qt_root/lib/QtCore.framework/Versions/A/QtCore" \
             "$qt_root/bin/macdeployqt" \
+            "$qt_root/bin/lrelease" \
             "$qt_root/translations/qtbase_zh_CN.qm" \
             "$qt_root/plugins/platforms/libqcocoa.dylib"; do
             test -f "$required" || { echo "Missing Qt SDK file: $required" >&2; exit 1; }
@@ -158,7 +169,7 @@ jobs:
         id: ccache
         run: |
           set -euo pipefail
-          tools="$BUILD_DIR/ccache-tools"
+          tools="$GITHUB_WORKSPACE/$BUILD_DIR/ccache-tools"
           directory="$tools/ccache-$CCACHE_VERSION-darwin"
           executable="$directory/ccache"
           if [[ ! -x "$executable" ]]; then
@@ -174,6 +185,7 @@ jobs:
           "$executable" --show-config
           "$executable" --zero-stats
           echo "$directory" >> "$GITHUB_PATH"
+          echo "CCACHE_EXE=$executable" >> "$GITHUB_ENV"
           echo 'ready=true' >> "$GITHUB_OUTPUT"
 
       - name: Fingerprint restored intermediates and outputs
@@ -195,6 +207,7 @@ jobs:
         if: steps.restored_build.outputs.reuse != 'true'
         run: |
           set -euo pipefail
+          test -x "$CCACHE_EXE"
           disconnected=OFF
           if [[ -f "$BUILD_DIR/_deps/anytermqt-src/qtpyte/CMakeLists.txt" && -f "$BUILD_DIR/_deps/utf8proc-src/CMakeLists.txt" ]]; then
             disconnected=ON
@@ -204,10 +217,22 @@ jobs:
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
             "-DFETCHCONTENT_FULLY_DISCONNECTED=$disconnected" \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            "-DCMAKE_C_COMPILER_LAUNCHER=$CCACHE_EXE" \
+            "-DCMAKE_CXX_COMPILER_LAUNCHER=$CCACHE_EXE" \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=OFF
+
+      - name: Verify fetched dependencies and ccache from build directory
+        run: |
+          set -euo pipefail
+          for required in \
+            "$BUILD_DIR/_deps/anytermqt-src/qtpyte/CMakeLists.txt" \
+            "$BUILD_DIR/_deps/utf8proc-src/CMakeLists.txt" \
+            "$BUILD_DIR/licenses/anytermqt-LICENSE" \
+            "$BUILD_DIR/licenses/utf8proc-LICENSE.md"; do
+            test -f "$required" || { echo "Missing build dependency: $required" >&2; exit 1; }
+          done
+          (cd "$BUILD_DIR" && "$CCACHE_EXE" --version)
 
       - name: Build
         if: steps.restored_build.outputs.reuse != 'true'
@@ -219,7 +244,7 @@ jobs:
 
       - name: Show ccache hits and misses
         if: always() && steps.ccache.outputs.ready == 'true'
-        run: ccache --show-stats --verbose
+        run: '"$CCACHE_EXE" --show-stats --verbose'
 
       - name: Package and verify ARM64 app
         run: ./scripts/deploy-macos.sh

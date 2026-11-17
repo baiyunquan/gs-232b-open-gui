@@ -19,6 +19,8 @@ Release。工作流使用 GitHub `macos-26` ARM runner、Apple Clang、CMake、N
 - Qt 6.8.3 SDK 使用独立缓存，命中后跳过 Qt 下载。
 - 完整构建目录缓存 anytermqt、utf8proc、CMake/Ninja 状态、ARM64 编译文件、应用、ccache
   工具和对象缓存，以及打包目录和 ZIP。
+- 编译前检查 Apple 工具链、Qt 所需模块、翻译工具、FetchContent 依赖和 ccache；CMake 使用
+  ccache 的绝对路径，避免 Ninja 切换工作目录后找不到编译器启动器。
 - 缓存按 Apple Clang、Xcode/macOS SDK、Qt、CMake、Ninja、部署目标、依赖和源码内容隔离。
   源码及工具链匹配时复用已编译程序；源码变化时从兼容缓存继续增量构建。
 - 编译成果根据 `.o`、`.a`、动态库和应用可执行文件内容计算指纹；编译内容变化才上传新缓存，
