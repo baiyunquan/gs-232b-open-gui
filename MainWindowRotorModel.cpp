@@ -2,6 +2,7 @@
 #include "CommunicationProtocol.h"
 #include "ConnectionPanel.h"
 #include "ConsolePanel.h"
+#include "ControlPanel.h"
 #include "ManagementKeyDialog.h"
 #include "RotorModelDialog.h"
 
@@ -15,6 +16,13 @@ int modelIdFromJson(const QJsonValue &value)
 {
     const int id = value.toInt(-1);
     return value.isDouble() && value.toDouble() == id ? id : 0;
+}
+
+bool modelSupportsElevation(int modelId)
+{
+    // NOTE: 与固件 rotor_config.c 的 16 个型号一致；使用已保存型号决定界面轴区。
+    return (modelId >= 1 && modelId <= 4) || modelId == 6 || modelId == 7 ||
+           modelId == 15 || modelId == 16;
 }
 
 } // namespace
@@ -42,6 +50,7 @@ void MainWindow::setupRotorModel()
         if (writeSent) {
             // NOTE: 超时不代表未保存；先丢弃缓存并回读，避免按旧型号再次写入。
             m_rotorModelDialog->clearDeviceModel();
+            m_control->setElevationSupported(false);
             m_rotorModelDialog->setStatus(tr("Model write timed out. Reading the saved model again."));
             sendControlCommand(QStringLiteral("!ROTOR GET"));
         }
@@ -69,6 +78,7 @@ void MainWindow::updateRotorModelState()
         if (m_rotorModelAuthDialog)
             m_rotorModelAuthDialog->reject();
         m_rotorModelDialog->clearDeviceModel();
+        m_control->setElevationSupported(false);
         m_rotorModelDialog->setStatus(tr("Connect to the controller to change its rotor model."));
     }
 }
@@ -165,11 +175,13 @@ void MainWindow::handleRotorModelResponse(const QJsonObject &response)
         if (setting && m_pendingRotorModelId > 0 && m_rotorModelWriteSent) {
             finishRotorModelRequest(tr("The device returned an invalid rotor model. Read the saved model again before retrying."));
             m_rotorModelDialog->clearDeviceModel();
+            m_control->setElevationSupported(false);
             m_rotorModelDialog->setStatus(tr("The device returned an invalid rotor model. Read the saved model again before retrying."));
             sendControlCommand(QStringLiteral("!ROTOR GET"));
         }
         return;
     }
+    m_control->setElevationSupported(modelSupportsElevation(savedId));
     if (setting && m_pendingRotorModelId > 0 && m_rotorModelWriteSent) {
         if (savedId != m_pendingRotorModelId) {
             finishRotorModelRequest(tr("The device did not confirm the requested model. Check the saved model before retrying."));

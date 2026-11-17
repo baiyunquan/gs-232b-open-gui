@@ -17,12 +17,15 @@ AnglePresets::AnglePresets(AppSettings::Axis axis, QWidget *parent)
                                    : QStringLiteral("elevationPreset");
     auto *grid = new QGridLayout(this);
     grid->setContentsMargins(0, 0, 0, 0);
+    grid->setColumnStretch(0, 1);
+    grid->setColumnStretch(1, 1);
     for (int index = 0; index < AppSettings::presetCount(axis); ++index) {
         auto *cell = new QWidget(this);
-        cell->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        cell->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         auto *stack = new QStackedLayout(cell);
         stack->setContentsMargins(0, 0, 0, 0);
         auto *button = new QPushButton(cell);
+        button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         button->setObjectName(prefix + QString::number(index));
         button->setContextMenuPolicy(Qt::CustomContextMenu);
         button->setToolTip(tr("Right-click to edit this preset. Press Enter to save or Esc to cancel."));
@@ -57,6 +60,7 @@ AnglePresets::AnglePresets(AppSettings::Axis axis, QWidget *parent)
                                      tr("Could not save application settings."));
         });
         grid->addWidget(cell, index / 2, index % 2);
+        grid->setRowStretch(index / 2, 1);
     }
     updateAngles();
 }
@@ -67,6 +71,11 @@ void AnglePresets::setAzimuthOffset(int degrees)
         return;
     m_offset = degrees;
     updateAngles();
+}
+
+QSize AnglePresets::sizeHint() const
+{
+    return minimumSizeHint();
 }
 
 void AnglePresets::setShortestPathEnabled(bool enabled)
@@ -91,7 +100,9 @@ void AnglePresets::updateAngles()
         const auto metrics = preset.button->fontMetrics();
         const int width = qMax(metrics.horizontalAdvance(QString::number(minimum)),
                                metrics.horizontalAdvance(QString::number(maximum)));
-        preset.cell->setFixedWidth(qMax(width, metrics.horizontalAdvance(QStringLiteral("000"))) + 24);
+        const int minimumWidth = qMax(width, metrics.horizontalAdvance(QStringLiteral("000"))) + 24;
+        preset.cell->setMinimumWidth(minimumWidth);
+        preset.button->setMinimumWidth(minimumWidth);
         preset.reading->setRange(minimum, maximum, m_shortestPathEnabled);
         preset.reading->setAngle(corrected);
     }

@@ -3,10 +3,15 @@
 #include "AnglePresets.h"
 #include "AppSettings.h"
 #include "Compass.h"
+#include "MotionButtons.h"
 #include "targeting/TargetBearing.h"
 
+#include <QCheckBox>
 #include <QFrame>
-#include <QGridLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QRadioButton>
 #include <QSignalBlocker>
 #include <QSlider>
 #include <QTimer>
@@ -22,21 +27,44 @@ QString formatAngle(int angle, int maximum)
 
 } // namespace
 
-ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
+ControlPanel::ControlPanel(QWidget *parent) : QWidget(parent)
 {
     setObjectName(QStringLiteral("controlPanel"));
-    // NOTE: 共用紧凑预设列，按五行方位、三行仰角分配高度，扩大罗盘并保持滑条对齐。
-    auto *layout = new QGridLayout(this);
-    layout->setColumnStretch(0, 1);
-    layout->setRowStretch(0, 5);
-    layout->setRowStretch(2, 3);
-    auto *azimuthColumn = new QVBoxLayout;
+    m_layout = new QHBoxLayout(this);
+    m_layout->setContentsMargins(0, 0, 0, 0);
+    m_layout->setSpacing(10);
     m_compass = new Compass(this);
+    m_compass->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    // NOTE: 其余列按内容保留宽度，新增空间优先交给罗盘和大圆图。
+    m_layout->addWidget(m_compass, 1);
     connect(m_compass, &Compass::mapError, this, &ControlPanel::mapError);
     connect(m_compass, &Compass::angleRequested, this, [this](int angle) {
         requestAzimuth(m_azimuthScale.mechanicalBearing(angle, m_azimuthValue));
     });
-    m_azimuth = new AngleReading(450, this);
+    auto *azimuthControls = new QWidget(this);
+    azimuthControls->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+    auto *azimuthColumn = new QVBoxLayout(azimuthControls);
+    azimuthColumn->setContentsMargins(0, 0, 0, 0);
+    auto *mode = new QGroupBox(tr("Mode"), azimuthControls);
+    mode->setObjectName(QStringLiteral("controlMode"));
+    auto *modeLayout = new QVBoxLayout(mode);
+    auto *manual = new QRadioButton(tr("Manual"), mode);
+    manual->setObjectName(QStringLiteral("manualMode"));
+    manual->setChecked(true);
+    auto *tracking = new QRadioButton(tr("Tracking"), mode);
+    tracking->setObjectName(QStringLiteral("trackingMode"));
+    auto *longPath = new QCheckBox(tr("LP / Long path"), mode);
+    longPath->setObjectName(QStringLiteral("longPath"));
+    modeLayout->addWidget(manual);
+    modeLayout->addWidget(tracking);
+    modeLayout->addWidget(longPath);
+    // TODO: 接入 Manual / Tracking 控制模式及 LP 长径选路；当前仅保留互斥选择和勾选外观。
+    azimuthColumn->addWidget(mode);
+    azimuthColumn->addStretch(1);
+    auto *azimuthLabel = new QLabel(tr("Azimuth"), azimuthControls);
+    azimuthLabel->setAlignment(Qt::AlignCenter);
+    azimuthColumn->addWidget(azimuthLabel);
+    m_azimuth = new AngleReading(450, azimuthControls);
     m_azimuth->setObjectName(QStringLiteral("azimuthReading"));
     connect(m_azimuth, &AngleReading::inputRejected, this, &ControlPanel::inputError);
     m_azimuth->setAccessibleName(tr("Azimuth angle, grid or callsign"));
@@ -46,11 +74,17 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
         else if (const auto mechanical = m_azimuthScale.mechanical(angle))
             requestAzimuth(*mechanical);
     });
-    azimuthColumn->addWidget(m_compass, 1);
     azimuthColumn->addWidget(m_azimuth);
-    layout->addLayout(azimuthColumn, 0, 0);
-    m_azimuthPresets = new AnglePresets(AppSettings::Axis::Azimuth, this);
-    layout->addWidget(m_azimuthPresets, 0, 1);
+    azimuthColumn->addStretch(1);
+    m_azimuthMotion = new MotionButtons(Qt::Horizontal, azimuthControls);
+    m_azimuthMotion->setMaximumHeight(42);
+    azimuthColumn->addWidget(m_azimuthMotion);
+    m_layout->addWidget(azimuthControls);
+    auto *azimuthPresetGroup = new QGroupBox(tr("Presets"), this);
+    auto *azimuthPresetLayout = new QVBoxLayout(azimuthPresetGroup);
+    m_azimuthPresets = new AnglePresets(AppSettings::Axis::Azimuth, azimuthPresetGroup);
+    azimuthPresetLayout->addWidget(m_azimuthPresets);
+    m_layout->addWidget(azimuthPresetGroup);
 
     connect(m_azimuthPresets, &AnglePresets::angleRequested, this, [this](int mechanical) {
         requestAzimuth(m_shortestPathEnabled
@@ -58,24 +92,36 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
                            : mechanical);
     });
 
-    auto *separator = new QFrame(this);
-    separator->setFrameShape(QFrame::HLine);
+    m_elevationControls = new QWidget(this);
+    m_elevationControls->setObjectName(QStringLiteral("elevationControls"));
+    m_elevationControls->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+    auto *elevationLayout = new QHBoxLayout(m_elevationControls);
+    elevationLayout->setContentsMargins(0, 0, 0, 0);
+    elevationLayout->setSpacing(10);
+    auto *separator = new QFrame(m_elevationControls);
+    separator->setFrameShape(QFrame::VLine);
     separator->setFrameShadow(QFrame::Sunken);
-    layout->addWidget(separator, 1, 0, 1, 2);
+    elevationLayout->addWidget(separator);
 
     auto *elevationColumn = new QVBoxLayout;
-    m_slider = new QSlider(Qt::Vertical, this);
+    auto *elevationLabel = new QLabel(tr("Elevation"), m_elevationControls);
+    elevationLabel->setAlignment(Qt::AlignCenter);
+    elevationColumn->addWidget(elevationLabel);
+    m_slider = new QSlider(Qt::Vertical, m_elevationControls);
     m_slider->setObjectName(QStringLiteral("elevationSlider"));
     m_slider->setRange(0, 180);
     m_slider->setMinimumHeight(90);
+    m_slider->setAccessibleName(tr("Elevation angle"));
     m_elevationCommandTimer = new QTimer(this);
     m_elevationCommandTimer->setSingleShot(true);
     m_elevationCommandTimer->setInterval(150);
-    m_elevation = new AngleReading(180, this);
+    m_elevation = new AngleReading(180, m_elevationControls);
     m_elevation->setObjectName(QStringLiteral("elevationReading"));
     connect(m_elevation, &AngleReading::inputRejected, this, &ControlPanel::inputError);
     m_elevation->setAccessibleName(tr("Elevation angle"));
     connect(m_elevation, &AngleReading::angleRequested, this, [this](qint64 angle) {
+        if (!m_elevationSupported)
+            return;
         m_elevationCommandTimer->stop();
         emit commandRequested(QStringLiteral("W%1 %2")
                                   .arg(formatAngle(m_azimuthValue, 450))
@@ -83,19 +129,30 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     });
     elevationColumn->addWidget(m_slider, 1, Qt::AlignHCenter);
     elevationColumn->addWidget(m_elevation);
-    layout->addLayout(elevationColumn, 2, 0);
-    m_elevationPresets = new AnglePresets(AppSettings::Axis::Elevation, this);
-    layout->addWidget(m_elevationPresets, 2, 1);
+    elevationLayout->addLayout(elevationColumn);
+    m_elevationMotion = new MotionButtons(Qt::Vertical, m_elevationControls);
+    m_elevationMotion->setMaximumHeight(150);
+    elevationLayout->addWidget(m_elevationMotion, 0, Qt::AlignVCenter);
+    auto *elevationPresetGroup = new QGroupBox(tr("Presets"), m_elevationControls);
+    auto *elevationPresetLayout = new QVBoxLayout(elevationPresetGroup);
+    m_elevationPresets = new AnglePresets(AppSettings::Axis::Elevation, elevationPresetGroup);
+    elevationPresetLayout->addWidget(m_elevationPresets);
+    elevationLayout->addWidget(elevationPresetGroup);
+    m_layout->addWidget(m_elevationControls);
 
     connect(m_elevationPresets, &AnglePresets::angleRequested, this, [this](int angle) {
+        if (!m_elevationSupported)
+            return;
         m_elevationCommandTimer->stop();
         emit commandRequested(QStringLiteral("W%1 %2")
                                   .arg(formatAngle(m_azimuthValue, 450))
                                   .arg(formatAngle(angle, 180)));
     });
 
-    connect(m_slider, &QSlider::valueChanged, m_elevationCommandTimer,
-            qOverload<>(&QTimer::start));
+    connect(m_slider, &QSlider::valueChanged, this, [this] {
+        if (m_elevationSupported)
+            m_elevationCommandTimer->start();
+    });
     connect(m_elevationCommandTimer, &QTimer::timeout, this, [this] {
         emit commandRequested(QStringLiteral("W%1 %2")
                                   .arg(formatAngle(m_azimuthValue, 450))
@@ -107,6 +164,21 @@ ControlPanel::ControlPanel(QWidget *parent) : QGroupBox(tr("CONTROL"), parent)
     m_azimuthPresets->setShortestPathEnabled(m_shortestPathEnabled);
     setAzimuthOffset(preferences.azimuthOffset());
     setCommandEnabled(false);
+}
+
+void ControlPanel::setStatusPanel(QWidget *panel)
+{
+    m_layout->insertWidget(3, panel);
+}
+
+void ControlPanel::setElevationSupported(bool supported)
+{
+    if (m_elevationSupported == supported)
+        return;
+    m_elevationSupported = supported;
+    m_elevationCommandTimer->stop();
+    m_elevationControls->setVisible(supported);
+    setCommandEnabled(m_commandEnabled);
 }
 
 void ControlPanel::requestAzimuth(int mechanical)
@@ -165,12 +237,15 @@ void ControlPanel::updateAzimuthInput()
 
 void ControlPanel::setCommandEnabled(bool enabled)
 {
+    m_commandEnabled = enabled;
     if (!enabled)
         cancelPendingMotion();
     m_compass->setEnabled(enabled);
-    m_slider->setEnabled(enabled);
+    m_slider->setEnabled(enabled && m_elevationSupported);
+    m_azimuthMotion->setEnabled(enabled);
+    m_elevationMotion->setEnabled(enabled && m_elevationSupported);
     m_azimuth->setEditingEnabled(enabled);
-    m_elevation->setEditingEnabled(enabled);
+    m_elevation->setEditingEnabled(enabled && m_elevationSupported);
     // NOTE: 预设编辑属于本地偏好设置，断开或透传时仍可编辑；发送端会校验真实连接状态。
     m_azimuthPresets->setEnabled(true);
     m_elevationPresets->setEnabled(true);

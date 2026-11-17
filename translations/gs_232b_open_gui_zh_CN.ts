@@ -23,6 +23,10 @@
     <context>
         <name>ConnectionPanel</name>
         <message>
+            <source>Network address</source>
+            <translation>网络地址</translation>
+        </message>
+        <message>
             <source>Application settings</source>
             <translation>应用设置</translation>
         </message>
@@ -106,6 +110,34 @@
     <context>
         <name>ControlPanel</name>
         <message>
+            <source>Mode</source>
+            <translation>模式</translation>
+        </message>
+        <message>
+            <source>Manual</source>
+            <translation>手动</translation>
+        </message>
+        <message>
+            <source>Tracking</source>
+            <translation>跟踪</translation>
+        </message>
+        <message>
+            <source>LP / Long path</source>
+            <translation>LP / 长径</translation>
+        </message>
+        <message>
+            <source>Azimuth</source>
+            <translation>方位角</translation>
+        </message>
+        <message>
+            <source>Elevation</source>
+            <translation>仰角</translation>
+        </message>
+        <message>
+            <source>Presets</source>
+            <translation>预设</translation>
+        </message>
+        <message>
             <source>Click to enter an integer angle, grid, callsign or prefix. Angles wrap at 360° and use the shortest reachable rotation. Callsigns use DXCC coordinates. Press Enter to move or Esc to cancel.</source>
             <translation>点击输入整数角度、网格、呼号或前缀。角度按 360° 取余，并选择行程内最短的旋转路径。呼号使用所属 DXCC 的代表坐标。按回车转动，按 Esc 取消。</translation>
         </message>
@@ -116,11 +148,6 @@
         <message>
             <source>Could not save application settings.</source>
             <translation>无法保存应用设置。</translation>
-        </message>
-        <message>
-            <location filename="../ControlPanel.cpp" line="32" />
-            <source>CONTROL</source>
-            <translation>控制</translation>
         </message>
         <message>
             <source>Azimuth angle, grid or callsign</source>
@@ -145,6 +172,29 @@
         <message>
             <source>Elevation angle</source>
             <translation>仰角</translation>
+        </message>
+    </context>
+    <context>
+        <name>MotionButtons</name>
+        <message>
+            <source>Hold to move up; release to stop</source>
+            <translation>按住升高，松开停止</translation>
+        </message>
+        <message>
+            <source>Hold to move down; release to stop</source>
+            <translation>按住降低，松开停止</translation>
+        </message>
+        <message>
+            <source>Hold to rotate counterclockwise; release to stop</source>
+            <translation>按住逆时针旋转，松开停止</translation>
+        </message>
+        <message>
+            <source>Hold to rotate clockwise; release to stop</source>
+            <translation>按住顺时针旋转，松开停止</translation>
+        </message>
+        <message>
+            <source>Stop all motion</source>
+            <translation>停止所有运动</translation>
         </message>
     </context>
     <context>

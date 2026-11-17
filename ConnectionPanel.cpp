@@ -24,6 +24,8 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
     m_serialPort = new QComboBox(this);
     m_serialPort->setObjectName(QStringLiteral("serialPort"));
     m_serialPort->setEditable(true);
+    m_serialPort->setMinimumContentsLength(8);
+    m_serialPort->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     const auto availablePorts = QSerialPortInfo::availablePorts();
     QStringList availablePortNames;
     for (const QSerialPortInfo &port : availablePorts) {
@@ -42,22 +44,23 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
     m_baudRate->addItems({QStringLiteral("1200"), QStringLiteral("2400"),
                           QStringLiteral("4800"), QStringLiteral("9600")});
     m_baudRate->setCurrentText(QString::number(settings.baudRate()));
-    auto *baudLabel = new QLabel(tr("Baud rate"), this);
-    baudLabel->setBuddy(m_baudRate);
-    layout->addWidget(baudLabel, 1, 0);
-    layout->addWidget(m_baudRate, 1, 1);
+    m_baudRate->setAccessibleName(tr("Baud rate"));
+    m_baudRate->setToolTip(tr("Baud rate"));
+    layout->addWidget(m_baudRate, 0, 2);
 
     m_networkMode = new QRadioButton(tr("Network"), this);
     m_networkMode->setObjectName(QStringLiteral("networkMode"));
     m_networkMode->setChecked(settings.networkMode());
     m_address = new QLineEdit(settings.connectionAddress(), this);
     m_address->setObjectName(QStringLiteral("websocketAddress"));
-    layout->addWidget(m_networkMode, 2, 0);
-    layout->addWidget(m_address, 2, 1);
+    m_address->setMinimumWidth(140);
+    m_address->setAccessibleName(tr("Network address"));
+    layout->addWidget(m_networkMode, 0, 3);
+    layout->addWidget(m_address, 0, 4);
 
     m_virtualCom = new QCheckBox(tr("Virtual COM"), this);
     m_virtualCom->setObjectName(QStringLiteral("virtualCom"));
-    layout->addWidget(m_virtualCom, 3, 0, 1, 2);
+    layout->addWidget(m_virtualCom, 0, 5);
     m_virtualPortOptions = new QWidget(this);
     auto *virtualLayout = new QFormLayout(m_virtualPortOptions);
     virtualLayout->setContentsMargins(0, 0, 0, 0);
@@ -85,15 +88,15 @@ ConnectionPanel::ConnectionPanel(QWidget *parent)
     m_virtualPort->setReadOnly(true);
     m_virtualPort->setPlaceholderText(tr("Assigned after connection"));
     virtualLayout->addRow(tr("Active port"), m_virtualPort);
-    layout->addWidget(m_virtualPortOptions, 4, 0, 1, 2);
+    layout->addWidget(m_virtualPortOptions, 1, 0, 1, 8);
 
     m_connect = new QPushButton(tr("Connect"), this);
     m_connect->setObjectName(QStringLiteral("connectButton"));
     m_disconnect = new QPushButton(tr("Disconnect"), this);
     m_disconnect->setObjectName(QStringLiteral("disconnectButton"));
-    layout->addWidget(m_connect, 5, 0);
-    layout->addWidget(m_disconnect, 5, 1);
-    layout->setColumnStretch(1, 1);
+    layout->addWidget(m_connect, 0, 6);
+    layout->addWidget(m_disconnect, 0, 7);
+    layout->setColumnStretch(4, 1);
 
     // NOTE: 先恢复全部偏好再绑定保存，自动回退串口时保留原选择，等待设备重新接入。
     connect(m_serialPort, &QComboBox::currentTextChanged, this, [this] {

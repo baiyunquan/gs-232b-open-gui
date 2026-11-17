@@ -55,37 +55,26 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
     setObjectName(QStringLiteral("mainWindow"));
     setWindowTitle(tr("GS-232B Open Control"));
-    setMinimumSize(760, 720);
-    resize(1440, 880);
+    setMinimumSize(860, 600);
+    resize(1280, 800);
 
     auto *central = new QWidget(this);
-    auto *columns = new QHBoxLayout(central);
-    columns->setContentsMargins(10, 10, 10, 10);
-    columns->setSpacing(12);
-    auto *left = new QWidget(central);
-    left->setMinimumWidth(340);
-    left->setMaximumWidth(390);
-    auto *leftLayout = new QVBoxLayout(left);
-    leftLayout->setContentsMargins(0, 0, 0, 0);
-    leftLayout->setSpacing(10);
-    m_connection = new ConnectionPanel(left);
-    m_control = new ControlPanel(left);
-    leftLayout->addWidget(m_connection);
-    leftLayout->addWidget(m_control, 1);
-    columns->addWidget(left);
+    auto *layout = new QVBoxLayout(central);
+    layout->setContentsMargins(10, 8, 10, 8);
+    layout->setSpacing(10);
+    m_connection = new ConnectionPanel(central);
+    layout->addWidget(m_connection);
+    m_control = new ControlPanel(central);
+    layout->addWidget(m_control, 1);
     m_console = new ConsolePanel(central);
-    columns->addWidget(m_console, 1);
-    auto *right = new QWidget(central);
-    right->setMinimumWidth(250);
-    // NOTE: 侧栏按内容尺寸限制宽度，避免硬性上限小于布局最小宽度时低估换行文字的高度。
-    right->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
-    auto *rightLayout = new QVBoxLayout(right);
-    rightLayout->setContentsMargins(0, 0, 0, 0);
-    rightLayout->setSpacing(10);
+    // NOTE: 控制台保持固定高度；显隐或缩放窗口只改变主控制区的可用空间。
+    m_console->setFixedHeight(220);
+    layout->addWidget(m_console);
     m_faultStatus = new FaultStatusMonitor(this);
-    rightLayout->addWidget(new FaultStatusPanel(m_faultStatus, right));
-    rightLayout->addStretch(1);
-    columns->addWidget(right);
+    auto *faultPanel = new FaultStatusPanel(m_faultStatus, m_control);
+    faultPanel->setMinimumWidth(140);
+    faultPanel->setMaximumWidth(180);
+    m_control->setStatusPanel(faultPanel);
     setCentralWidget(central);
 
     m_transport = new Communication::Transport(this);

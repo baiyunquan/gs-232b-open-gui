@@ -1,5 +1,6 @@
 #include "AppSettings.h"
 #include "CommunicationProtocol.h"
+#include "ControlPanel.h"
 #include "ConnectionPanel.h"
 #include "MainWindow.h"
 #include "RotorModelDialog.h"
@@ -16,6 +17,7 @@
 #include <QRadioButton>
 #include <QSignalSpy>
 #include <QSettings>
+#include <QSlider>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QWebSocket>
@@ -228,8 +230,17 @@ void RotorModelConnectionTests::readsConfiguredModel()
     QTRY_COMPARE(m_modelDialog->savedModelId(), modelId);
     QVERIFY(!apply->isEnabled());
 
+    // NOTE: 已保存型号决定可操作的轴，重启前的生效型号不得覆盖该选择。
+    const bool elevationSupported = modelId <= 4 || modelId == 6 || modelId == 7 || modelId >= 15;
+    auto *slider = m_window->findChild<QSlider *>(QStringLiteral("elevationSlider"));
+    QCOMPARE(slider->isEnabled(), elevationSupported);
+    QSignalSpy commands(m_window->findChild<ControlPanel *>(), &ControlPanel::commandRequested);
+    m_window->findChild<QPushButton *>(QStringLiteral("elevationPreset0"))->click();
+    QCOMPARE(commands.size(), elevationSupported ? 1 : 0);
+
     m_peer->sendTextMessage(rotorResponse(16, QStringLiteral("ROTOR SET")));
     QTRY_COMPARE(m_modelDialog->savedModelId(), 16);
+    QVERIFY(slider->isEnabled());
 }
 
 void RotorModelConnectionTests::invalidResponsesPreserveSelection()

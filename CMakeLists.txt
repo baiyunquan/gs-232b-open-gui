@@ -123,6 +123,8 @@ set(GUI_SOURCES
     ConnectionPanel.h
     ControlPanel.cpp
     ControlPanel.h
+    MotionButtons.cpp
+    MotionButtons.h
     Compass.cpp
     Compass.h
     GreatCircleMap.cpp
@@ -247,6 +249,7 @@ if(BUILD_TESTING)
         AngleReading.cpp AngleReading.h
         AnglePresets.cpp AnglePresets.h
         ControlPanel.cpp ControlPanel.h
+        MotionButtons.cpp MotionButtons.h
         AppSettings.cpp AppSettings.h
         Compass.cpp Compass.h
         GreatCircleMap.cpp GreatCircleMap.h
@@ -261,6 +264,7 @@ if(BUILD_TESTING)
         AngleReading.cpp AngleReading.h
         AnglePresets.cpp AnglePresets.h
         ControlPanel.cpp ControlPanel.h
+        MotionButtons.cpp MotionButtons.h
         AppSettings.cpp AppSettings.h
         AzimuthScale.h
         Compass.cpp Compass.h
@@ -276,6 +280,7 @@ if(BUILD_TESTING)
         AngleReading.cpp AngleReading.h
         AnglePresets.cpp AnglePresets.h
         ControlPanel.cpp ControlPanel.h
+        MotionButtons.cpp MotionButtons.h
         AppSettings.cpp AppSettings.h
         Compass.cpp Compass.h
         GreatCircleMap.cpp GreatCircleMap.h
