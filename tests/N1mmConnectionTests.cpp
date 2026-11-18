@@ -1,7 +1,9 @@
+#include "TestSettings.h"
 #include "AppSettings.h"
 #include "CalibrationDialog.h"
 #include "CommunicationProtocol.h"
 #include "ConnectionDialog.h"
+#include "ControlPanel.h"
 #include "MainWindow.h"
 #include "n1mm/N1mmController.h"
 #include "n1mm/N1mmNameDialog.h"
@@ -48,7 +50,6 @@ class N1mmConnectionTests final : public QObject
     Q_OBJECT
 
 private slots:
-    void initTestCase();
     void init();
     void cleanup();
     void forwardsCommandsAndReportsOnlyMeasurements();
@@ -68,7 +69,7 @@ private:
     QByteArray receivePosition();
     void enable();
 
-    QTemporaryDir m_directory;
+    TestSettings m_directory;
     MainWindow *m_window = nullptr;
     ConnectionDialog *m_connection = nullptr;
     N1mmController *m_controller = nullptr;
@@ -77,26 +78,12 @@ private:
     QUdpSocket m_sender;
     QUdpSocket m_receiver;
     QStringList m_commands;
-    const QStringList m_preferenceKeys{QStringLiteral("n1mm/enabled"), QStringLiteral("n1mm/rotorName"),
-                                      QStringLiteral("rotor/azimuthOffset"), QStringLiteral("rotor/shortestPathEnabled")};
-    QMap<QString, QVariant> m_savedPreferences;
 };
-
-void N1mmConnectionTests::initTestCase()
-{
-    QVERIFY(m_directory.isValid());
-    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, m_directory.path());
-}
 
 void N1mmConnectionTests::init()
 {
-    QSettings raw(QSettings::NativeFormat, QSettings::UserScope,
-                  QStringLiteral("BG5GEB"), QStringLiteral("GS-232B Open Control"));
-    m_savedPreferences.clear();
-    for (const QString &key : m_preferenceKeys) {
-        if (raw.contains(key))
-            m_savedPreferences.insert(key, raw.value(key));
-    }
+    QVERIFY(m_directory.isValid());
+    m_directory.reset();
     QVERIFY(AppSettings().setN1mmEnabled(false));
     QVERIFY(AppSettings().setN1mmRotorName(QStringLiteral("GS232B")));
     QVERIFY(AppSettings().setAzimuthOffset(0));
@@ -129,15 +116,6 @@ void N1mmConnectionTests::cleanup()
     m_server = nullptr;
     m_sender.close();
     m_receiver.close();
-    QSettings raw(QSettings::NativeFormat, QSettings::UserScope,
-                  QStringLiteral("BG5GEB"), QStringLiteral("GS-232B Open Control"));
-    for (const QString &key : m_preferenceKeys) {
-        if (m_savedPreferences.contains(key))
-            raw.setValue(key, m_savedPreferences.value(key));
-        else
-            raw.remove(key);
-    }
-    raw.sync();
 }
 
 bool N1mmConnectionTests::connectDevice()
@@ -336,8 +314,10 @@ void N1mmConnectionTests::manualModeReportsPositionAndDropsControl()
 {
     auto *manual = m_window->findChild<QRadioButton *>(QStringLiteral("manualMode"));
     auto *tracking = m_window->findChild<QRadioButton *>(QStringLiteral("trackingMode"));
+    auto *control = m_window->findChild<ControlPanel *>();
     QVERIFY(manual->isChecked());
     m_window->findChild<QAction *>(QStringLiteral("n1mmEnableAction"))->setChecked(true);
+    QVERIFY(m_controller->isEnabled());
     QVERIFY(connectDevice());
     QSignalSpy commands(m_controller, &N1mmController::commandRequested);
     QSignalSpy errors(m_controller, &N1mmController::errorOccurred);
@@ -350,12 +330,17 @@ void N1mmConnectionTests::manualModeReportsPositionAndDropsControl()
     QCOMPARE(receivePosition(), QByteArray("GS232B@350"));
     send(turn());
     send(stop());
+    QSignalSpy trackingChanged(control, &ControlPanel::trackingEnabledChanged);
     tracking->setChecked(true);
+    QVERIFY(tracking->isChecked());
+    QVERIFY(control->trackingEnabled());
+    QCOMPARE(trackingChanged.size(), 1);
     QTest::qWait(30);
     QVERIFY(commands.isEmpty());
     send(turn());
     send(stop());
     QTRY_COMPARE(commands.size(), 2);
+    QVERIFY(errors.isEmpty());
     QTRY_VERIFY(m_commands.contains(QStringLiteral("M370\r")));
     QTRY_VERIFY(m_commands.contains(QStringLiteral("A\r")));
     manual->setChecked(true);

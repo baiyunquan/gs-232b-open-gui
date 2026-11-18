@@ -1,3 +1,4 @@
+#include "TestSettings.h"
 #include "AngleReading.h"
 #include "AppSettings.h"
 #include "Compass.h"
@@ -36,15 +37,13 @@ private slots:
     void longPathPreservesMeasurementsPresetsAndElevation();
 
 private:
-    QTemporaryDir m_directory;
-    int m_case = 0;
+    TestSettings m_directory;
 };
 
 void MotionControlTests::init()
 {
     QVERIFY(m_directory.isValid());
-    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope,
-                       m_directory.filePath(QString::number(++m_case)));
+    m_directory.reset();
 }
 
 void MotionControlTests::jogsOnlyWhileHeld_data()

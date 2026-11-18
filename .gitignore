@@ -12,6 +12,7 @@ Testing/
 # Local Python tooling environment
 /.venv/
 /.uv-cache/
+__pycache__/
 
 # Qt generated files
 *_autogen/

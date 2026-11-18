@@ -13,7 +13,7 @@
 #include "ManagementKeyDialog.h"
 #include "NetworkPortConfigDialog.h"
 #include "PasswordChangeDialog.h"
-#include "QtCompat.h"
+#include "ManagementJson.h"
 #include "StationGridDialog.h"
 #include "WifiProvisioningDialog.h"
 #include "virtual_serial/VirtualSerialBridge.h"
@@ -872,8 +872,8 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
     const QJsonObject data = response.value(QStringLiteral("data")).toObject();
     if (m_networkConfigurationStage == NetworkConfigurationStage::AwaitBegin &&
         command == QStringLiteral("CFG BEGIN")) {
-        m_pendingNetworkCandidate = jsonIntegerValue(data.value(QStringLiteral("candidate_id")), -1);
-        m_pendingNetworkRevision = jsonIntegerValue(data.value(QStringLiteral("base_revision")), -1);
+        m_pendingNetworkCandidate = jsonDataInteger(trimmed.mid(1), QStringLiteral("candidate_id"));
+        m_pendingNetworkRevision = jsonDataInteger(trimmed.mid(1), QStringLiteral("base_revision"));
         if (m_pendingNetworkCandidate < 0) {
             m_console->appendError(tr("Device did not return a network candidate ID."));
             m_networkConfigurationStage = NetworkConfigurationStage::Idle;
@@ -900,21 +900,18 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
 
     if (m_networkConfigurationStage == NetworkConfigurationStage::AwaitCheck &&
         command == QStringLiteral("CFG CHECK")) {
-        QJsonObject request;
-        request.insert(QStringLiteral("candidate_id"), m_pendingNetworkCandidate);
+        QString request = QStringLiteral("{\"candidate_id\":%1").arg(m_pendingNetworkCandidate);
         if (m_pendingNetworkRevision >= 0)
-            request.insert(QStringLiteral("revision"), m_pendingNetworkRevision);
-        request.insert(QStringLiteral("timeout_s"), 300);
+            request += QStringLiteral(",\"revision\":%1").arg(m_pendingNetworkRevision);
+        request += QStringLiteral(",\"timeout_s\":300}");
         m_networkConfigurationStage = NetworkConfigurationStage::AwaitApply;
-        sendControlCommand(QStringLiteral("!CFG APPLY %1")
-                               .arg(QString::fromUtf8(
-                                   QJsonDocument(request).toJson(QJsonDocument::Compact))));
+        sendControlCommand(QStringLiteral("!CFG APPLY %1").arg(request));
         return;
     }
 
     if (m_networkConfigurationStage == NetworkConfigurationStage::AwaitApply &&
         command == QStringLiteral("CFG APPLY")) {
-        m_pendingNetworkTrial = jsonIntegerValue(data.value(QStringLiteral("trial_id")), -1);
+        m_pendingNetworkTrial = jsonDataInteger(trimmed.mid(1), QStringLiteral("trial_id"));
         if (m_pendingNetworkTrial < 0) {
             m_console->appendError(tr("Device did not return a network trial ID."));
             m_networkConfigurationStage = NetworkConfigurationStage::Idle;
@@ -958,18 +955,12 @@ void MainWindow::handleManagementResponse(const QByteArray &line)
             this, title, question,
             QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
         if (answer == QMessageBox::Yes) {
-            QJsonObject request;
-            request.insert(QStringLiteral("trial_id"), m_pendingNetworkTrial);
-            sendControlCommand(QStringLiteral("!CFG CONFIRM %1")
-                                   .arg(QString::fromUtf8(
-                                       QJsonDocument(request).toJson(QJsonDocument::Compact))));
+            sendControlCommand(QStringLiteral("!CFG CONFIRM {\"trial_id\":%1}")
+                                   .arg(m_pendingNetworkTrial));
         } else {
-            QJsonObject request;
-            request.insert(QStringLiteral("trial_id"), m_pendingNetworkTrial);
             m_networkConfigurationStage = NetworkConfigurationStage::AwaitAbort;
-            sendControlCommand(QStringLiteral("!CFG ABORT %1")
-                                   .arg(QString::fromUtf8(
-                                       QJsonDocument(request).toJson(QJsonDocument::Compact))));
+            sendControlCommand(QStringLiteral("!CFG ABORT {\"trial_id\":%1}")
+                                   .arg(m_pendingNetworkTrial));
         }
         return;
     }

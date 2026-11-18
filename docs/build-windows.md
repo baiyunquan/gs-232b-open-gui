@@ -6,8 +6,10 @@
 `windows-2022`、Visual Studio 2022 MSVC、CMake 和 Ninja 构建 Windows x64 Release。
 Windows CI 固定为 Qt 5.15.2 `msvc2019_64` SDK，安装 QtBase、QtTools、QtTranslations、
 QtSerialPort 和 QtWebSockets，并缓存 SDK。应用使用 Visual Studio 2022 编译器构建；
-Visual Studio 2022 提供的 14.29（v142）工具集与 Qt SDK 匹配。构建关闭 C++ 测试目标，
-但会运行无需 SDK 的 CI 发布、缓存清理和 Windows 运行库检查回归测试。
+Visual Studio 2022 提供的 14.29（v142）工具集与 Qt SDK 匹配，并选用 Windows 10 1809
+（10.0.17763.0）SDK。构建开启 C++ 测试，并在打包前运行 CTest；也会运行 CI 发布、缓存清理和 Windows 运行库检查的 Python 回归。
+GUI 集成测试与应用复用同一份编译库，使用本地 WebSocket/UDP 测试对端，无需连接真实转台。
+Windows 测试使用独立注册表区域，并为 offscreen 插件配置系统字体，不读取或覆盖用户设置。
 Python 测试统一放在 `tests/pytest/`，与 `tests/` 中的 C++/Qt 测试分开保存。
 
 在仓库 **Actions → Windows** 查看进度；也可以点击 **Run workflow** 手动构建。

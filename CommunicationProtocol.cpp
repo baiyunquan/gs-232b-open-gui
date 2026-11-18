@@ -2,8 +2,10 @@
 
 #include <QDeadlineTimer>
 #include <QAbstractSocket>
+#include <QEventLoop>
 #include <QSerialPort>
 #include <QSignalBlocker>
+#include <QTimer>
 #include <QWebSocket>
 
 namespace Communication {
@@ -60,6 +62,11 @@ Transport::Transport(QObject *parent)
     connect(m_serial, &QSerialPort::errorOccurred, this, &Transport::onSerialError);
     connect(m_webSocket, &QWebSocket::connected, this, &Transport::onWebSocketConnected);
     connect(m_webSocket, &QWebSocket::disconnected, this, &Transport::onWebSocketDisconnected);
+    connect(m_webSocket, &QWebSocket::bytesWritten, this, [this](qint64 count) {
+        Q_UNUSED(count)
+        if (m_webSocket->bytesToWrite() == 0)
+            m_webSocketWritePending = false;
+    });
     connect(m_webSocket, &QWebSocket::textMessageReceived,
             this, &Transport::onWebSocketTextMessage);
     connect(m_webSocket, &QWebSocket::binaryMessageReceived,
@@ -119,8 +126,6 @@ bool Transport::open(const ConnectionOptions &options)
 
 void Transport::close()
 {
-    const bool wasActive = m_open || m_opening;
-    m_opening = false;
     QString serialError;
     if (m_serial->isOpen()) {
         // NOTE: close 会丢弃 Qt 写缓存；最多等待一秒，确保点动停止字节在断开前发出。
@@ -135,11 +140,40 @@ void Transport::close()
         }
         m_serial->close();
     }
-    if (m_webSocket->isValid() || m_webSocket->state() != QAbstractSocket::UnconnectedState)
+    if (m_webSocket->isValid() || m_webSocket->state() != QAbstractSocket::UnconnectedState) {
+        // Drain a final stop command before closing, up to one second for a stalled peer.
+        const bool hadPendingWrite = m_webSocketWritePending || m_webSocket->bytesToWrite() > 0;
+        QDeadlineTimer deadline(1000);
+        while ((m_webSocketWritePending || m_webSocket->bytesToWrite() > 0) &&
+               deadline.remainingTime() > 0) {
+            QEventLoop waitForWrite;
+            QTimer timeout;
+            timeout.setSingleShot(true);
+            connect(m_webSocket, &QWebSocket::bytesWritten,
+                    &waitForWrite, &QEventLoop::quit);
+            connect(m_webSocket, &QWebSocket::disconnected,
+                    &waitForWrite, &QEventLoop::quit);
+            connect(&timeout, &QTimer::timeout,
+                    &waitForWrite, &QEventLoop::quit);
+            m_webSocket->flush();
+            if (!m_webSocketWritePending && m_webSocket->bytesToWrite() == 0)
+                break;
+            timeout.start(qMax(1, int(deadline.remainingTime())));
+            waitForWrite.exec(QEventLoop::ExcludeUserInputEvents);
+        }
+        if (hadPendingWrite && !m_webSocketWritePending && m_webSocket->bytesToWrite() == 0) {
+            // Let the peer's event loop consume the stop frame before Qt closes the TCP socket.
+            QEventLoop deliverPendingFrame;
+            QTimer settleDelay;
+            settleDelay.setSingleShot(true);
+            connect(&settleDelay, &QTimer::timeout,
+                    &deliverPendingFrame, &QEventLoop::quit);
+            settleDelay.start(50);
+            deliverPendingFrame.exec(QEventLoop::ExcludeUserInputEvents);
+        }
         m_webSocket->close();
-    m_open = false;
-    if (wasActive)
-        emit disconnected();
+    }
+    markDisconnected();
     if (!serialError.isEmpty())
         reportError(serialError);
 }
@@ -170,7 +204,10 @@ bool Transport::sendCommand(const QString &command, bool reportAsSent)
     }
 
     // NOTE: 终端命令使用文本帧；sendBytes 保留原始二进制帧给其他协议调用方。
-    if (m_webSocket->sendTextMessage(QString::fromUtf8(bytes)) < 0) {
+    m_webSocketWritePending = true;
+    const qint64 written = m_webSocket->sendTextMessage(QString::fromUtf8(bytes));
+    if (written < 0) {
+        m_webSocketWritePending = false;
         reportError(QStringLiteral("WebSocket send failed"));
         return false;
     }
@@ -196,7 +233,9 @@ bool Transport::sendBytes(const QByteArray &bytes, bool reportAsSent)
         return true;
     }
 
+    m_webSocketWritePending = true;
     if (m_webSocket->sendBinaryMessage(bytes) < 0) {
+        m_webSocketWritePending = false;
         reportError(QStringLiteral("WebSocket send failed"));
         return false;
     }
@@ -267,6 +306,7 @@ void Transport::markDisconnected()
     const bool wasActive = m_open || m_opening;
     m_open = false;
     m_opening = false;
+    m_webSocketWritePending = false;
     if (wasActive)
         emit disconnected();
 }

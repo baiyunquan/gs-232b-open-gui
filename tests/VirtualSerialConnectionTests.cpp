@@ -1,3 +1,4 @@
+#include "TestSettings.h"
 #include "CommunicationProtocol.h"
 #include "ConnectionDialog.h"
 #include "ControlPanel.h"
@@ -27,7 +28,6 @@ class VirtualSerialConnectionTests final : public QObject
     Q_OBJECT
 
 private slots:
-    void initTestCase();
     void init();
     void cleanup();
     void failedConnectionDoesNotCreatePort();
@@ -47,7 +47,7 @@ private slots:
 
 private:
     bool connectDevice();
-    QTemporaryDir m_settingsDirectory;
+    TestSettings m_settingsDirectory;
 #ifdef Q_OS_UNIX
     bool openClient();
     QByteArray readReply(qsizetype expectedSize);
@@ -63,14 +63,10 @@ private:
     QStringList m_textFrames;
 };
 
-void VirtualSerialConnectionTests::initTestCase()
-{
-    QVERIFY(m_settingsDirectory.isValid());
-    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, m_settingsDirectory.path());
-}
-
 void VirtualSerialConnectionTests::init()
 {
+    QVERIFY(m_settingsDirectory.isValid());
+    m_settingsDirectory.reset();
     m_server = new QWebSocketServer(QStringLiteral("virtual-serial-test"),
                                     QWebSocketServer::NonSecureMode);
     QVERIFY(m_server->listen(QHostAddress::LocalHost, 0));

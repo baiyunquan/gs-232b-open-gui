@@ -1,3 +1,4 @@
+#include "TestSettings.h"
 #include "AngleReading.h"
 #include "AppSettings.h"
 #include "AzimuthScale.h"
@@ -30,8 +31,7 @@ private slots:
     void disabledPreferenceRestoresContinuousTravel();
 
 private:
-    QTemporaryDir m_directory;
-    int m_case = 0;
+    TestSettings m_directory;
 };
 
 namespace {
@@ -55,8 +55,7 @@ QString command(int angle)
 void ShortestPathTests::init()
 {
     QVERIFY(m_directory.isValid());
-    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope,
-                       m_directory.filePath(QString::number(++m_case)));
+    m_directory.reset();
 }
 
 void ShortestPathTests::numericTargets_data()

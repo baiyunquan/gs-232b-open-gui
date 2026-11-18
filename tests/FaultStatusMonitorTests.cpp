@@ -88,7 +88,9 @@ void FaultStatusMonitorTests::clearRequiresFaultAndVerification()
 {
     FaultStatusMonitor monitor;
     QSignalSpy commands(&monitor, &FaultStatusMonitor::commandRequested);
-    QSignalSpy results(&monitor, &FaultStatusMonitor::clearFinished);
+    QList<FaultStatusMonitor::ClearResult> results;
+    connect(&monitor, &FaultStatusMonitor::clearFinished, &monitor,
+            [&results](FaultStatusMonitor::ClearResult result) { results.append(result); });
     monitor.setEnabled(true);
     monitor.clearFault();
     QCOMPARE(commands.size(), 1);
@@ -105,7 +107,7 @@ void FaultStatusMonitorTests::clearRequiresFaultAndVerification()
     monitor.handleResponse({{"cmd", "FAULT CLEAR"}, {"ok", true},
                             {"data", QJsonObject{{"cleared", true}}}});
     QCOMPARE(results.size(), 1);
-    QCOMPARE(qvariant_cast<FaultStatusMonitor::ClearResult>(results.last().first()),
+    QCOMPARE(results.last(),
              FaultStatusMonitor::ClearResult::Succeeded);
     QCOMPARE(commands.last().first().toString(), QStringLiteral("!MOTION STATUS"));
     QCOMPARE(monitor.fault(), FaultStatusMonitor::Fault::Unknown);
@@ -115,7 +117,7 @@ void FaultStatusMonitorTests::clearRequiresFaultAndVerification()
     QVERIFY(monitor.canClear());
     monitor.clearFault();
     monitor.handleResponse({{"cmd", "FAULT CLEAR"}, {"ok", true}, {"data", QJsonObject{}}});
-    QCOMPARE(qvariant_cast<FaultStatusMonitor::ClearResult>(results.last().first()),
+    QCOMPARE(results.last(),
              FaultStatusMonitor::ClearResult::Failed);
     QCOMPARE(monitor.fault(), FaultStatusMonitor::Fault::Unknown);
 }
@@ -141,12 +143,14 @@ void FaultStatusMonitorTests::clearFailures()
     QFETCH(FaultStatusMonitor::ClearResult, result);
     FaultStatusMonitor monitor;
     QSignalSpy commands(&monitor, &FaultStatusMonitor::commandRequested);
-    QSignalSpy results(&monitor, &FaultStatusMonitor::clearFinished);
+    QList<FaultStatusMonitor::ClearResult> results;
+    connect(&monitor, &FaultStatusMonitor::clearFinished, &monitor,
+            [&results](FaultStatusMonitor::ClearResult result) { results.append(result); });
     monitor.setEnabled(true);
     monitor.handleResponse(statusResponse(1));
     monitor.clearFault();
     monitor.handleResponse({{"cmd", "FAULT CLEAR"}, {"ok", false}, {"error", error}});
-    QCOMPARE(qvariant_cast<FaultStatusMonitor::ClearResult>(results.last().first()), result);
+    QCOMPARE(results.last(), result);
     QCOMPARE(commands.last().first().toString(), QStringLiteral("!MOTION STATUS"));
     QVERIFY(!monitor.canClear());
     monitor.handleResponse(statusResponse(1));

@@ -1,27 +1,45 @@
 #include "CommandLine.h"
 
 #include <QKeyEvent>
-#include <QTextBoundaryFinder>
+#include <QVector>
+#include <utf8proc.h>
 
 #include <algorithm>
 
 namespace {
 constexpr int kHistoryLimit = 100;
+
+QVector<int> graphemeBoundaries(const QString &text)
+{
+    QVector<int> boundaries{0};
+    utf8proc_int32_t state = 0;
+    utf8proc_int32_t previous = -1;
+    int offset = 0;
+    for (uint codepoint : text.toUcs4()) {
+        const auto current = static_cast<utf8proc_int32_t>(codepoint);
+        if (previous >= 0 && utf8proc_grapheme_break_stateful(previous, current, &state))
+            boundaries.append(offset);
+        offset += codepoint > 0xffff ? 2 : 1;
+        previous = current;
+    }
+    if (boundaries.last() != text.size())
+        boundaries.append(text.size());
+    return boundaries;
+}
 }
 
 int CommandLine::previousBoundary() const
 {
-    QTextBoundaryFinder finder(QTextBoundaryFinder::Grapheme, m_text);
-    finder.setPosition(m_cursor);
-    return std::max(0, static_cast<int>(finder.toPreviousBoundary()));
+    const auto boundaries = graphemeBoundaries(m_text);
+    const auto boundary = std::lower_bound(boundaries.cbegin(), boundaries.cend(), m_cursor);
+    return boundary == boundaries.cbegin() ? 0 : *std::prev(boundary);
 }
 
 int CommandLine::nextBoundary() const
 {
-    QTextBoundaryFinder finder(QTextBoundaryFinder::Grapheme, m_text);
-    finder.setPosition(m_cursor);
-    const auto next = finder.toNextBoundary();
-    return next < 0 ? static_cast<int>(m_text.size()) : static_cast<int>(next);
+    const auto boundaries = graphemeBoundaries(m_text);
+    const auto boundary = std::upper_bound(boundaries.cbegin(), boundaries.cend(), m_cursor);
+    return boundary == boundaries.cend() ? static_cast<int>(m_text.size()) : *boundary;
 }
 
 void CommandLine::edit(const QKeyEvent &event)

@@ -1,3 +1,4 @@
+#include "TestSettings.h"
 #include "AppSettings.h"
 #include "AzimuthOffsetDialog.h"
 #include "CalibrationDialog.h"
@@ -37,7 +38,6 @@ class GridTrackerConnectionTests final : public QObject
     Q_OBJECT
 
 private slots:
-    void initTestCase();
     void init();
     void cleanup();
     void forwardsMotionAndReportsOnlyMeasurements();
@@ -58,7 +58,7 @@ private:
     void feed(const QString &text);
     QByteArray receive();
 
-    QTemporaryDir m_directory;
+    TestSettings m_directory;
     MainWindow *m_window = nullptr;
     ConnectionDialog *m_connection = nullptr;
     GridTrackerController *m_controller = nullptr;
@@ -69,14 +69,10 @@ private:
     QStringList m_commands;
 };
 
-void GridTrackerConnectionTests::initTestCase()
-{
-    QVERIFY(m_directory.isValid());
-    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, m_directory.path());
-}
-
 void GridTrackerConnectionTests::init()
 {
+    QVERIFY(m_directory.isValid());
+    m_directory.reset();
     QSettings raw(QSettings::NativeFormat, QSettings::UserScope,
                   QStringLiteral("BG5GEB"), QStringLiteral("GS-232B Open Control"));
     raw.clear();

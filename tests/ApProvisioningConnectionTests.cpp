@@ -1,3 +1,4 @@
+#include "TestSettings.h"
 #include "CommunicationProtocol.h"
 #include "ConnectionDialog.h"
 #include "MainWindow.h"
@@ -33,7 +34,6 @@ class ApProvisioningConnectionTests final : public QObject
     Q_OBJECT
 
 private slots:
-    void initTestCase();
     void init();
     void cleanup();
     void networkStartUsesBareCommand();
@@ -50,7 +50,7 @@ private:
     bool connectDevice();
     void submitPassword();
 
-    QTemporaryDir m_settingsDirectory;
+    TestSettings m_settingsDirectory;
     MainWindow *m_window = nullptr;
     ConnectionDialog *m_connection = nullptr;
     Communication::Transport *m_transport = nullptr;
@@ -60,14 +60,10 @@ private:
     QStringList m_commands;
 };
 
-void ApProvisioningConnectionTests::initTestCase()
-{
-    QVERIFY(m_settingsDirectory.isValid());
-    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, m_settingsDirectory.path());
-}
-
 void ApProvisioningConnectionTests::init()
 {
+    QVERIFY(m_settingsDirectory.isValid());
+    m_settingsDirectory.reset();
     m_server = new QWebSocketServer(QStringLiteral("provisioning-test"),
                                   QWebSocketServer::NonSecureMode);
     QVERIFY(m_server->listen(QHostAddress::LocalHost, 0));
@@ -230,14 +226,16 @@ void ApProvisioningConnectionTests::ipQueryPreservesWifiTrial()
             command = QStringLiteral("SESSION AUTH");
         } else if (message == QStringLiteral("!CFG BEGIN\r")) {
             command = QStringLiteral("CFG BEGIN");
-            data = {{"candidate_id", 7}, {"base_revision", 2}};
+            m_peer->sendTextMessage(QStringLiteral("!{\"cmd\":\"CFG BEGIN\",\"ok\":true,\"data\":{\"candidate_id\":9007199254740993,\"base_revision\":9223372036854775807}}\r\n"));
+            return;
         } else if (message.startsWith(QStringLiteral("!NET SET "))) {
             command = QStringLiteral("NET SET");
         } else if (message == QStringLiteral("!CFG CHECK\r")) {
             command = QStringLiteral("CFG CHECK");
         } else if (message.startsWith(QStringLiteral("!CFG APPLY "))) {
             command = QStringLiteral("CFG APPLY");
-            data = {{"trial_id", 11}};
+            m_peer->sendTextMessage(QStringLiteral("!{\"cmd\":\"CFG APPLY\",\"ok\":true,\"data\":{\"trial_id\":9007199254740995}}\r\n"));
+            return;
         } else {
             return;
         }
@@ -254,6 +252,8 @@ void ApProvisioningConnectionTests::ipQueryPreservesWifiTrial()
         QStringLiteral("test-wifi"), QStringLiteral("wifi-secret"));
     QTRY_VERIFY(m_commands.contains(QStringLiteral("!NET GET\r")));
 
+    QCOMPARE(m_commands.filter(QStringLiteral("!CFG APPLY ")),
+             QStringList{QStringLiteral("!CFG APPLY {\"candidate_id\":9007199254740993,\"revision\":9223372036854775807,\"timeout_s\":300}\r")});
     m_window->findChild<QAction *>(QStringLiteral("getIpAddressesAction"))->trigger();
     QTRY_VERIFY(m_commands.count(QStringLiteral("!NET GET\r")) >= 2);
     QTimer confirmation;
@@ -272,7 +272,7 @@ void ApProvisioningConnectionTests::ipQueryPreservesWifiTrial()
                            QString::fromUtf8(QJsonDocument(response).toJson(QJsonDocument::Compact)) +
                            QStringLiteral("\r\n"));
     QTRY_VERIFY(m_commands.contains(QStringLiteral("!PROV STATUS\r")));
-    QTRY_VERIFY(m_commands.contains(QStringLiteral("!CFG ABORT {\"trial_id\":11}\r")));
+    QTRY_VERIFY(m_commands.contains(QStringLiteral("!CFG ABORT {\"trial_id\":9007199254740995}\r")));
 }
 
 void ApProvisioningConnectionTests::failedAuthenticationDoesNotStartProvisioning()

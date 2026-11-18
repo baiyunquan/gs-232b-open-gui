@@ -1,4 +1,4 @@
-#include "CommunicationProtocol.h"
+#include "TestSettings.h"
 #include "ConnectionDialog.h"
 #include "MainWindow.h"
 
@@ -34,8 +34,7 @@ private slots:
 #endif
 
 private:
-    QTemporaryDir m_directory;
-    int m_case = 0;
+    TestSettings m_directory;
     MainWindow *m_window = nullptr;
     ConnectionDialog *m_connection = nullptr;
 };
@@ -43,8 +42,7 @@ private:
 void MotionConnectionTests::init()
 {
     QVERIFY(m_directory.isValid());
-    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope,
-                       m_directory.filePath(QString::number(++m_case)));
+    m_directory.reset();
     m_window = new MainWindow;
     m_connection = m_window->findChild<ConnectionDialog *>();
 }

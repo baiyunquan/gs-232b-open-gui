@@ -239,6 +239,8 @@ void N1mmTests::dropsUnavailableAndStaleCommands()
     QSignalSpy errors(&controller, &N1mmController::errorOccurred);
     QUdpSocket sender;
     sender.writeDatagram(turn(), QHostAddress::LocalHost, N1mm::ControlPort);
+    QTest::qWait(50); // Let the unavailable command be consumed before enabling control.
+    QVERIFY(errors.isEmpty());
     controller.setControlAvailable(true);
     sender.writeDatagram(turn(), QHostAddress::LocalHost, N1mm::ControlPort);
     QTRY_COMPARE(errors.size(), 1);
@@ -253,6 +255,7 @@ void N1mmTests::dropsUnavailableAndStaleCommands()
     controller.setPosition(350);
     controller.setControlAvailable(false);
     controller.setControlAvailable(true);
+    QTest::qWait(50); // Finish the availability transition before sending a fresh command.
     sender.writeDatagram(turn(), QHostAddress::LocalHost, N1mm::ControlPort);
     QTRY_COMPARE(errors.size(), 3);
     QCOMPARE(commands.size(), 1);

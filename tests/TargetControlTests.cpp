@@ -1,3 +1,4 @@
+#include "TestSettings.h"
 #include "AngleReading.h"
 #include "ControlPanel.h"
 
@@ -12,7 +13,7 @@ class TargetControlTests final : public QObject
     Q_OBJECT
 
 private slots:
-    void initTestCase();
+    void init();
     void submitsTargets_data();
     void submitsTargets();
     void rejectedInputCanBeCorrected();
@@ -22,7 +23,7 @@ private slots:
     void elevationRemainsNumeric();
 
 private:
-    QTemporaryDir m_settingsDirectory;
+    TestSettings m_settingsDirectory;
 };
 
 namespace {
@@ -38,11 +39,10 @@ QLineEdit *edit(AngleReading *reading, const QString &text)
 
 } // namespace
 
-void TargetControlTests::initTestCase()
+void TargetControlTests::init()
 {
     QVERIFY(m_settingsDirectory.isValid());
-    QSettings::setDefaultFormat(QSettings::IniFormat);
-    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, m_settingsDirectory.path());
+    m_settingsDirectory.reset();
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, m_settingsDirectory.path());
 }
 

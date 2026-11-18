@@ -54,4 +54,5 @@ private:
     bool m_controlAvailable = false;
     bool m_trackingEnabled = false;
     bool m_shortestPath = true;
+    bool m_discardPendingCommands = false;
 };

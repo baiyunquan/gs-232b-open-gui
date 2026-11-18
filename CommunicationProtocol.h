@@ -94,6 +94,7 @@ private:
     ConnectionOptions m_options;
     bool m_open = false;
     bool m_opening = false;
+    bool m_webSocketWritePending = false;
 };
 
 } // namespace Communication

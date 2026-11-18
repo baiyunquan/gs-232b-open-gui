@@ -19,6 +19,7 @@ private slots:
     void pasteDoesNotSubmitCommands();
     void disconnectClearsDraftAndHistory();
     void sensitiveCommandsAreNotRemembered();
+    void unicodeEditingUsesGraphemeBoundaries_data();
     void unicodeEditingUsesGraphemeBoundaries();
     void fragmentedAnsiOutput();
     void longDraftSurvivesOutputAndResize();
@@ -134,11 +135,11 @@ void TerminalTests::pasteDoesNotSubmitCommands()
     TerminalWidget terminal;
     terminal.setCommandEnabled(true);
     QSignalSpy requested(&terminal, &TerminalWidget::commandRequested);
-    terminal.paste(QStringLiteral("C2\r\nM120\n"));
+    terminal.paste(QStringLiteral("C2\r\nM120\n\tA\x0001\x007f"));
     QVERIFY(requested.isEmpty());
     QTest::keyClick(&terminal, Qt::Key_Return);
     QCOMPARE(requested.size(), 1);
-    QCOMPARE(requested.first().first().toString(), QStringLiteral("C2 M120 "));
+    QCOMPARE(requested.first().first().toString(), QStringLiteral("C2 M120  A"));
 }
 
 void TerminalTests::disconnectClearsDraftAndHistory()
@@ -173,17 +174,28 @@ void TerminalTests::sensitiveCommandsAreNotRemembered()
     QVERIFY(!terminal->sessionText().contains(QStringLiteral("test-secret")));
 }
 
+void TerminalTests::unicodeEditingUsesGraphemeBoundaries_data()
+{
+    QTest::addColumn<QString>("grapheme");
+    QTest::newRow("emoji-zwj") << QString::fromUtf8("👩‍🚀");
+    QTest::newRow("flag") << QString::fromUtf8("🇨🇳");
+    QTest::newRow("combining") << QString::fromUtf8("é");
+    QTest::newRow("skin-tone") << QString::fromUtf8("👍🏽");
+}
+
 void TerminalTests::unicodeEditingUsesGraphemeBoundaries()
 {
     TerminalWidget terminal;
     terminal.setCommandEnabled(true);
     QSignalSpy requested(&terminal, &TerminalWidget::commandRequested);
     QInputMethodEvent commit;
-    commit.setCommitString(QString::fromUtf8("测试👩‍🚀"));
+    QFETCH(QString, grapheme);
+    commit.setCommitString(QString::fromUtf8("测试") + grapheme + QLatin1Char('Z'));
     QApplication::sendEvent(&terminal, &commit);
+    QTest::keyClick(&terminal, Qt::Key_Left);
     QTest::keyClick(&terminal, Qt::Key_Backspace);
     QTest::keyClick(&terminal, Qt::Key_Return);
-    QCOMPARE(requested.first().first().toString(), QString::fromUtf8("测试"));
+    QCOMPARE(requested.first().first().toString(), QString::fromUtf8("测试Z"));
 }
 
 void TerminalTests::fragmentedAnsiOutput()

@@ -32,6 +32,7 @@ jobs:
     env:
       BUILD_DIR: build/windows-msvc-x86_64
       QT_VERSION: '5.15.2'
+      WINDOWS_TARGET_VERSION: '10.0.17763.0'
       UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
       CCACHE_VERSION: '4.14.3'
       CCACHE_DIR: ${{ github.workspace }}/build/windows-msvc-x86_64/ccache
@@ -57,6 +58,23 @@ jobs:
           arch: x64
           vsversion: '2022'
           toolset: '14.29'
+          sdk: '10.0.17763.0'
+
+      - name: Verify Qt 5.15 Windows 10 toolchain
+        run: |
+          $cmakeVersion = (cmake --version | Select-Object -First 1)
+          if ($cmakeVersion -notmatch '^cmake version 3\.(2[5-9]|[3-9][0-9])\.') {
+            throw "Qt 5.15 requires CMake 3.25 through 3.x; found $cmakeVersion"
+          }
+          if ($env:VCToolsVersion -notlike '14.29.*') {
+            throw "Qt 5.15 msvc2019_64 requires the v142 compiler; found $env:VCToolsVersion"
+          }
+          $sdkLib = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) `
+            "Windows Kits/10/Lib/$env:WINDOWS_TARGET_VERSION/um/x64/windowsapp.lib"
+          if (-not (Test-Path -LiteralPath $sdkLib -PathType Leaf)) {
+            throw "Windows 10 1809 SDK library is missing: $sdkLib"
+          }
+          Write-Host "$cmakeVersion; MSVC $env:VCToolsVersion; Windows SDK $env:WINDOWS_TARGET_VERSION"
 
       - name: Restore local Python environment and uv downloads
         id: venv_cache
@@ -149,12 +167,13 @@ jobs:
       - name: Compute build cache key
         id: build_key
         env:
-          SOURCE_HASH: ${{ hashFiles('**/*.cpp', '**/*.h', '**/*.qrc', 'CMakeLists.txt', 'cmake/**', 'translations/**', 'targeting/data/**', 'assets/**', '.github/workflows/windows.yml', '!.venv/**', '!.uv-cache/**') }}
+          SOURCE_HASH: ${{ hashFiles('**/*.cpp', '**/*.h', '**/*.qrc', 'CMakeLists.txt', 'cmake/**', 'tests/**', 'translations/**', 'targeting/data/**', 'assets/**', '.github/workflows/windows.yml', '!.venv/**', '!.uv-cache/**') }}
           DEPENDENCY_HASH: ${{ hashFiles('cmake/TerminalDependencies.cmake') }}
         run: |
           $cmakeVersion = (cmake --version | Select-Object -First 1)
           $ninjaVersion = (ninja --version)
           $identity = "$env:VCToolsVersion|$env:WindowsSDKVersion|$env:QT_VERSION|$env:QT_ROOT_DIR|$cmakeVersion|$ninjaVersion|$((Get-Location).Path)|ccache-$env:CCACHE_VERSION|Embedded"
+          $identity += "|$env:WINDOWS_TARGET_VERSION"
           $toolchainHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($identity))).Substring(0, 16).ToLowerInvariant()
           $prefix = "gs232b-windows-build-v1-${{ runner.os }}-${{ runner.arch }}-$toolchainHash-$env:DEPENDENCY_HASH-"
           "prefix=$prefix" >> $env:GITHUB_OUTPUT
@@ -213,17 +232,18 @@ jobs:
                               (Test-Path "$env:BUILD_DIR/_deps/utf8proc-src/CMakeLists.txt")) { 'ON' } else { 'OFF' }
           cmake -S . -B "$env:BUILD_DIR" -G Ninja `
             "-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR" `
+            "-DCMAKE_SYSTEM_VERSION=$env:WINDOWS_TARGET_VERSION" `
             "-DFETCHCONTENT_FULLY_DISCONNECTED=$disconnected" `
             -DCMAKE_C_COMPILER_LAUNCHER=ccache `
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
             -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_WIN32_EXECUTABLE=ON `
-            -DBUILD_TESTING=OFF
+            -DBUILD_TESTING=ON
 
       - name: Build
         if: steps.restored_build.outputs.reuse != 'true'
-        run: cmake --build "$env:BUILD_DIR" --target gs_232b_open_gui --parallel 4
+        run: cmake --build "$env:BUILD_DIR" --parallel 4
 
       - name: Reuse matching compiled application
         if: steps.restored_build.outputs.reuse == 'true'
@@ -236,6 +256,9 @@ jobs:
       - name: Show ccache hits and misses
         if: always() && steps.ccache.outputs.ready == 'true'
         run: ccache --show-stats --verbose
+
+      - name: Test application behavior
+        run: ctest --test-dir "$env:BUILD_DIR" -C Release --output-on-failure --parallel 2
 
       - name: Restore PE inspection tools
         id: pe_cache

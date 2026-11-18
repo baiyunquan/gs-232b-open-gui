@@ -84,7 +84,7 @@ project_add_library(gs232b_terminal STATIC
 )
 target_compile_features(gs232b_terminal PUBLIC cxx_std_17)
 target_include_directories(gs232b_terminal PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(gs232b_terminal PUBLIC qtpyte::core)
+target_link_libraries(gs232b_terminal PUBLIC qtpyte::core PRIVATE utf8proc)
 
 if(WIN32)
     set(VIRTUAL_SERIAL_PLATFORM_SOURCE virtual_serial/VirtualSerialEndpoint_win.cpp)
@@ -146,6 +146,8 @@ set(GUI_SOURCES
     CommunicationProtocol.cpp
     CommunicationProtocol.h
     MainWindow.cpp
+    ManagementJson.cpp
+    ManagementJson.h
     MainWindowView.cpp
     MainWindowConnection.cpp
     MainWindowCalibration.cpp
@@ -192,7 +194,10 @@ set(GUI_SOURCES
     FirmwareUpgradeDialog.h
 )
 
-project_add_executable(gs_232b_open_gui main.cpp ${GUI_SOURCES} resources/branding.qrc)
+project_add_library(gs232b_gui STATIC ${GUI_SOURCES})
+target_compile_features(gs232b_gui PUBLIC cxx_std_17)
+target_include_directories(gs232b_gui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+project_add_executable(gs_232b_open_gui main.cpp resources/branding.qrc)
 if(APPLE)
     set_target_properties(gs_232b_open_gui PROPERTIES
         MACOSX_BUNDLE TRUE
@@ -209,8 +214,8 @@ endif()
 
 target_compile_features(gs_232b_open_gui PRIVATE cxx_std_17)
 
-target_link_libraries(gs_232b_open_gui
-    PRIVATE
+target_link_libraries(gs232b_gui
+    PUBLIC
         Qt${QT_VERSION_MAJOR}::Widgets
         Qt${QT_VERSION_MAJOR}::Network
         ${QT_MAP_RENDER_TARGETS}
@@ -222,24 +227,14 @@ target_link_libraries(gs_232b_open_gui
         gs232b_n1mm
         gs232b_gridtracker
 )
+target_link_libraries(gs_232b_open_gui PRIVATE gs232b_gui)
 if(BUILD_TESTING)
     find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Test)
-    project_add_executable(command_line_tests
-        tests/CommandLineTests.cpp
-        terminal/CommandLine.cpp
-        terminal/CommandLine.h
-    )
-    target_compile_features(command_line_tests PRIVATE cxx_std_17)
-    target_include_directories(command_line_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(command_line_tests PRIVATE Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME command_line_tests COMMAND command_line_tests)
-
-    project_add_executable(qt_compat_tests tests/QtCompatTests.cpp)
-    target_compile_features(qt_compat_tests PRIVATE cxx_std_17)
-    target_include_directories(qt_compat_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(qt_compat_tests PRIVATE Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME qt_compat_tests COMMAND qt_compat_tests)
-
+    if(WIN32)
+        set(DIALOG_TEST_QPA_PLATFORM windows)
+    else()
+        set(DIALOG_TEST_QPA_PLATFORM offscreen)
+    endif()
     project_add_executable(network_addresses_tests
         tests/NetworkAddressesTests.cpp
         NetworkAddresses.cpp
@@ -248,7 +243,7 @@ if(BUILD_TESTING)
     target_compile_features(network_addresses_tests PRIVATE cxx_std_17)
     target_include_directories(network_addresses_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(network_addresses_tests PRIVATE Qt${QT_VERSION_MAJOR}::Network Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME network_addresses_tests COMMAND network_addresses_tests)
+    add_test(NAME network_addresses_tests COMMAND network_addresses_tests -o -,txt)
 
     project_add_executable(app_settings_tests
         tests/AppSettingsTests.cpp
@@ -258,34 +253,30 @@ if(BUILD_TESTING)
     target_compile_features(app_settings_tests PRIVATE cxx_std_17)
     target_include_directories(app_settings_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(app_settings_tests PRIVATE gs232b_targeting gs232b_n1mm Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME app_settings_tests COMMAND app_settings_tests)
+    add_test(NAME app_settings_tests COMMAND app_settings_tests -o -,txt)
 
     project_add_executable(n1mm_tests tests/N1mmTests.cpp)
     target_link_libraries(n1mm_tests PRIVATE gs232b_n1mm Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME n1mm_tests COMMAND n1mm_tests)
+    add_test(NAME n1mm_tests COMMAND n1mm_tests -o -,txt)
 
-    project_add_executable(n1mm_connection_tests tests/N1mmConnectionTests.cpp ${GUI_SOURCES})
-    target_link_libraries(n1mm_connection_tests PRIVATE
-        Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network ${QT_MAP_RENDER_TARGETS} Qt${QT_VERSION_MAJOR}::SerialPort Qt${QT_VERSION_MAJOR}::WebSockets Qt${QT_VERSION_MAJOR}::Test
-        gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm gs232b_gridtracker)
-    add_test(NAME n1mm_connection_tests COMMAND n1mm_connection_tests)
+    project_add_executable(n1mm_connection_tests tests/N1mmConnectionTests.cpp)
+    target_link_libraries(n1mm_connection_tests PRIVATE gs232b_gui Qt${QT_VERSION_MAJOR}::Test)
+    add_test(NAME n1mm_connection_tests COMMAND n1mm_connection_tests -o -,txt)
     set_tests_properties(n1mm_connection_tests PROPERTIES
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        ENVIRONMENT "QT_QPA_PLATFORM=${DIALOG_TEST_QPA_PLATFORM}"
         RESOURCE_LOCK n1mm_udp_ports)
     set_tests_properties(n1mm_tests PROPERTIES RESOURCE_LOCK n1mm_udp_ports)
 
     project_add_executable(gridtracker_tests tests/GridTrackerTests.cpp)
     target_link_libraries(gridtracker_tests PRIVATE gs232b_gridtracker Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME gridtracker_tests COMMAND gridtracker_tests)
+    add_test(NAME gridtracker_tests COMMAND gridtracker_tests -o -,txt)
 
-    project_add_executable(gridtracker_connection_tests tests/GridTrackerConnectionTests.cpp ${GUI_SOURCES})
-    target_link_libraries(gridtracker_connection_tests PRIVATE
-        Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network ${QT_MAP_RENDER_TARGETS} Qt${QT_VERSION_MAJOR}::SerialPort Qt${QT_VERSION_MAJOR}::WebSockets Qt${QT_VERSION_MAJOR}::Test
-        gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm gs232b_gridtracker)
-    add_test(NAME gridtracker_connection_tests COMMAND gridtracker_connection_tests)
+    project_add_executable(gridtracker_connection_tests tests/GridTrackerConnectionTests.cpp)
+    target_link_libraries(gridtracker_connection_tests PRIVATE gs232b_gui Qt${QT_VERSION_MAJOR}::Test)
+    add_test(NAME gridtracker_connection_tests COMMAND gridtracker_connection_tests -o -,txt)
     set_tests_properties(gridtracker_tests PROPERTIES RESOURCE_LOCK gridtracker_udp_ports)
     set_tests_properties(gridtracker_connection_tests PROPERTIES
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        ENVIRONMENT "QT_QPA_PLATFORM=${DIALOG_TEST_QPA_PLATFORM}"
         RESOURCE_LOCK "gridtracker_udp_ports;n1mm_udp_ports")
 
     project_add_executable(great_circle_map_tests
@@ -296,12 +287,12 @@ if(BUILD_TESTING)
     target_compile_features(great_circle_map_tests PRIVATE cxx_std_17)
     target_include_directories(great_circle_map_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(great_circle_map_tests PRIVATE gs232b_targeting Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Network ${QT_MAP_RENDER_TARGETS} Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME great_circle_map_tests COMMAND great_circle_map_tests)
+    add_test(NAME great_circle_map_tests COMMAND great_circle_map_tests -o -,txt)
     set_tests_properties(great_circle_map_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
     project_add_executable(target_bearing_tests tests/TargetBearingTests.cpp)
     target_link_libraries(target_bearing_tests PRIVATE gs232b_targeting Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME target_bearing_tests COMMAND target_bearing_tests)
+    add_test(NAME target_bearing_tests COMMAND target_bearing_tests -o -,txt)
 
     project_add_executable(target_control_tests
         tests/TargetControlTests.cpp
@@ -316,7 +307,7 @@ if(BUILD_TESTING)
     )
     target_link_libraries(target_control_tests PRIVATE
         gs232b_targeting gs232b_n1mm Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network ${QT_MAP_RENDER_TARGETS} Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME target_control_tests COMMAND target_control_tests)
+    add_test(NAME target_control_tests COMMAND target_control_tests -o -,txt)
     set_tests_properties(target_control_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
     project_add_executable(angle_compensation_tests
@@ -333,7 +324,7 @@ if(BUILD_TESTING)
     )
     target_link_libraries(angle_compensation_tests PRIVATE
         gs232b_targeting gs232b_n1mm Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network ${QT_MAP_RENDER_TARGETS} Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME angle_compensation_tests COMMAND angle_compensation_tests)
+    add_test(NAME angle_compensation_tests COMMAND angle_compensation_tests -o -,txt)
     set_tests_properties(angle_compensation_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
     project_add_executable(shortest_path_tests
@@ -349,7 +340,7 @@ if(BUILD_TESTING)
     )
     target_link_libraries(shortest_path_tests PRIVATE
         gs232b_targeting gs232b_n1mm Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network ${QT_MAP_RENDER_TARGETS} Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME shortest_path_tests COMMAND shortest_path_tests)
+    add_test(NAME shortest_path_tests COMMAND shortest_path_tests -o -,txt)
     set_tests_properties(shortest_path_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
     project_add_executable(motion_control_tests
@@ -364,14 +355,12 @@ if(BUILD_TESTING)
     )
     target_link_libraries(motion_control_tests PRIVATE
         gs232b_targeting gs232b_n1mm Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network ${QT_MAP_RENDER_TARGETS} Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME motion_control_tests COMMAND motion_control_tests)
+    add_test(NAME motion_control_tests COMMAND motion_control_tests -o -,txt)
     set_tests_properties(motion_control_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
-    project_add_executable(motion_connection_tests tests/MotionConnectionTests.cpp ${GUI_SOURCES})
-    target_link_libraries(motion_connection_tests PRIVATE
-        Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network ${QT_MAP_RENDER_TARGETS} Qt${QT_VERSION_MAJOR}::SerialPort Qt${QT_VERSION_MAJOR}::WebSockets Qt${QT_VERSION_MAJOR}::Test
-        gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm gs232b_gridtracker)
-    add_test(NAME motion_connection_tests COMMAND motion_connection_tests)
+    project_add_executable(motion_connection_tests tests/MotionConnectionTests.cpp)
+    target_link_libraries(motion_connection_tests PRIVATE gs232b_gui Qt${QT_VERSION_MAJOR}::Test)
+    add_test(NAME motion_connection_tests COMMAND motion_connection_tests -o -,txt)
     set_tests_properties(motion_connection_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
     project_add_executable(terminal_tests
@@ -382,7 +371,7 @@ if(BUILD_TESTING)
         CommandLog.h
     )
     target_link_libraries(terminal_tests PRIVATE gs232b_terminal Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME terminal_tests COMMAND terminal_tests)
+    add_test(NAME terminal_tests COMMAND terminal_tests -o -,txt)
     set_tests_properties(terminal_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
     project_add_executable(command_log_tests
@@ -393,7 +382,7 @@ if(BUILD_TESTING)
     target_compile_features(command_log_tests PRIVATE cxx_std_17)
     target_include_directories(command_log_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(command_log_tests PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME command_log_tests COMMAND command_log_tests)
+    add_test(NAME command_log_tests COMMAND command_log_tests -o -,txt)
 
     project_add_executable(virtual_serial_tests
         tests/VirtualSerialTests.cpp
@@ -404,7 +393,7 @@ if(BUILD_TESTING)
             gs232b_virtual_serial
             Qt${QT_VERSION_MAJOR}::Test
     )
-    add_test(NAME virtual_serial_tests COMMAND virtual_serial_tests)
+    add_test(NAME virtual_serial_tests COMMAND virtual_serial_tests -o -,txt)
 
     project_add_executable(fault_status_tests
         tests/FaultStatusMonitorTests.cpp
@@ -414,46 +403,40 @@ if(BUILD_TESTING)
     target_compile_features(fault_status_tests PRIVATE cxx_std_17)
     target_include_directories(fault_status_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(fault_status_tests PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Test)
-    add_test(NAME fault_status_tests COMMAND fault_status_tests)
+    add_test(NAME fault_status_tests COMMAND fault_status_tests -o -,txt)
 
     project_add_executable(rotor_model_connection_tests
         tests/RotorModelConnectionTests.cpp
-        ${GUI_SOURCES}
+
     )
     target_compile_features(rotor_model_connection_tests PRIVATE cxx_std_17)
     target_include_directories(rotor_model_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(rotor_model_connection_tests
-        PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network ${QT_MAP_RENDER_TARGETS} Qt${QT_VERSION_MAJOR}::SerialPort Qt${QT_VERSION_MAJOR}::WebSockets Qt${QT_VERSION_MAJOR}::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm gs232b_gridtracker
-    )
-    add_test(NAME rotor_model_connection_tests COMMAND rotor_model_connection_tests)
+    target_link_libraries(rotor_model_connection_tests PRIVATE gs232b_gui Qt${QT_VERSION_MAJOR}::Test)
+    add_test(NAME rotor_model_connection_tests COMMAND rotor_model_connection_tests -o -,txt)
     set_tests_properties(rotor_model_connection_tests PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     )
 
     project_add_executable(ap_provisioning_connection_tests
         tests/ApProvisioningConnectionTests.cpp
-        ${GUI_SOURCES}
+
     )
     target_compile_features(ap_provisioning_connection_tests PRIVATE cxx_std_17)
     target_include_directories(ap_provisioning_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(ap_provisioning_connection_tests
-        PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network ${QT_MAP_RENDER_TARGETS} Qt${QT_VERSION_MAJOR}::SerialPort Qt${QT_VERSION_MAJOR}::WebSockets Qt${QT_VERSION_MAJOR}::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm gs232b_gridtracker
-    )
-    add_test(NAME ap_provisioning_connection_tests COMMAND ap_provisioning_connection_tests)
+    target_link_libraries(ap_provisioning_connection_tests PRIVATE gs232b_gui Qt${QT_VERSION_MAJOR}::Test)
+    add_test(NAME ap_provisioning_connection_tests COMMAND ap_provisioning_connection_tests -o -,txt)
     set_tests_properties(ap_provisioning_connection_tests PROPERTIES
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        ENVIRONMENT "QT_QPA_PLATFORM=${DIALOG_TEST_QPA_PLATFORM}"
     )
 
     project_add_executable(virtual_serial_connection_tests
         tests/VirtualSerialConnectionTests.cpp
-        ${GUI_SOURCES}
+
     )
     target_compile_features(virtual_serial_connection_tests PRIVATE cxx_std_17)
     target_include_directories(virtual_serial_connection_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(virtual_serial_connection_tests
-        PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network ${QT_MAP_RENDER_TARGETS} Qt${QT_VERSION_MAJOR}::SerialPort Qt${QT_VERSION_MAJOR}::WebSockets Qt${QT_VERSION_MAJOR}::Test gs232b_virtual_serial gs232b_terminal gs232b_targeting gs232b_n1mm gs232b_gridtracker
-    )
-    add_test(NAME virtual_serial_connection_tests COMMAND virtual_serial_connection_tests)
+    target_link_libraries(virtual_serial_connection_tests PRIVATE gs232b_gui Qt${QT_VERSION_MAJOR}::Test)
+    add_test(NAME virtual_serial_connection_tests COMMAND virtual_serial_connection_tests -o -,txt)
     set_tests_properties(virtual_serial_connection_tests PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     )
@@ -463,9 +446,33 @@ if(QT_VERSION_MAJOR EQUAL 6)
     qt_add_translations(gs_232b_open_gui
         TS_FILES translations/gs_232b_open_gui_zh_CN.ts
         RESOURCE_PREFIX "/i18n"
+        QM_FILES_OUTPUT_VARIABLE APP_TRANSLATION_FILE
     )
 else()
     qt5_add_translation(APP_TRANSLATION_FILE translations/gs_232b_open_gui_zh_CN.ts)
     add_custom_target(gs232b_app_translation DEPENDS ${APP_TRANSLATION_FILE})
     add_dependencies(gs_232b_open_gui gs232b_app_translation)
+endif()
+
+if(BUILD_TESTING)
+    project_add_executable(application_translation_tests tests/ApplicationTranslationTests.cpp)
+    target_link_libraries(application_translation_tests PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Test)
+    add_dependencies(application_translation_tests gs_232b_open_gui)
+    target_compile_definitions(application_translation_tests PRIVATE
+        APP_TRANSLATION_FILE="${APP_TRANSLATION_FILE}")
+    add_test(NAME application_translation_tests COMMAND application_translation_tests -o -,txt)
+    set_tests_properties(application_translation_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+    project_add_executable(management_json_tests tests/ManagementJsonTests.cpp ManagementJson.cpp)
+    target_include_directories(management_json_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_features(management_json_tests PRIVATE cxx_std_17)
+    target_link_libraries(management_json_tests PRIVATE Qt${QT_VERSION_MAJOR}::Test)
+    add_test(NAME management_json_tests COMMAND management_json_tests -o -,txt)
+
+    # Test executables need stdout even when the application is built as a GUI.
+    get_property(project_tests DIRECTORY PROPERTY TESTS)
+    foreach(test IN LISTS project_tests)
+        set_target_properties(${test} PROPERTIES WIN32_EXECUTABLE FALSE MACOSX_BUNDLE FALSE)
+        set_tests_properties(${test} PROPERTIES TIMEOUT 60)
+    endforeach()
 endif()

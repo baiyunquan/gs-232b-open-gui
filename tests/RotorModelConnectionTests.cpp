@@ -1,3 +1,4 @@
+#include "TestSettings.h"
 #include "AppSettings.h"
 #include "CommunicationProtocol.h"
 #include "ControlPanel.h"
@@ -50,7 +51,6 @@ class RotorModelConnectionTests final : public QObject
     Q_OBJECT
 
 private slots:
-    void initTestCase();
     void init();
     void cleanup();
     void persistsAndRestoresConnectionPreferences();
@@ -74,7 +74,7 @@ private:
     void selectModel(int modelId);
     void submitPassword();
 
-    QTemporaryDir m_settingsDirectory;
+    TestSettings m_settingsDirectory;
     MainWindow *m_window = nullptr;
     ConnectionDialog *m_connection = nullptr;
     RotorModelDialog *m_modelDialog = nullptr;
@@ -84,14 +84,10 @@ private:
     QStringList m_commands;
 };
 
-void RotorModelConnectionTests::initTestCase()
-{
-    QVERIFY(m_settingsDirectory.isValid());
-    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, m_settingsDirectory.path());
-}
-
 void RotorModelConnectionTests::init()
 {
+    QVERIFY(m_settingsDirectory.isValid());
+    m_settingsDirectory.reset();
     m_server = new QWebSocketServer(QStringLiteral("rotor-test"), QWebSocketServer::NonSecureMode);
     QVERIFY(m_server->listen(QHostAddress::LocalHost, 0));
     connect(m_server, &QWebSocketServer::newConnection, this, [this] {

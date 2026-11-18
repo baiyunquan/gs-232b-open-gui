@@ -1,3 +1,4 @@
+#include "TestSettings.h"
 #include "AnglePresets.h"
 #include "AngleReading.h"
 #include "AppSettings.h"
@@ -31,8 +32,7 @@ private slots:
     void changingOffsetCancelsPendingInputAndMotion();
 
 private:
-    QTemporaryDir m_directory;
-    int m_case = 0;
+    TestSettings m_directory;
 };
 
 namespace {
@@ -56,8 +56,7 @@ int normalized(qint64 angle)
 void AngleCompensationTests::init()
 {
     QVERIFY(m_directory.isValid());
-    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope,
-                       m_directory.filePath(QString::number(++m_case)));
+    m_directory.reset();
     QVERIFY(AppSettings().setShortestPathEnabled(false));
 }
 

@@ -56,9 +56,9 @@ QString N1mmController::rotorName() const
 void N1mmController::setControlAvailable(bool available)
 {
     if (available != m_controlAvailable) {
-        // NOTE: 可控状态切换时丢弃已排队数据，防止断线或校准期间的命令在恢复后执行。
-        while (isEnabled() && m_socket.hasPendingDatagrams())
-            m_socket.receiveDatagram(0);
+        // Drop queued commands in readDatagrams(), preserving the socket's readyRead notifications.
+        m_discardPendingCommands = m_discardPendingCommands ||
+                                   (isEnabled() && m_socket.hasPendingDatagrams());
     }
     m_controlAvailable = available;
     if (!available)
@@ -80,9 +80,9 @@ void N1mmController::setTrackingEnabled(bool enabled)
 {
     if (enabled == m_trackingEnabled)
         return;
-    // NOTE: 手动期间的控制报文不得在切回跟踪后重放；模式切换不作废实测读数。
-    while (isEnabled() && m_socket.hasPendingDatagrams())
-        m_socket.receiveDatagram(0);
+    // Drop queued mode-transition commands in readDatagrams() before accepting the new mode.
+    m_discardPendingCommands = m_discardPendingCommands ||
+                               (isEnabled() && m_socket.hasPendingDatagrams());
     m_trackingEnabled = enabled;
 }
 
@@ -104,8 +104,13 @@ bool N1mmController::hasFreshPosition() const
 
 void N1mmController::readDatagrams()
 {
+    bool discardedPendingCommands = false;
     while (m_socket.hasPendingDatagrams()) {
         const QNetworkDatagram datagram = m_socket.receiveDatagram(8193);
+        if (m_discardPendingCommands) {
+            discardedPendingCommands = true;
+            continue;
+        }
         if (!datagram.senderAddress().isLoopback())
             continue;
         const auto command = N1mm::parseCommand(datagram.data());
@@ -122,6 +127,8 @@ void N1mmController::readDatagrams()
             emit errorOccurred(tr("N1MM turn command ignored: no recent rotator position is available."));
         }
     }
+    if (discardedPendingCommands)
+        m_discardPendingCommands = false;
 }
 
 void N1mmController::reportPosition()
